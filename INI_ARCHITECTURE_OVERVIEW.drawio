@@ -1,0 +1,333 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram name="INI ARCHITECTURE OVERVIEW" id="wcwR2TeYnHmLJyrbmV4W">
+    <mxGraphModel dx="3005" dy="1075" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-34" parent="1" style="text;html=1;strokeColor=none;fillColor=#1a1a2e;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#ffffff;spacing=4" value="Manufacturing Prospecting Tool — Complete Architecture&#xa;Integratec B2B Industrial Automation Prospecting" vertex="1">
+          <mxGeometry height="60" width="800" x="200" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-35" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff9e6;strokeColor=#d6b656;strokeWidth=2;dashed=1" value="" vertex="1">
+          <mxGeometry height="80" width="1040" x="80" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-36" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1" value="USER" vertex="1">
+          <mxGeometry height="20" width="80" x="100" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-37" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11" value="Browser (Chrome, etc.)&#xa;Interacts with the app at localhost:5173" vertex="1">
+          <mxGeometry height="45" width="400" x="400" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-38" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fc;strokeColor=#6c8ebf;strokeWidth=2" value="" vertex="1">
+          <mxGeometry height="220" width="1040" x="80" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-39" parent="1" style="text;html=1;strokeColor=none;fillColor=#6c8ebf;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#ffffff;spacingLeft=8" value="FRONTEND — React 18 + Vite + Tailwind · Port 5173" vertex="1">
+          <mxGeometry height="28" width="1040" x="80" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-40" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=12;fontSize=10;spacingTop=4" value="PAGES&#xa;• Dashboard — Metrics cards, search, filters (Contacted, Customer, Status, Relevance), Run pipeline, plant table&#xa;• Map — Leaflet map, MarkerClusterGroup, popups with plant details" vertex="1">
+          <mxGeometry height="80" width="500" x="100" y="245" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-41" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=12;fontSize=10;spacingTop=4" value="COMPONENTS&#xa;• MetricsCards — Total, Contacted, Current Customers, Pending Follow-ups, New This Week&#xa;• PlantTable — Full table, inline edit, bulk select/delete, Contacts button&#xa;• PlantContacts — Modal: list contacts, Find contacts (Apollo), Get email (enrich), Remove" vertex="1">
+          <mxGeometry height="80" width="500" x="100" y="335" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-42" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=12;fontSize=10;spacingTop=4" value="API LAYER (api/plants.ts, api/contacts.ts)&#xa;fetchPlants, fetchMetrics, updatePlant, deletePlant, deletePlantsBulk&#xa;runPipeline, cleanupNonManufacturing&#xa;fetchContacts, findContacts, enrichContact, deleteContact&#xa;utils/plant.ts: getDisplayType() — primary type or first non-generic from types" vertex="1">
+          <mxGeometry height="170" width="480" x="620" y="245" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-43" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=10" value="Vite proxy: /api/* → localhost:3001" vertex="1">
+          <mxGeometry height="30" width="200" x="100" y="415" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-44" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8fc;strokeColor=#9673a6;strokeWidth=2" value="" vertex="1">
+          <mxGeometry height="240" width="1040" x="80" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-45" parent="1" style="text;html=1;strokeColor=none;fillColor=#9673a6;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#ffffff;spacingLeft=8" value="BACKEND — Express + TypeScript · Port 3001" vertex="1">
+          <mxGeometry height="28" width="1040" x="80" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-46" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;spacingLeft=12;fontSize=9;spacingTop=2" value="/api/plants&#xa;GET / — list (contacted, limit, offset), add distance_miles&#xa;GET /metrics — total, contacted, currentCustomers, pendingFollowUps, newThisWeek&#xa;GET /:id — single plant + distance&#xa;GET /:id/photo — proxy Google Places Photo (no key exposure)&#xa;GET /:id/contacts — contacts for plant&#xa;POST /:id/find-contacts — Apollo search by website domain&#xa;PATCH /:id — contacted, current_customer, follow_up_date, notes&#xa;POST /cleanup-non-manufacturing — remove non-manufacturing plants&#xa;DELETE /:id — delete plant (contacts CASCADE)&#xa;DELETE /bulk — bulk delete by ids" vertex="1">
+          <mxGeometry height="180" width="320" x="100" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-47" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;spacingLeft=12;fontSize=10;spacingTop=4" value="/api/pipeline&#xa;POST /run&#xa;  Body: { location?: string }&#xa;  Calls runIngestion(apiKey, { location })&#xa;  Returns { added, updated, total }" vertex="1">
+          <mxGeometry height="100" width="260" x="440" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-48" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;spacingLeft=12;fontSize=10;spacingTop=4" value="/api/contacts&#xa;GET / — list (optional ?plant_id=)&#xa;GET /:id — single contact&#xa;POST /:id/enrich — Apollo enrich for email (phone needs webhook)&#xa;DELETE /:id — remove contact" vertex="1">
+          <mxGeometry height="70" width="260" x="440" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-49" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;spacingLeft=12;fontSize=10;spacingTop=4" value="Other endpoints&#xa;GET /api/health — { status: ok }&#xa;GET /api/debug-env — hasGoogleKey, hasApolloKey, hasOpenAIKey" vertex="1">
+          <mxGeometry height="70" width="220" x="720" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-50" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#82b366;strokeWidth=2" value="" vertex="1">
+          <mxGeometry height="140" width="1040" x="80" y="710" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-51" parent="1" style="text;html=1;strokeColor=none;fillColor=#82b366;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#ffffff;spacingLeft=8" value="SERVICES (backend/src/services/)" vertex="1">
+          <mxGeometry height="28" width="1040" x="80" y="710" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-52" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=12;fontSize=9;spacingTop=4" value="googlePlaces — searchText, getPlaceDetails, MANUFACTURING_QUERIES (32 Integratec-focused queries)&#xa;geocoding — geocodeToViewport(location) → bounds for Places API&#xa;distance — getReferenceCoords (Forney TX 75126), haversineMiles(lat1,lng1,lat2,lng2)&#xa;manufacturingFilter — isExcludedAsNonManufacturing: positive override (brewery etc.) OR exclude by type/summary; isExcludedFromDbPlant for cleanup&#xa;ingestion — runIngestion(apiKey, { location }) orchestrates full pipeline&#xa;llmInterpretation — interpretPlacesInBatches → GPT-4o, batches of 20, returns relevance + reason&#xa;apollo — extractDomain, searchPeopleByDomain(domain, MANUFACTURING_TITLES), enrichPeople(revealEmail, revealPhone=false)" vertex="1">
+          <mxGeometry height="95" width="1000" x="100" y="745" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-53" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1976d2;strokeWidth=2" value="" vertex="1">
+          <mxGeometry height="200" width="520" x="80" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-54" parent="1" style="text;html=1;strokeColor=none;fillColor=#1976d2;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#ffffff;spacingLeft=8" value="SQLite (data.db)" vertex="1">
+          <mxGeometry height="28" width="520" x="80" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-55" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#1976d2;align=left;spacingLeft=12;fontSize=9;spacingTop=2" value="plants&#xa;id, place_id (UNIQUE), name, formatted_address, lat, lng, phone, website, business_status, google_maps_uri&#xa;primary_type, types (JSON), rating, user_rating_count, plus_code, primary_type_display_name, short_formatted_address&#xa;price_level, regular_opening_hours, photo_name, editorial_summary, generative_summary&#xa;city, state, postal_code, manufacturing_relevance, manufacturing_reason&#xa;contacted, current_customer, follow_up_date, notes, created_at, updated_at" vertex="1">
+          <mxGeometry height="110" width="480" x="100" y="905" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-56" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#1976d2;align=left;spacingLeft=12;fontSize=10;spacingTop=4" value="contacts (plant_id → plants.id ON DELETE CASCADE)&#xa;id, plant_id, apollo_id, first_name, last_name, title, email, phone, linkedin_url, source, created_at, updated_at" vertex="1">
+          <mxGeometry height="35" width="480" x="100" y="1025" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-57" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#b85450;strokeWidth=2" value="" vertex="1">
+          <mxGeometry height="200" width="500" x="620" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-58" parent="1" style="text;html=1;strokeColor=none;fillColor=#b85450;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#ffffff;spacingLeft=8" value="EXTERNAL APIs" vertex="1">
+          <mxGeometry height="28" width="500" x="620" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-59" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#b85450;align=left;spacingLeft=12;fontSize=9;spacingTop=2" value="Google Places API (X-Goog-Api-Key)&#xa;• Text Search — places:searchText, 20/page, field mask for all plant data&#xa;• Place Details — GET places/{id} for generativeSummary, types when missing&#xa;• Place Photo — GET {photo_name}/media (proxied by backend)" vertex="1">
+          <mxGeometry height="70" width="220" x="640" y="905" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-60" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#b85450;align=left;spacingLeft=12;fontSize=9" value="Google Geocoding API&#xa;Address → viewport bounds for Places search" vertex="1">
+          <mxGeometry height="40" width="220" x="640" y="985" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-61" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#b85450;align=left;spacingLeft=12;fontSize=9" value="OpenAI GPT-4o&#xa;Batch interpretation of places for manufacturing relevance (high/medium/low/none)" vertex="1">
+          <mxGeometry height="50" width="220" x="880" y="905" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-62" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#b85450;align=left;spacingLeft=12;fontSize=9" value="Apollo.io (X-Api-Key)&#xa;• mixed_people/api_search — by domain + manufacturing titles&#xa;• people/bulk_match — enrich for email (phone needs webhook_url)" vertex="1">
+          <mxGeometry height="60" width="220" x="880" y="965" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-63" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;spacingLeft=12;fontSize=10" value=".env&#xa;GOOGLE_PLACES_API_KEY&#xa;APOLLO_API_KEY&#xa;OPENAI_API_KEY&#xa;PORT=3001" vertex="1">
+          <mxGeometry height="70" width="220" x="880" y="1035" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-64" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#e65100;strokeWidth=2" value="" vertex="1">
+          <mxGeometry height="480" width="1040" x="80" y="1100" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-65" parent="1" style="text;html=1;strokeColor=none;fillColor=#e65100;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#ffffff;spacingLeft=8" value="INGESTION PIPELINE — POST /api/pipeline/run { location?: string }" vertex="1">
+          <mxGeometry height="32" width="1040" x="80" y="1100" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-66" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=10" value="1. Resolve viewport — If location (zip/city): Geocoding API → bounds. Else: DFW_VIEWPORT (default area)" vertex="1">
+          <mxGeometry height="35" width="960" x="120" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-67" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=9" value="2. For each of 32 MANUFACTURING_QUERIES: brewery, bottling plant, beverage manufacturer, food processing, dairy, textile mill, paper mill, chemical, pharmaceutical, water treatment, packaging, distillery, winery, cold storage, plastics, meat/poultry, cannery, flour mill, sugar/oil refinery, steel mill, foundry, cement, glass, rubber, fertilizer, printing, corrugated, injection molding, metal fab, industrial facility" vertex="1">
+          <mxGeometry height="45" width="960" x="120" y="1195" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-68" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=10" value="3. Google Places Text Search — 20 results/page, paginate with pageToken, 500ms delay between pages" vertex="1">
+          <mxGeometry height="35" width="960" x="120" y="1250" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-69" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=9" value="4. Filter: isExcludedAsNonManufacturing — (a) Positive override: if name/summary contains brewery, bottling, distillery, textile, paper mill, etc. → KEEP even if type=bar/store. (b) Exclude by type: supermarket, restaurant, bar, etc. (c) Exclude by summary keywords: supermarket, grocery, etc." vertex="1">
+          <mxGeometry height="50" width="960" x="120" y="1295" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-70" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=10" value="5. Enrich: For places with no summary OR no/weak types → Place Details API (generativeSummary, editorialSummary, types). 150ms delay between calls." vertex="1">
+          <mxGeometry height="40" width="960" x="120" y="1355" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-71" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=10" value="6. placeToRow — Parse to DB row. parseAddressComponents → city, state, postal_code. Dedupe by place_id across queries." vertex="1">
+          <mxGeometry height="35" width="960" x="120" y="1405" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-72" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=10" value="7. GPT-4o batch interpretation — Send batch (max 20) with name, types, summary per place. Returns relevance (high/medium/low/none) + reason. 300ms between batches. Skip if no OPENAI_API_KEY." vertex="1">
+          <mxGeometry height="40" width="960" x="120" y="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-73" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#388e3c;fontSize=10" value="8. Upsert plants — Skip if relevance=none. INSERT with manufacturing_relevance, manufacturing_reason. ON CONFLICT(place_id) DO UPDATE. Contacts deleted explicitly + FK CASCADE on plant delete." vertex="1">
+          <mxGeometry height="40" width="960" x="120" y="1500" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-74" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#c2185b;strokeWidth=2" value="" vertex="1">
+          <mxGeometry height="130" width="1040" x="80" y="1610" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-75" parent="1" style="text;html=1;strokeColor=none;fillColor=#c2185b;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#ffffff;spacingLeft=8" value="CONTACT DISCOVERY FLOW (Phase 2)" vertex="1">
+          <mxGeometry height="28" width="1040" x="80" y="1610" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-76" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8bbd9;strokeColor=#c2185b;align=left;spacingLeft=12;fontSize=9;spacingTop=4" value="User clicks Contacts on plant → PlantContacts modal opens → Find contacts (Apollo) → POST /api/plants/:id/find-contacts&#xa;  • Extracts domain from plant.website (extractDomain)&#xa;  • Apollo mixed_people/api_search with q_organization_domains_list + person_titles (plant manager, maintenance, purchasing, etc.)&#xa;  • Inserts new contacts (apollo_id, first_name, last_name, title, linkedin_url) — no email yet&#xa;→ User clicks Get email on contact → POST /api/contacts/:id/enrich&#xa;  • Apollo people/bulk_match with reveal_personal_emails=true (phone requires webhook, so false)&#xa;  • Updates contact with email, phone if available" vertex="1">
+          <mxGeometry height="85" width="1000" x="100" y="1645" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-77" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#9e9e9e;strokeWidth=1" value="" vertex="1">
+          <mxGeometry height="90" width="1040" x="80" y="1760" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-78" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1" value="NOTES" vertex="1">
+          <mxGeometry height="20" width="80" x="100" y="1765" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-79" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;spacingLeft=4" value="• Distance reference: Forney TX 75126 (haversineMiles computed on GET)&#xa;• Photo proxy: Backend fetches Google Places photos to avoid exposing API key to frontend&#xa;• Deduplication: place_id prevents duplicate plants across queries&#xa;• Integratec targets: Industrial automation prospects (bottling, beverage, process, textile, etc.)" vertex="1">
+          <mxGeometry height="55" width="1000" x="100" y="1788" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-80" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-37" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#666666;" target="_MzZUezJMeJ92PMFVdvX-38">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-81" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-43" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;fontSize=10;" target="_MzZUezJMeJ92PMFVdvX-44" value="HTTP">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-82" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-44" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#1976d2;fontSize=10;" target="_MzZUezJMeJ92PMFVdvX-53" value="CRUD">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-83" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-44" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;fontSize=10;" target="_MzZUezJMeJ92PMFVdvX-57" value="API calls">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-84" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-44" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#666666;fontSize=9;" target="_MzZUezJMeJ92PMFVdvX-63" value="config">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-85" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-66" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#e65100;endArrow=blockThin;endFill=1;" target="_MzZUezJMeJ92PMFVdvX-67">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-86" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-67" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#e65100;endArrow=blockThin;endFill=1;" target="_MzZUezJMeJ92PMFVdvX-68">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-87" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-68" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#e65100;endArrow=blockThin;endFill=1;" target="_MzZUezJMeJ92PMFVdvX-69">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-88" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-69" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#e65100;endArrow=blockThin;endFill=1;" target="_MzZUezJMeJ92PMFVdvX-70">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-89" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-70" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#e65100;endArrow=blockThin;endFill=1;" target="_MzZUezJMeJ92PMFVdvX-71">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-90" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-71" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#e65100;endArrow=blockThin;endFill=1;" target="_MzZUezJMeJ92PMFVdvX-72">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-91" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-72" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#e65100;endArrow=blockThin;endFill=1;" target="_MzZUezJMeJ92PMFVdvX-73">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-203" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1" value="How the Manufacturing Prospecting Tool Works" vertex="1">
+          <mxGeometry height="32" width="560" x="-776" y="972" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-204" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#666666" value="A walkthrough of the end-to-end flow" vertex="1">
+          <mxGeometry height="20" width="400" x="-696" y="1004" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-205" parent="1" style="text;html=1;strokeColor=none;fillColor=#e3f2fd;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;spacingLeft=8" value="① DISCOVER — Find manufacturing plants" vertex="1">
+          <mxGeometry height="28" width="320" x="-816" y="1052" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-206" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#ffa726;fontSize=11" value="You choose a location (or use default DFW area) and click Run Pipeline." vertex="1">
+          <mxGeometry height="36" width="640" x="-816" y="1087" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-207" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#66bb6a;fontSize=11" value="The system searches Google Places for 32 manufacturing types (brewery, bottling, textile, etc.), filters out bars and grocery stores, enriches missing data, and asks GPT whether each place is really manufacturing." vertex="1">
+          <mxGeometry height="48" width="640" x="-816" y="1132" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-208" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#66bb6a;fontSize=11" value="New plants are saved. You see updated counts on the dashboard." vertex="1">
+          <mxGeometry height="36" width="640" x="-816" y="1187" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-209" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-206" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1;strokeColor=#bdbdbd;endArrow=blockThin;endFill=1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="_MzZUezJMeJ92PMFVdvX-207">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-210" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-207" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1;strokeColor=#bdbdbd;endArrow=blockThin;endFill=1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="_MzZUezJMeJ92PMFVdvX-208">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-211" parent="1" style="text;html=1;strokeColor=none;fillColor=#e8eaf6;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;spacingLeft=8" value="② BROWSE — Explore and manage plants" vertex="1">
+          <mxGeometry height="28" width="320" x="-816" y="1252" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-212" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#ffa726;fontSize=11" value="You see plants in a table and on a map. Filter by contacted, customer status, relevance. Search by name or address." vertex="1">
+          <mxGeometry height="40" width="640" x="-816" y="1287" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-213" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#ffa726;fontSize=11" value="Click a plant to edit: mark as contacted, set follow-up date, add notes. Or bulk delete plants you don&#39;t want." vertex="1">
+          <mxGeometry height="40" width="640" x="-816" y="1337" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-214" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-208" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1;strokeColor=#bdbdbd;endArrow=blockThin;endFill=1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="_MzZUezJMeJ92PMFVdvX-211">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-215" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-212" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1;strokeColor=#bdbdbd;endArrow=blockThin;endFill=1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="_MzZUezJMeJ92PMFVdvX-213">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-216" parent="1" style="text;html=1;strokeColor=none;fillColor=#fce4ec;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;spacingLeft=8" value="③ CONTACT — Find people at the plant" vertex="1">
+          <mxGeometry height="28" width="320" x="-816" y="1407" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-217" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#ffa726;fontSize=11" value="You click Contacts on a plant. The system looks up the plant&#39;s website and searches Apollo for people there (plant managers, maintenance, purchasing)." vertex="1">
+          <mxGeometry height="48" width="640" x="-816" y="1442" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-218" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#66bb6a;fontSize=11" value="You see names and titles. Click Get email to reveal the person&#39;s email via Apollo. Now you can reach out." vertex="1">
+          <mxGeometry height="40" width="640" x="-816" y="1497" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-219" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-213" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1;strokeColor=#bdbdbd;endArrow=blockThin;endFill=1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="_MzZUezJMeJ92PMFVdvX-216">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-220" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-217" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1;strokeColor=#bdbdbd;endArrow=blockThin;endFill=1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="_MzZUezJMeJ92PMFVdvX-218">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-221" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;spacingLeft=8" value="That&#39;s it" vertex="1">
+          <mxGeometry height="24" width="100" x="-816" y="1567" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-222" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#9e9e9e;fontSize=11;fontStyle=2" value="You&#39;ve gone from a location → manufacturing plants → contacts with emails. Ready for outreach." vertex="1">
+          <mxGeometry height="36" width="640" x="-816" y="1597" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-223" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-218" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1;strokeColor=#bdbdbd;endArrow=blockThin;endFill=1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="_MzZUezJMeJ92PMFVdvX-222">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-224" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=9;fontColor=#999999" value="You (actions) · System (behind the scenes)" vertex="1">
+          <mxGeometry height="16" width="400" x="-696" y="1652" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-225" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#ffa726;fontSize=9" value="" vertex="1">
+          <mxGeometry height="14" width="24" x="-616" y="1670" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-226" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=9" value="You" vertex="1">
+          <mxGeometry height="18" width="30" x="-588" y="1668" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-227" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#66bb6a;fontSize=9" value="" vertex="1">
+          <mxGeometry height="14" width="24" x="-536" y="1670" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-228" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=9" value="System" vertex="1">
+          <mxGeometry height="18" width="45" x="-508" y="1668" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-231" parent="1" style="swimlane;startSize=70;" value="DATA PIPELINE" vertex="1">
+          <mxGeometry height="530" width="490" x="-820" y="2100" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-242" edge="1" parent="_MzZUezJMeJ92PMFVdvX-231" source="_MzZUezJMeJ92PMFVdvX-232" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="_MzZUezJMeJ92PMFVdvX-241">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-232" parent="_MzZUezJMeJ92PMFVdvX-231" style="html=1;whiteSpace=wrap;" value="Google Places API" vertex="1">
+          <mxGeometry height="50" width="110" x="45" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-244" edge="1" parent="_MzZUezJMeJ92PMFVdvX-231" source="_MzZUezJMeJ92PMFVdvX-241" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="_MzZUezJMeJ92PMFVdvX-249">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="271" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-241" parent="_MzZUezJMeJ92PMFVdvX-231" style="html=1;whiteSpace=wrap;" value="Google Geocoding" vertex="1">
+          <mxGeometry height="50" width="110" x="216" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-247" parent="_MzZUezJMeJ92PMFVdvX-231" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="searchText" vertex="1">
+          <mxGeometry height="30" width="60" x="274" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-248" parent="_MzZUezJMeJ92PMFVdvX-231" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="getPlaceDetails" vertex="1">
+          <mxGeometry height="30" width="60" x="190" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-249" parent="_MzZUezJMeJ92PMFVdvX-231" style="swimlane;" value="Ingestion Script" vertex="1">
+          <mxGeometry height="220" width="319" x="111.5" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-252" edge="1" parent="_MzZUezJMeJ92PMFVdvX-249" source="_MzZUezJMeJ92PMFVdvX-250" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="_MzZUezJMeJ92PMFVdvX-251">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-250" parent="_MzZUezJMeJ92PMFVdvX-249" style="html=1;whiteSpace=wrap;" value="Search" vertex="1">
+          <mxGeometry height="50" width="110" x="11" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-254" edge="1" parent="_MzZUezJMeJ92PMFVdvX-249" source="_MzZUezJMeJ92PMFVdvX-251" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="_MzZUezJMeJ92PMFVdvX-253">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-251" parent="_MzZUezJMeJ92PMFVdvX-249" style="html=1;whiteSpace=wrap;" value="Filter, Enrich, GPT" vertex="1">
+          <mxGeometry height="50" width="110" x="198" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-253" parent="_MzZUezJMeJ92PMFVdvX-249" style="html=1;whiteSpace=wrap;" value="Dedup" vertex="1">
+          <mxGeometry height="50" width="110" x="198" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-256" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="&lt;font style=&quot;&quot;&gt;&lt;span style=&quot;font-size: 24px;&quot;&gt;SQLite&lt;/span&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Plants : Contacts&lt;/font&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="180" width="198" x="-425" y="2800" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-257" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-231" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="_MzZUezJMeJ92PMFVdvX-256">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-277" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-258" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="_MzZUezJMeJ92PMFVdvX-273">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-258" parent="1" style="swimlane;startSize=70;" value="FRONTEND" vertex="1">
+          <mxGeometry height="250" width="490" x="-310" y="2100" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-271" parent="_MzZUezJMeJ92PMFVdvX-258" style="html=1;whiteSpace=wrap;" value="DASHBOARD" vertex="1">
+          <mxGeometry height="50" width="110" x="70" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-272" parent="_MzZUezJMeJ92PMFVdvX-258" style="html=1;whiteSpace=wrap;" value="MAP" vertex="1">
+          <mxGeometry height="50" width="110" x="290" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-273" parent="1" style="swimlane;startSize=70;" value="BACKEND" vertex="1">
+          <mxGeometry height="200" width="490" x="-310" y="2430" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-276" parent="_MzZUezJMeJ92PMFVdvX-273" style="html=1;whiteSpace=wrap;" value="Rest API" vertex="1">
+          <mxGeometry height="50" width="110" x="190" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-278" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Fetch" vertex="1">
+          <mxGeometry height="30" width="60" x="-56" y="2370" as="geometry" />
+        </mxCell>
+        <mxCell id="_MzZUezJMeJ92PMFVdvX-279" edge="1" parent="1" source="_MzZUezJMeJ92PMFVdvX-273" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="_MzZUezJMeJ92PMFVdvX-256">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

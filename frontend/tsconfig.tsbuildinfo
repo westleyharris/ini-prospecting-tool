@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/api/contacts.ts","./src/api/plants.ts","./src/components/metricscards.tsx","./src/components/plantcontacts.tsx","./src/components/plantmap.tsx","./src/components/planttable.tsx","./src/pages/dashboard.tsx","./src/pages/map.tsx","./src/utils/plant.ts"],"version":"5.9.3"}
