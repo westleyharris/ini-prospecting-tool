@@ -92,11 +92,23 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [relevanceFilter, setRelevanceFilter] = useState("all");
   const [showAddPlant, setShowAddPlant] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const filteredPlants = useMemo(
     () => filterPlants(plants, search, contactedFilter, customerFilter, statusFilter, relevanceFilter),
     [plants, search, contactedFilter, customerFilter, statusFilter, relevanceFilter]
   );
+
+  const totalFiltered = filteredPlants.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedPlants = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredPlants.slice(start, start + pageSize);
+  }, [filteredPlants, safePage, pageSize]);
+  const startItem = totalFiltered === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const endItem = Math.min(safePage * pageSize, totalFiltered);
 
   const load = async () => {
     setLoading(true);
@@ -117,6 +129,10 @@ export default function Dashboard() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, contactedFilter, customerFilter, statusFilter, relevanceFilter]);
 
   const handleRunPipeline = async () => {
     setPipelineRunning(true);
@@ -271,12 +287,61 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-        <p className="text-sm text-gray-500">
-          Showing {filteredPlants.length} of {plants.length} plants
-        </p>
+        <div className="flex flex-wrap items-center gap-4">
+          <p className="text-sm text-gray-500">
+            {totalFiltered === 0
+              ? "No plants match filters"
+              : `Showing ${startItem}-${endItem} of ${totalFiltered} plants`}
+            {plants.length !== totalFiltered && totalFiltered > 0 && (
+              <span className="ml-1"> (filtered from {plants.length})</span>
+            )}
+          </p>
+          <div className="flex items-center gap-2">
+            <label htmlFor="page-size" className="text-sm text-gray-600">
+              Rows per page
+            </label>
+            <select
+              id="page-size"
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="px-3 py-1.5 text-sm text-gray-600">
+                Page {safePage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <PlantTable plants={filteredPlants} loading={loading} onUpdate={load} />
+      <PlantTable plants={paginatedPlants} loading={loading} onUpdate={load} />
 
       {showAddPlant && (
         <AddPlantModal
