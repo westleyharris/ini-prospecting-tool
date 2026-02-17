@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { Plant } from "../api/plants";
 import { updatePlant, deletePlant, deletePlantsBulk } from "../api/plants";
 import PlantContacts from "./PlantContacts";
+import PlantVisits from "./PlantVisits";
+import PlantProjects from "./PlantProjects";
 
 function formatOpeningHours(json: string | null): string {
   if (!json) return "";
@@ -55,6 +57,8 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [contactsPlant, setContactsPlant] = useState<Plant | null>(null);
+  const [visitsPlant, setVisitsPlant] = useState<Plant | null>(null);
+  const [projectsPlant, setProjectsPlant] = useState<Plant | null>(null);
 
   const startEdit = (plant: Plant) => {
     setEditingId(plant.id);
@@ -237,6 +241,12 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
                 Rating
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Visits
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Projects
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Contacted
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -256,8 +266,8 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
           <tbody className="bg-white divide-y divide-gray-200">
             {plants.length === 0 ? (
               <tr>
-                <td colSpan={20} className="px-4 py-8 text-center text-gray-500">
-                  
+                <td colSpan={22} className="px-4 py-8 text-center text-gray-500">
+                  No plants
                 </td>
               </tr>
             ) : (
@@ -398,6 +408,22 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
                     )}
                   </td>
                   <td className="px-4 py-3">
+                    <button
+                      onClick={() => setVisitsPlant(plant)}
+                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {plant.visit_count ?? 0}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => setProjectsPlant(plant)}
+                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {plant.project_count ?? 0}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">
                     {editingId === plant.id ? (
                       <input
                         type="checkbox"
@@ -515,6 +541,20 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
         <PlantContacts
           plant={contactsPlant}
           onClose={() => setContactsPlant(null)}
+        />
+      )}
+      {visitsPlant && (
+        <PlantVisits
+          plant={visitsPlant}
+          onClose={() => setVisitsPlant(null)}
+          onUpdate={onUpdate}
+        />
+      )}
+      {projectsPlant && (
+        <PlantProjects
+          plant={projectsPlant}
+          onClose={() => setProjectsPlant(null)}
+          onUpdate={onUpdate}
         />
       )}
     </div>

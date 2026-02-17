@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import MetricsCards from "../components/MetricsCards";
 import PlantTable from "../components/PlantTable";
+import AddPlantModal from "../components/AddPlantModal";
 import {
   fetchPlants,
   fetchMetrics,
@@ -90,6 +91,7 @@ export default function Dashboard() {
   const [customerFilter, setCustomerFilter] = useState<"all" | "yes" | "no">("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [relevanceFilter, setRelevanceFilter] = useState("all");
+  const [showAddPlant, setShowAddPlant] = useState(false);
 
   const filteredPlants = useMemo(
     () => filterPlants(plants, search, contactedFilter, customerFilter, statusFilter, relevanceFilter),
@@ -150,6 +152,12 @@ export default function Dashboard() {
               className="block w-full sm:w-56 rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
+          <button
+            onClick={() => setShowAddPlant(true)}
+            className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 whitespace-nowrap"
+          >
+            Add plant
+          </button>
           <button
             onClick={handleRunPipeline}
             disabled={pipelineRunning}
@@ -269,6 +277,13 @@ export default function Dashboard() {
       </div>
 
       <PlantTable plants={filteredPlants} loading={loading} onUpdate={load} />
+
+      {showAddPlant && (
+        <AddPlantModal
+          onClose={() => setShowAddPlant(false)}
+          onAdded={load}
+        />
+      )}
     </div>
   );
 }

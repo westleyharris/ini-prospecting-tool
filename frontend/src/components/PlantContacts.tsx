@@ -5,6 +5,7 @@ import {
   findContacts,
   enrichContact,
   deleteContact,
+  createContact,
   type Contact,
 } from "../api/contacts";
 
@@ -19,6 +20,13 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
   const [finding, setFinding] = useState(false);
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [addFirst, setAddFirst] = useState("");
+  const [addLast, setAddLast] = useState("");
+  const [addTitle, setAddTitle] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addPhone, setAddPhone] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -75,6 +83,37 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
     }
   };
 
+  const handleAddContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addFirst.trim() && !addLast.trim()) {
+      alert("Enter at least first or last name.");
+      return;
+    }
+    setAdding(true);
+    try {
+      const created = await createContact({
+        plant_id: plant.id,
+        first_name: addFirst.trim() || undefined,
+        last_name: addLast.trim() || undefined,
+        title: addTitle.trim() || undefined,
+        email: addEmail.trim() || undefined,
+        phone: addPhone.trim() || undefined,
+      });
+      setContacts((prev) => [created, ...prev]);
+      setShowAddForm(false);
+      setAddFirst("");
+      setAddLast("");
+      setAddTitle("");
+      setAddEmail("");
+      setAddPhone("");
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to add contact");
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const handleDelete = async (contact: Contact) => {
     if (!confirm(`Remove ${contact.first_name ?? ""} ${contact.last_name ?? ""}?`)) return;
     setDeletingId(contact.id);
@@ -112,17 +151,71 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
             ×
           </button>
         </div>
-        <div className="px-6 py-4 border-b border-gray-200">
-          <button
-            onClick={handleFindContacts}
-            disabled={finding || !plant.website}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {finding ? "Searching..." : "Find contacts (Apollo)"}
-          </button>
+        <div className="px-6 py-4 border-b border-gray-200 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowAddForm((v) => !v)}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              {showAddForm ? "Cancel" : "Add contact"}
+            </button>
+            <button
+              onClick={handleFindContacts}
+              disabled={finding || !plant.website}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {finding ? "Searching..." : "Find contacts (Apollo)"}
+            </button>
+          </div>
+          {showAddForm && (
+            <form onSubmit={handleAddContact} className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-4 bg-gray-50 rounded-md">
+              <input
+                type="text"
+                placeholder="First name"
+                value={addFirst}
+                onChange={(e) => setAddFirst(e.target.value)}
+                className="rounded border-gray-300 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Last name"
+                value={addLast}
+                onChange={(e) => setAddLast(e.target.value)}
+                className="rounded border-gray-300 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Title"
+                value={addTitle}
+                onChange={(e) => setAddTitle(e.target.value)}
+                className="rounded border-gray-300 text-sm sm:col-span-2"
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={addEmail}
+                onChange={(e) => setAddEmail(e.target.value)}
+                className="rounded border-gray-300 text-sm"
+              />
+              <input
+                type="tel"
+                placeholder="Phone"
+                value={addPhone}
+                onChange={(e) => setAddPhone(e.target.value)}
+                className="rounded border-gray-300 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={adding}
+                className="sm:col-span-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+              >
+                {adding ? "Adding..." : "Save contact"}
+              </button>
+            </form>
+          )}
           {!plant.website && (
-            <p className="text-sm text-amber-600 mt-2">
-              No website — add a website to this plant to find contacts.
+            <p className="text-sm text-amber-600">
+              No website — add a website to this plant to find contacts via Apollo.
             </p>
           )}
         </div>
@@ -131,7 +224,7 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
             <p className="text-gray-500">Loading contacts...</p>
           ) : contacts.length === 0 ? (
             <p className="text-gray-500">
-              No contacts yet. Click &quot;Find contacts&quot; to search Apollo for people at this company.
+              No contacts yet. Add a contact manually or use &quot;Find contacts&quot; to search Apollo.
             </p>
           ) : (
             <ul className="space-y-4">

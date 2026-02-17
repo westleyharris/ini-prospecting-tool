@@ -17,18 +17,21 @@ plantsRouter.get("/", async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 500, 1000);
     const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
 
-    let sql = "SELECT * FROM plants WHERE 1=1";
+    let sql = `SELECT p.*,
+      (SELECT COUNT(*) FROM visits v WHERE v.plant_id = p.id) as visit_count,
+      (SELECT COUNT(*) FROM projects proj WHERE proj.plant_id = p.id) as project_count
+      FROM plants p WHERE 1=1`;
     const params: (string | number)[] = [];
 
     if (contacted !== undefined) {
       if (contacted === "true" || contacted === "1") {
-        sql += " AND contacted = 1";
+        sql += " AND p.contacted = 1";
       } else if (contacted === "false" || contacted === "0") {
-        sql += " AND contacted = 0";
+        sql += " AND p.contacted = 0";
       }
     }
 
-    sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    sql += " ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
     const plants = db.prepare(sql).all(...params) as Record<string, unknown>[];
@@ -52,6 +55,47 @@ plantsRouter.get("/", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch plants" });
+  }
+});
+
+plantsRouter.post("/", (req, res) => {
+  try {
+    const { name, formatted_address, city, state, postal_code, phone, website, notes } = req.body;
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ error: "name is required" });
+    }
+    const id = uuidv4();
+    const placeId = `manual-${id}`;
+    const shortAddr = [city, state].filter(Boolean).join(", ") || formatted_address?.trim() || null;
+
+    db.prepare(
+      `INSERT INTO plants (
+        id, place_id, name, formatted_address, city, state, postal_code,
+        phone, website, data_source, notes, short_formatted_address,
+        contacted, current_customer, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?, ?, 0, 0, datetime('now'), datetime('now'))`
+    ).run(
+      id,
+      placeId,
+      name.trim(),
+      formatted_address?.trim() || null,
+      city?.trim() || null,
+      state?.trim() || null,
+      postal_code?.trim() || null,
+      phone?.trim() || null,
+      website?.trim() || null,
+      notes?.trim() || null,
+      shortAddr
+    );
+
+    const plant = db.prepare("SELECT * FROM plants WHERE id = ?").get(id) as Record<string, unknown>;
+    (plant as Record<string, unknown>).visit_count = 0;
+    (plant as Record<string, unknown>).project_count = 0;
+    (plant as Record<string, unknown>).distance_miles = null;
+    res.status(201).json(plant);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to create plant" });
   }
 });
 
@@ -85,12 +129,19 @@ plantsRouter.get("/metrics", (req, res) => {
         .get() as { c: number }
     ).c;
 
+    const totalVisits = (db.prepare("SELECT COUNT(*) as c FROM visits").get() as { c: number }).c;
+    const totalProjects = (db.prepare("SELECT COUNT(*) as c FROM projects").get() as { c: number }).c;
+    const totalCommissionings = (db.prepare("SELECT COUNT(*) as c FROM commissionings").get() as { c: number }).c;
+
     res.json({
       total,
       contacted,
       currentCustomers,
       pendingFollowUps,
       newThisWeek,
+      totalVisits,
+      totalProjects,
+      totalCommissionings,
     });
   } catch (err) {
     console.error(err);

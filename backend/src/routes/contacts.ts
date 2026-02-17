@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { v4 as uuidv4 } from "uuid";
 import { db } from "../db.js";
 import {
   searchPeopleByDomain,
@@ -7,6 +8,37 @@ import {
 } from "../services/apollo.js";
 
 export const contactsRouter = Router();
+
+contactsRouter.post("/", (req, res) => {
+  try {
+    const { plant_id, first_name, last_name, title, email, phone } = req.body;
+    if (!plant_id || typeof plant_id !== "string") {
+      return res.status(400).json({ error: "plant_id is required" });
+    }
+    const plant = db.prepare("SELECT id FROM plants WHERE id = ?").get(plant_id);
+    if (!plant) {
+      return res.status(404).json({ error: "Plant not found" });
+    }
+    const id = uuidv4();
+    db.prepare(
+      `INSERT INTO contacts (id, plant_id, apollo_id, first_name, last_name, title, email, phone, source, created_at, updated_at)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 'manual', datetime('now'), datetime('now'))`
+    ).run(
+      id,
+      plant_id,
+      first_name ?? null,
+      last_name ?? null,
+      title ?? null,
+      email ?? null,
+      phone ?? null
+    );
+    const contact = db.prepare("SELECT * FROM contacts WHERE id = ?").get(id);
+    res.status(201).json(contact);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to create contact" });
+  }
+});
 
 contactsRouter.get("/", (req, res) => {
   try {

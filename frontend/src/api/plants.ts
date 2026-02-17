@@ -34,6 +34,8 @@ export interface Plant {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  visit_count?: number;
+  project_count?: number;
 }
 
 export interface Metrics {
@@ -42,6 +44,31 @@ export interface Metrics {
   currentCustomers: number;
   pendingFollowUps: number;
   newThisWeek: number;
+  totalVisits?: number;
+  totalProjects?: number;
+  totalCommissionings?: number;
+}
+
+export async function createPlant(data: {
+  name: string;
+  formatted_address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  phone?: string;
+  website?: string;
+  notes?: string;
+}): Promise<Plant> {
+  const res = await fetch("/api/plants", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to create plant");
+  }
+  return res.json();
 }
 
 export async function fetchPlants(params?: {

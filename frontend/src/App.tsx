@@ -1,6 +1,10 @@
 import { Routes, Route, NavLink } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import MapPage from "./pages/Map";
+import ReportsPage from "./pages/ReportsPage";
+import ProjectsPage from "./pages/ProjectsPage";
+import CommissioningsPage from "./pages/CommissioningsPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
 
 function App() {
   return (
@@ -39,6 +43,42 @@ function App() {
                 >
                   Map
                 </NavLink>
+                <NavLink
+                  to="/reports"
+                  className={({ isActive }) =>
+                    `inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                      isActive
+                        ? "bg-gray-100 text-gray-900"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`
+                  }
+                >
+                  Reports
+                </NavLink>
+                <NavLink
+                  to="/projects"
+                  className={({ isActive }) =>
+                    `inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                      isActive
+                        ? "bg-gray-100 text-gray-900"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`
+                  }
+                >
+                  Projects
+                </NavLink>
+                <NavLink
+                  to="/commissionings"
+                  className={({ isActive }) =>
+                    `inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                      isActive
+                        ? "bg-gray-100 text-gray-900"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`
+                  }
+                >
+                  Commissionings
+                </NavLink>
               </div>
             </div>
           </div>
@@ -49,6 +89,10 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/map" element={<MapPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:id" element={<ProjectDetailPage />} />
+          <Route path="/commissionings" element={<CommissioningsPage />} />
         </Routes>
       </main>
     </div>

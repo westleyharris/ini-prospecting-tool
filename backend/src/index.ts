@@ -31,7 +31,11 @@ import cors from "cors";
 import { plantsRouter } from "./routes/plants.js";
 import { pipelineRouter } from "./routes/pipeline.js";
 import { contactsRouter } from "./routes/contacts.js";
+import { visitsRouter } from "./routes/visits.js";
+import { projectsRouter } from "./routes/projects.js";
+import { commissioningsRouter } from "./routes/commissionings.js";
 import "./db.js";
+import "./services/uploads.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +46,9 @@ app.use(express.json());
 app.use("/api/plants", plantsRouter);
 app.use("/api/pipeline", pipelineRouter);
 app.use("/api/contacts", contactsRouter);
+app.use("/api/visits", visitsRouter);
+app.use("/api/projects", projectsRouter);
+app.use("/api/commissionings", commissioningsRouter);
 
 app.get("/api/health", (_, res) => {
   res.json({ status: "ok" });

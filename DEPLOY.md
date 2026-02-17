@@ -64,8 +64,9 @@ To persist data:
 1. In Railway, add a **Volume** to your service
 2. Mount path: `/data`
 3. Add variable: `DATABASE_PATH=/data/data.db`
+4. Add variable: `UPLOADS_PATH=/data/uploads` (for visit reports and project files to persist)
 
-The app reads `DATABASE_PATH` and will store the SQLite file on the volume.
+The app reads `DATABASE_PATH` and `UPLOADS_PATH` and will store the SQLite file and uploads on the volume.
 
 ## Build & start
 

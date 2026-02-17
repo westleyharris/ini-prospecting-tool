@@ -48,6 +48,66 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_contacts_plant_id ON contacts(plant_id);
   CREATE INDEX IF NOT EXISTS idx_contacts_apollo_id ON contacts(apollo_id);
+
+  CREATE TABLE IF NOT EXISTS sequences (
+    name TEXT PRIMARY KEY,
+    next_value INTEGER NOT NULL DEFAULT 1
+  );
+  INSERT OR IGNORE INTO sequences (name, next_value) VALUES ('pr', 1), ('comm', 1);
+
+  CREATE TABLE IF NOT EXISTS visits (
+    id TEXT PRIMARY KEY,
+    plant_id TEXT NOT NULL REFERENCES plants(id) ON DELETE CASCADE,
+    visit_date TEXT NOT NULL,
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_visits_plant_id ON visits(plant_id);
+  CREATE INDEX IF NOT EXISTS idx_visits_visit_date ON visits(visit_date);
+
+  CREATE TABLE IF NOT EXISTS visit_files (
+    id TEXT PRIMARY KEY,
+    visit_id TEXT NOT NULL REFERENCES visits(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    content_type TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_visit_files_visit_id ON visit_files(visit_id);
+
+  CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY,
+    plant_id TEXT NOT NULL REFERENCES plants(id) ON DELETE CASCADE,
+    pr_number TEXT UNIQUE NOT NULL,
+    status TEXT DEFAULT 'draft',
+    source_visit_id TEXT REFERENCES visits(id) ON DELETE SET NULL,
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_projects_plant_id ON projects(plant_id);
+  CREATE INDEX IF NOT EXISTS idx_projects_pr_number ON projects(pr_number);
+  CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+
+  CREATE TABLE IF NOT EXISTS project_files (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    file_type TEXT DEFAULT 'other',
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_project_files_project_id ON project_files(project_id);
+
+  CREATE TABLE IF NOT EXISTS commissionings (
+    id TEXT PRIMARY KEY,
+    project_id TEXT UNIQUE NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    comm_number TEXT UNIQUE NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_commissionings_project_id ON commissionings(project_id);
+  CREATE INDEX IF NOT EXISTS idx_commissionings_comm_number ON commissionings(comm_number);
 `);
 
 // Migrations: add new columns if they don't exist
@@ -132,4 +192,70 @@ export interface Contact {
   source: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface Visit {
+  id: string;
+  plant_id: string;
+  visit_date: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VisitFile {
+  id: string;
+  visit_id: string;
+  filename: string;
+  original_name: string;
+  content_type: string | null;
+  created_at: string;
+}
+
+export interface Project {
+  id: string;
+  plant_id: string;
+  pr_number: string;
+  status: string;
+  source_visit_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectFile {
+  id: string;
+  project_id: string;
+  filename: string;
+  original_name: string;
+  file_type: string;
+  created_at: string;
+}
+
+export interface Commissioning {
+  id: string;
+  project_id: string;
+  comm_number: string;
+  created_at: string;
+}
+
+export function getNextSequence(name: "pr" | "comm"): { value: number; formatted: string } {
+  const prefix = name === "pr" ? "PR" : "COMM";
+  const run = db.transaction(() => {
+    const row = db
+      .prepare("SELECT next_value FROM sequences WHERE name = ?")
+      .get(name) as { next_value: number } | undefined;
+    if (!row) {
+      db.prepare("INSERT OR IGNORE INTO sequences (name, next_value) VALUES (?, 1)").run(name);
+    }
+    const current = db
+      .prepare("SELECT next_value FROM sequences WHERE name = ?")
+      .get(name) as { next_value: number };
+    const value = current?.next_value ?? 1;
+    db.prepare("UPDATE sequences SET next_value = next_value + 1 WHERE name = ?").run(name);
+    return value;
+  });
+  const value = run();
+  const formatted = `${prefix}-${String(value).padStart(3, "0")}`;
+  return { value, formatted };
 }

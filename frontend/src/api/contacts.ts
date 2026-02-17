@@ -47,6 +47,26 @@ export async function enrichContact(contactId: string): Promise<Contact> {
   return res.json();
 }
 
+export async function createContact(data: {
+  plant_id: string;
+  first_name?: string;
+  last_name?: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+}): Promise<Contact> {
+  const res = await fetch("/api/contacts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to create contact");
+  }
+  return res.json();
+}
+
 export async function deleteContact(contactId: string): Promise<void> {
   const res = await fetch(`/api/contacts/${contactId}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete contact");

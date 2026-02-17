@@ -24,7 +24,7 @@ export default function MetricsCards({ metrics, loading }: MetricsCardsProps) {
 
   if (!metrics) return null;
 
-  const cards = [
+  const cards: { label: string; value: number; color: string }[] = [
     { label: "Total Plants", value: metrics.total, color: "text-blue-600" },
     { label: "Contacted", value: metrics.contacted, color: "text-green-600" },
     {
@@ -38,10 +38,13 @@ export default function MetricsCards({ metrics, loading }: MetricsCardsProps) {
       color: "text-amber-600",
     },
     { label: "New This Week", value: metrics.newThisWeek, color: "text-purple-600" },
+    { label: "Visits", value: metrics.totalVisits ?? 0, color: "text-sky-600" },
+    { label: "Projects", value: metrics.totalProjects ?? 0, color: "text-indigo-600" },
+    { label: "Commissionings", value: metrics.totalCommissionings ?? 0, color: "text-teal-600" },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
       {cards.map(({ label, value, color }) => (
         <div key={label} className="bg-white rounded-lg shadow p-6">
           <p className="text-sm font-medium text-gray-500">{label}</p>
