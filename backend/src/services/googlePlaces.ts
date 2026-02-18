@@ -152,6 +152,4 @@ export const MANUFACTURING_QUERIES = [
   "printing plant",
   "corrugated box manufacturer",
   "injection molding",
-  "metal fabrication",
-  "industrial facility",
 ];

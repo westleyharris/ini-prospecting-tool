@@ -54,7 +54,7 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
       const result = await findContacts(plant.id);
       setContacts(result.contacts);
       if (result.added > 0) {
-        alert(`Found ${result.added} new contact${result.added === 1 ? "" : "s"}. Use "Get email" to retrieve contact details (consumes Apollo credits).`);
+        alert(`Found ${result.added} new contact${result.added === 1 ? "" : "s"} with email addresses.`);
       } else if (result.total > 0) {
         alert("No new contacts found. Existing contacts are shown.");
       } else {
@@ -164,7 +164,7 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
               disabled={finding || !plant.website}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {finding ? "Searching..." : "Find contacts (Apollo)"}
+              {finding ? "Searching..." : "Find contacts (Hunter)"}
             </button>
           </div>
           {showAddForm && (
@@ -215,7 +215,7 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
           )}
           {!plant.website && (
             <p className="text-sm text-amber-600">
-              No website — add a website to this plant to find contacts via Apollo.
+              No website — add a website to this plant to find contacts via Hunter.
             </p>
           )}
         </div>
@@ -224,7 +224,7 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
             <p className="text-gray-500">Loading contacts...</p>
           ) : contacts.length === 0 ? (
             <p className="text-gray-500">
-              No contacts yet. Add a contact manually or use &quot;Find contacts&quot; to search Apollo.
+              No contacts yet. Add a contact manually or use &quot;Find contacts&quot; to search Hunter.
             </p>
           ) : (
             <ul className="space-y-4">
@@ -269,7 +269,7 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
                       )}
                       {!contact.email && contact.apollo_id && (
                         <p className="text-xs text-amber-600 mt-1">
-                          Click &quot;Get email&quot; to retrieve (consumes credits)
+                          Legacy Apollo contact — click &quot;Get email&quot; to retrieve
                         </p>
                       )}
                     </div>

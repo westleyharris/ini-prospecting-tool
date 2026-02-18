@@ -55,13 +55,13 @@ app.get("/api/health", (_, res) => {
 });
 
 app.get("/api/debug-env", (_, res) => {
-  const apolloKey = (process.env.APOLLO_API_KEY || "").trim();
+  const hunterKey = (process.env.HUNTER_API_KEY || "").trim();
   const openaiKey = (process.env.OPENAI_API_KEY || "").trim();
   res.json({
     hasGoogleKey: !!process.env.GOOGLE_PLACES_API_KEY,
-    hasApolloKey: !!apolloKey,
-    apolloKeyLength: apolloKey.length,
-    apolloKeyPreview: apolloKey ? `${apolloKey.slice(0, 4)}...${apolloKey.slice(-4)}` : null,
+    hasHunterKey: !!hunterKey,
+    hunterKeyLength: hunterKey.length,
+    hunterKeyPreview: hunterKey ? `${hunterKey.slice(0, 4)}...${hunterKey.slice(-4)}` : null,
     hasOpenAIKey: !!openaiKey,
     openaiKeyLength: openaiKey.length,
     envPathsChecked: envPaths,
@@ -83,8 +83,8 @@ app.listen(PORT, () => {
   if (!process.env.GOOGLE_PLACES_API_KEY) {
     console.warn("WARNING: GOOGLE_PLACES_API_KEY not set. Checked:", envPaths.join(", "));
   }
-  if (!process.env.APOLLO_API_KEY) {
-    console.warn("WARNING: APOLLO_API_KEY not set. Contact discovery (Phase 2) will not work.");
+  if (!process.env.HUNTER_API_KEY) {
+    console.warn("WARNING: HUNTER_API_KEY not set. Contact discovery will not work.");
   }
   if (!process.env.OPENAI_API_KEY) {
     console.warn("WARNING: OPENAI_API_KEY not set. LLM manufacturing interpretation will be skipped.");

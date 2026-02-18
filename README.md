@@ -9,7 +9,7 @@ A data pipeline and UI for discovering manufacturing plants in the DFW area via 
 - **Dashboard**: Metrics (total, contacted, pending follow-ups, new this week), plant table with inline edit
 - **Map**: US map with plant markers, clustering, filter by contacted status
 - **Run Pipeline**: Manual trigger to ingest new plants
-- **Contact Discovery (Phase 2)**: Find contacts at plants via Apollo.io — Plant Manager, Maintenance Manager, Purchasing Manager, etc.
+- **Contact Discovery**: Find contacts at plants via Hunter.io — Plant Manager, Maintenance Manager, Purchasing Manager, etc. (emails included)
 
 ## Data from Google Places
 
@@ -42,7 +42,7 @@ See [DEPLOY.md](DEPLOY.md) for full instructions on hosting on Railway.
 
 - Node.js 18+
 - Google Places API key with Places API (New) enabled and billing configured
-- Apollo.io API key (for Phase 2 contact discovery)
+- Hunter.io API key (for contact discovery)
 
 ## Setup
 
@@ -66,7 +66,7 @@ See [DEPLOY.md](DEPLOY.md) for full instructions on hosting on Railway.
 
    ```
    GOOGLE_PLACES_API_KEY=your_api_key_here
-   APOLLO_API_KEY=your_apollo_api_key_here
+   HUNTER_API_KEY=your_hunter_api_key_here
    PORT=3001
    ```
 
@@ -137,16 +137,15 @@ INI Data Pipeline/
 - `DELETE /api/plants/bulk` - Remove multiple plants (body: `{ "ids": ["id1", "id2", ...] }`)
 - `POST /api/pipeline/run` - Trigger ingestion from Google Places (body: `{ "location": "75001" }` optional zip/city)
 - `GET /api/plants/:id/contacts` - List contacts for a plant
-- `POST /api/plants/:id/find-contacts` - Find contacts via Apollo.io (uses plant website domain)
-- `POST /api/contacts/:id/enrich` - Enrich contact to get email/phone (consumes Apollo credits)
+- `POST /api/plants/:id/find-contacts` - Find contacts via Hunter.io (uses plant website domain, returns emails)
+- `POST /api/contacts/:id/enrich` - Enrich legacy Apollo contact to get email/phone (for contacts without Hunter)
 - `DELETE /api/contacts/:id` - Remove contact
 
-## Phase 2: Contact Discovery
+## Contact Discovery
 
 1. Click **Contacts** on a plant row in the Dashboard
-2. Click **Find contacts (Apollo)** — searches Apollo for people at the plant's company domain (Plant Manager, Maintenance Manager, etc.). Does not consume credits.
-3. Click **Get email** on a contact — enriches the contact to retrieve email and phone. **Consumes Apollo credits.**
-4. Plants must have a website to find contacts.
+2. Click **Find contacts (Hunter)** — searches Hunter.io for people at the plant's company domain (Plant Manager, Maintenance Manager, etc.). Emails and phones are included in the results.
+3. Plants must have a website to find contacts.
 
 ## Future Extensibility
 

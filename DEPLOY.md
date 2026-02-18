@@ -45,7 +45,7 @@ In the Railway dashboard:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GOOGLE_PLACES_API_KEY` | Yes | Google Places API key (Places API New + Geocoding enabled) |
-| `APOLLO_API_KEY` | For contacts | Apollo.io API key for contact discovery |
+| `HUNTER_API_KEY` | For contacts | Hunter.io API key for contact discovery (domain search) |
 | `OPENAI_API_KEY` | For pipeline | OpenAI key for GPT-4o manufacturing relevance |
 
 `PORT` is set by Railway automatically — do not override it.

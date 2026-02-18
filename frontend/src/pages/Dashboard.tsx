@@ -14,12 +14,31 @@ import { getDisplayType } from "../utils/plant";
 function filterPlants(
   plants: Plant[],
   search: string,
+  locationFilter: string,
   contactedFilter: "all" | "yes" | "no",
   customerFilter: "all" | "yes" | "no",
   statusFilter: string,
   relevanceFilter: string
 ): Plant[] {
   let result = plants;
+
+  if (locationFilter.trim()) {
+    const loc = locationFilter.trim().toLowerCase();
+    result = result.filter((p) => {
+      const city = (p.city ?? "").toLowerCase();
+      const state = (p.state ?? "").toLowerCase();
+      const postalCode = (p.postal_code ?? "").toLowerCase();
+      const fullAddr = (p.formatted_address ?? "").toLowerCase();
+      const shortAddr = (p.short_formatted_address ?? "").toLowerCase();
+      return (
+        city.includes(loc) ||
+        state.includes(loc) ||
+        postalCode.includes(loc) ||
+        fullAddr.includes(loc) ||
+        shortAddr.includes(loc)
+      );
+    });
+  }
 
   if (search.trim()) {
     const q = search.trim().toLowerCase();
@@ -87,6 +106,7 @@ export default function Dashboard() {
   const [pipelineError, setPipelineError] = useState<string | null>(null);
   const [location, setLocation] = useState("");
   const [search, setSearch] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [contactedFilter, setContactedFilter] = useState<"all" | "yes" | "no">("all");
   const [customerFilter, setCustomerFilter] = useState<"all" | "yes" | "no">("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -96,8 +116,8 @@ export default function Dashboard() {
   const [pageSize, setPageSize] = useState(25);
 
   const filteredPlants = useMemo(
-    () => filterPlants(plants, search, contactedFilter, customerFilter, statusFilter, relevanceFilter),
-    [plants, search, contactedFilter, customerFilter, statusFilter, relevanceFilter]
+    () => filterPlants(plants, search, locationFilter, contactedFilter, customerFilter, statusFilter, relevanceFilter),
+    [plants, search, locationFilter, contactedFilter, customerFilter, statusFilter, relevanceFilter]
   );
 
   const totalFiltered = filteredPlants.length;
@@ -114,7 +134,7 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const [plantsData, metricsData] = await Promise.all([
-        fetchPlants({ limit: 500 }),
+        fetchPlants({ limit: 50000 }),
         fetchMetrics(),
       ]);
       setPlants(plantsData);
@@ -132,7 +152,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, contactedFilter, customerFilter, statusFilter, relevanceFilter]);
+  }, [search, locationFilter, contactedFilter, customerFilter, statusFilter, relevanceFilter]);
 
   const handleRunPipeline = async () => {
     setPipelineRunning(true);
@@ -209,6 +229,19 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-wrap gap-3 sm:items-center">
             <div className="flex items-center gap-2">
+              <label htmlFor="location-filter" className="text-sm text-gray-600 whitespace-nowrap">
+                Location
+              </label>
+              <input
+                id="location-filter"
+                type="text"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                placeholder="City, state, or zip"
+                className="rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500 w-36"
+              />
+            </div>
+            <div className="flex items-center gap-2">
               <label htmlFor="contacted-filter" className="text-sm text-gray-600 whitespace-nowrap">
                 Contacted
               </label>
@@ -270,11 +303,12 @@ export default function Dashboard() {
                 <option value="low">Low</option>
               </select>
             </div>
-            {(search || contactedFilter !== "all" || customerFilter !== "all" || statusFilter !== "all" || relevanceFilter !== "all") && (
+            {(search || locationFilter || contactedFilter !== "all" || customerFilter !== "all" || statusFilter !== "all" || relevanceFilter !== "all") && (
               <button
                 type="button"
                 onClick={() => {
                   setSearch("");
+                  setLocationFilter("");
                   setContactedFilter("all");
                   setCustomerFilter("all");
                   setStatusFilter("all");

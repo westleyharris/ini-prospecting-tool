@@ -6,7 +6,7 @@ import { haversineMiles } from "../services/distance.js";
 import {
   searchPeopleByDomain,
   extractDomain,
-} from "../services/apollo.js";
+} from "../services/hunter.js";
 import { isExcludedFromDbPlant } from "../services/manufacturingFilter.js";
 
 export const plantsRouter = Router();
@@ -14,7 +14,7 @@ export const plantsRouter = Router();
 plantsRouter.get("/", async (req, res) => {
   try {
     const contacted = req.query.contacted as string | undefined;
-    const limit = Math.min(parseInt(req.query.limit as string) || 500, 1000);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50000, 1), 50000);
     const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
 
     let sql = `SELECT p.*,
@@ -216,51 +216,50 @@ plantsRouter.post("/:id/find-contacts", async (req, res) => {
       });
     }
 
-    const apiKey = (process.env.APOLLO_API_KEY || "").trim();
+    const apiKey = (process.env.HUNTER_API_KEY || "").trim();
     if (!apiKey) {
       return res.status(503).json({
-        error: "APOLLO_API_KEY not configured. Add it to .env in the project root.",
+        error: "HUNTER_API_KEY not configured. Add it to .env in the project root.",
       });
     }
 
     const result = await searchPeopleByDomain(apiKey, domain, {
-      perPage: 10,
-      page: 1,
+      limit: 10,
+      offset: 0,
     });
 
-    const people = result.people ?? [];
-    const existingApolloIds = new Set(
+    const emails = result.data?.emails ?? [];
+    const existingEmails = new Set(
       (
         db
-          .prepare("SELECT apollo_id FROM contacts WHERE plant_id = ?")
-          .all(plantId) as { apollo_id: string | null }[]
-      )
-        .map((c) => c.apollo_id)
-        .filter(Boolean)
+          .prepare("SELECT email FROM contacts WHERE plant_id = ? AND email IS NOT NULL")
+          .all(plantId) as { email: string }[]
+      ).map((c) => c.email.toLowerCase())
     );
 
     const insertStmt = db.prepare(`
-      INSERT INTO contacts (id, plant_id, apollo_id, first_name, last_name, title, linkedin_url, source, created_at, updated_at)
-      VALUES (@id, @plant_id, @apollo_id, @first_name, @last_name, @title, @linkedin_url, 'apollo', datetime('now'), datetime('now'))
+      INSERT INTO contacts (id, plant_id, apollo_id, first_name, last_name, title, email, phone, linkedin_url, source, created_at, updated_at)
+      VALUES (@id, @plant_id, NULL, @first_name, @last_name, @title, @email, @phone, @linkedin_url, 'hunter', datetime('now'), datetime('now'))
     `);
 
     let added = 0;
-    for (const person of people) {
-      const apolloId = person.id;
-      if (!apolloId || existingApolloIds.has(apolloId)) continue;
-      existingApolloIds.add(apolloId);
+    for (const person of emails) {
+      const email = person.value?.trim();
+      if (!email || existingEmails.has(email.toLowerCase())) continue;
+      existingEmails.add(email.toLowerCase());
 
-      const lastName =
-        person.last_name ?? person.last_name_obfuscated ?? null;
+      const linkedin = person.linkedin?.trim() || null;
+      const linkedinUrl = linkedin && !linkedin.startsWith("http") ? `https://linkedin.com/in/${linkedin.replace(/^\//, "")}` : linkedin;
 
       insertStmt.run({
         id: uuidv4(),
         plant_id: plantId,
-        apollo_id: apolloId,
         first_name: person.first_name ?? null,
-        last_name: lastName,
-        title: person.title ?? null,
-        linkedin_url: person.linkedin_url ?? null,
+        last_name: person.last_name ?? null,
+        title: person.position ?? person.position_raw ?? null,
+        email,
+        phone: person.phone_number ?? null,
+        linkedin_url: linkedinUrl,
       });
       added++;
     }
