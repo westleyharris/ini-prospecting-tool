@@ -44,9 +44,11 @@ interface PlantTableProps {
   plants: Plant[];
   loading: boolean;
   onUpdate: () => void;
+  /** When true, omit the outer card wrapper (for embedding in parent card) */
+  embedded?: boolean;
 }
 
-export default function PlantTable({ plants, loading, onUpdate }: PlantTableProps) {
+export default function PlantTable({ plants, loading, onUpdate, embedded }: PlantTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [contacted, setContacted] = useState<boolean>(false);
   const [currentCustomer, setCurrentCustomer] = useState<boolean>(false);
@@ -151,9 +153,11 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
     }
   };
 
+  const cardClass = embedded ? "" : "bg-white rounded-lg shadow overflow-hidden";
+
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className={cardClass}>
         <div className="p-8 animate-pulse">
           <div className="h-4 bg-gray-200 rounded w-full mb-4" />
           <div className="h-4 bg-gray-200 rounded w-3/4 mb-4" />
@@ -164,7 +168,7 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
   }
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className={cardClass}>
       {someSelected && (
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-3">
           <span className="text-sm text-gray-600">
@@ -187,7 +191,7 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
       )}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50/80">
             <tr>
               <th className="px-4 py-3 w-10">
                 <input
@@ -201,10 +205,10 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                 Photo
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
                 Name
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
                 Address
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -271,8 +275,8 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
                 </td>
               </tr>
             ) : (
-              plants.map((plant) => (
-                <tr key={plant.id} className="hover:bg-gray-50">
+              plants.map((plant, idx) => (
+                <tr key={plant.id} className={idx % 2 === 0 ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 hover:bg-gray-100"}>
                   <td className="px-4 py-3 w-10">
                     <input
                       type="checkbox"
@@ -310,8 +314,8 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
                       )}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
-                    {plant.formatted_address ?? "—"}
+                  <td className="px-4 py-3 text-sm text-gray-500 max-w-[240px]" title={plant.formatted_address ?? undefined}>
+                    <span className="line-clamp-2">{plant.formatted_address ?? "—"}</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {[plant.city, plant.state].filter(Boolean).join(", ") || plant.postal_code || "—"}
@@ -508,25 +512,37 @@ export default function PlantTable({ plants, loading, onUpdate }: PlantTableProp
                         </button>
                       </div>
                     ) : (
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2 flex-wrap">
                         <button
                           onClick={() => setContactsPlant(plant)}
-                          className="text-blue-600 hover:text-blue-800"
+                          className="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100"
                         >
                           Contacts
                         </button>
                         <button
+                          onClick={() => setVisitsPlant(plant)}
+                          className="px-2.5 py-1 text-xs font-medium rounded-md bg-sky-50 text-sky-700 hover:bg-sky-100"
+                        >
+                          Visits
+                        </button>
+                        <button
+                          onClick={() => setProjectsPlant(plant)}
+                          className="px-2.5 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                        >
+                          Projects
+                        </button>
+                        <button
                           onClick={() => startEdit(plant)}
-                          className="text-blue-600 hover:text-blue-800"
+                          className="px-2.5 py-1 text-xs font-medium text-gray-600 hover:text-gray-900"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(plant)}
                           disabled={deletingId === plant.id}
-                          className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                          className="px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
                         >
-                          {deletingId === plant.id ? "Removing..." : "Remove"}
+                          {deletingId === plant.id ? "…" : "Remove"}
                         </button>
                       </div>
                     )}

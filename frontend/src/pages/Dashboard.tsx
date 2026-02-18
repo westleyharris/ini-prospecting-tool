@@ -170,212 +170,195 @@ export default function Dashboard() {
     }
   };
 
+  const hasActiveFilters = search || locationFilter || contactedFilter !== "all" || customerFilter !== "all" || statusFilter !== "all" || relevanceFilter !== "all";
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-              Search area (zip or city)
-            </label>
+    <div className="space-y-8">
+      {/* Page header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowAddPlant(true)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 shadow-sm"
+          >
+            Add plant
+          </button>
+          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
             <input
               id="location"
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. 75001 or Dallas, TX (blank = DFW)"
-              className="block w-full sm:w-56 rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Zip or city (optional)"
+              className="w-40 text-sm border-0 p-0 focus:ring-0 focus:outline-none"
             />
+            <span className="text-gray-300">|</span>
+            <button
+              onClick={handleRunPipeline}
+              disabled={pipelineRunning}
+              className="text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {pipelineRunning ? "Running..." : "Run pipeline"}
+            </button>
           </div>
-          <button
-            onClick={() => setShowAddPlant(true)}
-            className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 whitespace-nowrap"
-          >
-            Add plant
-          </button>
-          <button
-            onClick={handleRunPipeline}
-            disabled={pipelineRunning}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            {pipelineRunning ? "Running pipeline..." : "Run pipeline"}
-          </button>
         </div>
       </div>
 
       {pipelineError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {pipelineError}
         </div>
       )}
 
       <MetricsCards metrics={metrics} loading={loading} />
 
-      <div className="bg-white rounded-lg shadow p-4 space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="flex-1 min-w-0">
-            <label htmlFor="search" className="sr-only">
-              Search plants
-            </label>
-            <input
-              id="search"
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, address, phone, type, notes..."
-              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
-            />
+      {/* Plants section */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">Plants</h2>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          {/* Search and filters bar */}
+          <div className="p-4 border-b border-gray-100">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                <div className="flex-1 min-w-0">
+                  <input
+                    id="search"
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search plants by name, address, phone, type..."
+                    className="block w-full rounded-lg border-gray-300 shadow-sm text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    id="location-filter"
+                    type="text"
+                    value={locationFilter}
+                    onChange={(e) => setLocationFilter(e.target.value)}
+                    placeholder="City, state, zip"
+                    className="w-32 rounded-lg border-gray-300 shadow-sm text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                  <select
+                    id="contacted-filter"
+                    value={contactedFilter}
+                    onChange={(e) => setContactedFilter(e.target.value as "all" | "yes" | "no")}
+                    className="rounded-lg border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="all">Contacted: All</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                  <select
+                    id="customer-filter"
+                    value={customerFilter}
+                    onChange={(e) => setCustomerFilter(e.target.value as "all" | "yes" | "no")}
+                    className="rounded-lg border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="all">Customer: All</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                  <select
+                    id="status-filter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="rounded-lg border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="all">Status: All</option>
+                    <option value="OPERATIONAL">Operational</option>
+                    <option value="CLOSED_TEMPORARILY">Closed temporarily</option>
+                    <option value="CLOSED_PERMANENTLY">Closed permanently</option>
+                  </select>
+                  <select
+                    id="relevance-filter"
+                    value={relevanceFilter}
+                    onChange={(e) => setRelevanceFilter(e.target.value)}
+                    className="rounded-lg border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="all">Relevance: All</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        setLocationFilter("");
+                        setContactedFilter("all");
+                        setCustomerFilter("all");
+                        setStatusFilter("all");
+                        setRelevanceFilter("all");
+                      }}
+                      className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+              {/* Pagination bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100">
+                <p className="text-sm text-gray-500">
+                  {totalFiltered === 0
+                    ? "No plants match filters"
+                    : `Showing ${startItem}–${endItem} of ${totalFiltered}`}
+                  {plants.length !== totalFiltered && totalFiltered > 0 && (
+                    <span className="text-gray-400"> (filtered from {plants.length})</span>
+                  )}
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Rows</span>
+                    <select
+                      id="page-size"
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="rounded-lg border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500 py-1.5"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={safePage <= 1}
+                        className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <span className="px-3 py-1.5 text-sm text-gray-600 min-w-[80px] text-center">
+                        {safePage} / {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={safePage >= totalPages}
+                        className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-3 sm:items-center">
-            <div className="flex items-center gap-2">
-              <label htmlFor="location-filter" className="text-sm text-gray-600 whitespace-nowrap">
-                Location
-              </label>
-              <input
-                id="location-filter"
-                type="text"
-                value={locationFilter}
-                onChange={(e) => setLocationFilter(e.target.value)}
-                placeholder="City, state, or zip"
-                className="rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500 w-36"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="contacted-filter" className="text-sm text-gray-600 whitespace-nowrap">
-                Contacted
-              </label>
-              <select
-                id="contacted-filter"
-                value={contactedFilter}
-                onChange={(e) => setContactedFilter(e.target.value as "all" | "yes" | "no")}
-                className="rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="all">All</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="customer-filter" className="text-sm text-gray-600 whitespace-nowrap">
-                Customer
-              </label>
-              <select
-                id="customer-filter"
-                value={customerFilter}
-                onChange={(e) => setCustomerFilter(e.target.value as "all" | "yes" | "no")}
-                className="rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="all">All</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="status-filter" className="text-sm text-gray-600 whitespace-nowrap">
-                Status
-              </label>
-              <select
-                id="status-filter"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="all">All</option>
-                <option value="OPERATIONAL">Operational</option>
-                <option value="CLOSED_TEMPORARILY">Closed temporarily</option>
-                <option value="CLOSED_PERMANENTLY">Closed permanently</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="relevance-filter" className="text-sm text-gray-600 whitespace-nowrap">
-                Relevance
-              </label>
-              <select
-                id="relevance-filter"
-                value={relevanceFilter}
-                onChange={(e) => setRelevanceFilter(e.target.value)}
-                className="rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="all">All</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
-            {(search || locationFilter || contactedFilter !== "all" || customerFilter !== "all" || statusFilter !== "all" || relevanceFilter !== "all") && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setLocationFilter("");
-                  setContactedFilter("all");
-                  setCustomerFilter("all");
-                  setStatusFilter("all");
-                  setRelevanceFilter("all");
-                }}
-                className="text-sm text-gray-600 hover:text-gray-900"
-              >
-                Clear filters
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-4">
-          <p className="text-sm text-gray-500">
-            {totalFiltered === 0
-              ? "No plants match filters"
-              : `Showing ${startItem}-${endItem} of ${totalFiltered} plants`}
-            {plants.length !== totalFiltered && totalFiltered > 0 && (
-              <span className="ml-1"> (filtered from {plants.length})</span>
-            )}
-          </p>
-          <div className="flex items-center gap-2">
-            <label htmlFor="page-size" className="text-sm text-gray-600">
-              Rows per page
-            </label>
-            <select
-              id="page-size"
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-          {totalPages > 1 && (
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={safePage <= 1}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <span className="px-3 py-1.5 text-sm text-gray-600">
-                Page {safePage} of {totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safePage >= totalPages}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
 
-      <PlantTable plants={paginatedPlants} loading={loading} onUpdate={load} />
+          <PlantTable plants={paginatedPlants} loading={loading} onUpdate={load} embedded />
+        </div>
+      </section>
 
       {showAddPlant && (
         <AddPlantModal

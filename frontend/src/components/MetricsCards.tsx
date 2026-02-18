@@ -8,13 +8,10 @@ interface MetricsCardsProps {
 export default function MetricsCards({ metrics, loading }: MetricsCardsProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="bg-white rounded-lg shadow p-6 animate-pulse"
-          >
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-4" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 animate-pulse flex flex-col items-center">
+            <div className="h-3 bg-gray-200 rounded w-1/2 mb-3" />
             <div className="h-8 bg-gray-200 rounded w-1/3" />
           </div>
         ))}
@@ -43,14 +40,30 @@ export default function MetricsCards({ metrics, loading }: MetricsCardsProps) {
     { label: "Commissionings", value: metrics.totalCommissionings ?? 0, color: "text-teal-600" },
   ];
 
+  const coreCards = cards.slice(0, 5);
+  const crmCards = cards.slice(5, 8);
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-      {cards.map(({ label, value, color }) => (
-        <div key={label} className="bg-white rounded-lg shadow p-6">
-          <p className="text-sm font-medium text-gray-500">{label}</p>
-          <p className={`mt-2 text-2xl font-semibold ${color}`}>{value}</p>
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {coreCards.map(({ label, value, color }) => (
+          <div key={label} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 text-center">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+            <p className={`mt-1.5 text-2xl font-bold tabular-nums ${color}`}>{value.toLocaleString()}</p>
+          </div>
+        ))}
+      </div>
+      <div>
+        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2 text-center">CRM</p>
+        <div className="grid grid-cols-3 gap-3">
+          {crmCards.map(({ label, value, color }) => (
+            <div key={label} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 text-center">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+              <p className={`mt-1 text-xl font-bold tabular-nums ${color}`}>{value.toLocaleString()}</p>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
