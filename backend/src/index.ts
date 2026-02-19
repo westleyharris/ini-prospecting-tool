@@ -78,7 +78,10 @@ if (existsSync(frontendDist)) {
   });
 }
 
-app.listen(PORT, () => {
+// Pipeline runs can take many minutes (geocoding + Places API + LLM). Use 15 min to match Railway's max.
+const SERVER_TIMEOUT_MS = 15 * 60 * 1000;
+
+const server = app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
   if (!process.env.GOOGLE_PLACES_API_KEY) {
     console.warn("WARNING: GOOGLE_PLACES_API_KEY not set. Checked:", envPaths.join(", "));
@@ -90,3 +93,7 @@ app.listen(PORT, () => {
     console.warn("WARNING: OPENAI_API_KEY not set. LLM manufacturing interpretation will be skipped.");
   }
 });
+
+server.timeout = SERVER_TIMEOUT_MS;
+server.keepAliveTimeout = 65;
+server.headersTimeout = Math.max(SERVER_TIMEOUT_MS + 1000, 66000);
