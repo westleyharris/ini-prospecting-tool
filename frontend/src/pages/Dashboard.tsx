@@ -169,31 +169,31 @@ export default function Dashboard() {
   const hasActiveFilters = search || locationFilter || contactedFilter !== "all" || customerFilter !== "all" || relevanceFilter !== "all";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       {/* Page header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
+        <div className="flex flex-col gap-2 w-full sm:flex-row sm:w-auto">
           <button
             onClick={() => setShowAddPlant(true)}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 shadow-sm"
+            className="inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 shadow-sm w-full sm:w-auto"
           >
             Add plant
           </button>
-          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
+          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm w-full sm:w-auto min-w-0">
             <input
               id="location"
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Zip or city (optional)"
-              className="w-40 text-sm border-0 p-0 focus:ring-0 focus:outline-none"
+              className="flex-1 min-w-0 text-sm border-0 p-0 focus:ring-0 focus:outline-none"
             />
-            <span className="text-gray-300">|</span>
+            <span className="text-gray-300 shrink-0 hidden sm:inline">|</span>
             <button
               onClick={handleRunPipeline}
               disabled={pipelineRunning}
-              className="text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
             >
               {pipelineRunning ? "Running..." : "Run pipeline"}
             </button>
@@ -208,21 +208,21 @@ export default function Dashboard() {
       )}
 
       <section aria-labelledby="overview-heading">
-        <h2 id="overview-heading" className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
+        <h2 id="overview-heading" className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2 sm:mb-3">
           Overview
         </h2>
         <MetricsCards metrics={metrics} loading={loading} />
       </section>
 
       {/* Plants section */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">Plants</h2>
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <section className="min-w-0">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-2 sm:mb-3">Plants</h2>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-w-0">
           {/* Search and filters bar */}
-          <div className="p-5 border-b border-gray-100 bg-gray-50/50">
+          <div className="p-3 sm:p-5 border-b border-gray-100 bg-gray-50/50">
             <div className="flex flex-col gap-4">
               {/* Search row */}
-              <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
                 <div className="flex-1 min-w-0">
                   <label htmlFor="search" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
                     Search plants
@@ -233,10 +233,10 @@ export default function Dashboard() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Name, address, phone, type..."
-                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0"
                   />
                 </div>
-                <div className="sm:w-52">
+                <div className="w-full sm:w-52 min-w-0">
                   <label htmlFor="location-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
                     Location
                   </label>
@@ -246,13 +246,13 @@ export default function Dashboard() {
                     value={locationFilter}
                     onChange={(e) => setLocationFilter(e.target.value)}
                     placeholder="City, state, or zip"
-                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0"
                   />
                 </div>
               </div>
               {/* Filter row */}
-              <div className="flex flex-wrap items-end gap-3">
-                <div>
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-3">
+                <div className="min-w-0">
                   <label htmlFor="contacted-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
                     Contacted
                   </label>
@@ -260,14 +260,14 @@ export default function Dashboard() {
                     id="contacted-filter"
                     value={contactedFilter}
                     onChange={(e) => setContactedFilter(e.target.value as "all" | "yes" | "no")}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-[100px]"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0 sm:min-w-[100px]"
                   >
                     <option value="all">All</option>
                     <option value="yes">Yes</option>
                     <option value="no">No</option>
                   </select>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label htmlFor="customer-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
                     Customer
                   </label>
@@ -275,14 +275,14 @@ export default function Dashboard() {
                     id="customer-filter"
                     value={customerFilter}
                     onChange={(e) => setCustomerFilter(e.target.value as "all" | "yes" | "no")}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-[100px]"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0 sm:min-w-[100px]"
                   >
                     <option value="all">All</option>
                     <option value="yes">Yes</option>
                     <option value="no">No</option>
                   </select>
                 </div>
-                <div>
+                <div className="min-w-0 col-span-2 sm:col-span-1">
                   <label htmlFor="relevance-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
                     Relevance
                   </label>
@@ -290,7 +290,7 @@ export default function Dashboard() {
                     id="relevance-filter"
                     value={relevanceFilter}
                     onChange={(e) => setRelevanceFilter(e.target.value)}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-[100px]"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0 sm:min-w-[100px]"
                   >
                     <option value="all">All</option>
                     <option value="high">High</option>
@@ -308,7 +308,7 @@ export default function Dashboard() {
                       setCustomerFilter("all");
                       setRelevanceFilter("all");
                     }}
-                    className="px-3 py-2 text-sm font-medium text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded-lg"
+                    className="px-3 py-2 text-sm font-medium text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded-lg col-span-2 sm:col-span-1"
                   >
                     Clear filters
                   </button>
@@ -318,18 +318,18 @@ export default function Dashboard() {
           </div>
 
           {/* Pagination bar (header) */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 bg-white">
-            <p className="text-sm text-gray-500">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 px-3 sm:px-4 py-3 border-b border-gray-100 bg-white">
+            <p className="text-xs sm:text-sm text-gray-500 order-2 sm:order-1">
               {totalFiltered === 0
                 ? "No plants match filters"
                 : `Showing ${startItem}–${endItem} of ${totalFiltered}`}
               {plants.length !== totalFiltered && totalFiltered > 0 && (
-                <span className="text-gray-400"> (filtered from {plants.length})</span>
+                <span className="text-gray-400 hidden sm:inline"> (filtered from {plants.length})</span>
               )}
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 order-1 sm:order-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Rows per page</span>
+                <span className="text-xs sm:text-sm text-gray-500">Rows</span>
                 <select
                   aria-label="Rows per page"
                   value={pageSize}
@@ -337,7 +337,7 @@ export default function Dashboard() {
                     setPageSize(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                  className="rounded-lg border border-gray-300 bg-white px-2 py-2 sm:py-1.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-h-[36px] sm:min-h-0"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>
@@ -351,18 +351,18 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={safePage <= 1}
-                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 sm:py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px] sm:min-h-0"
                   >
                     Previous
                   </button>
-                  <span className="px-3 py-1.5 text-sm text-gray-600 min-w-[80px] text-center">
+                  <span className="px-2 sm:px-3 py-2 sm:py-1.5 text-xs sm:text-sm text-gray-600 min-w-[60px] sm:min-w-[80px] text-center">
                     {safePage} / {totalPages}
                   </span>
                   <button
                     type="button"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={safePage >= totalPages}
-                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 sm:py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px] sm:min-h-0"
                   >
                     Next
                   </button>
@@ -383,26 +383,26 @@ export default function Dashboard() {
           />
 
           {/* Pagination bar (footer) */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-100 bg-white">
-            <p className="text-sm text-gray-500">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 px-3 sm:px-4 py-3 border-t border-gray-100 bg-white">
+            <p className="text-xs sm:text-sm text-gray-500 order-2 sm:order-1">
               {totalFiltered === 0
                 ? "No plants match filters"
                 : `Showing ${startItem}–${endItem} of ${totalFiltered}`}
               {plants.length !== totalFiltered && totalFiltered > 0 && (
-                <span className="text-gray-400"> (filtered from {plants.length})</span>
+                <span className="text-gray-400 hidden sm:inline"> (filtered from {plants.length})</span>
               )}
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 order-1 sm:order-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Rows per page</span>
+                <span className="text-xs sm:text-sm text-gray-500">Rows</span>
                 <select
-                  aria-label="Rows per page"
+                  aria-label="Rows per page (footer)"
                   value={pageSize}
                   onChange={(e) => {
                     setPageSize(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                  className="rounded-lg border border-gray-300 bg-white px-2 py-2 sm:py-1.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-h-[36px] sm:min-h-0"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>
@@ -416,18 +416,18 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={safePage <= 1}
-                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 sm:py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px] sm:min-h-0"
                   >
                     Previous
                   </button>
-                  <span className="px-3 py-1.5 text-sm text-gray-600 min-w-[80px] text-center">
+                  <span className="px-2 sm:px-3 py-2 sm:py-1.5 text-xs sm:text-sm text-gray-600 min-w-[60px] sm:min-w-[80px] text-center">
                     {safePage} / {totalPages}
                   </span>
                   <button
                     type="button"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={safePage >= totalPages}
-                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 sm:py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px] sm:min-h-0"
                   >
                     Next
                   </button>
