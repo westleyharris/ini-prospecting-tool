@@ -114,6 +114,7 @@ export default function Dashboard() {
   const [showAddPlant, setShowAddPlant] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const filteredPlants = useMemo(
     () => filterPlants(plants, search, locationFilter, contactedFilter, customerFilter, statusFilter, relevanceFilter),
@@ -129,6 +130,7 @@ export default function Dashboard() {
   }, [filteredPlants, safePage, pageSize]);
   const startItem = totalFiltered === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const endItem = Math.min(safePage * pageSize, totalFiltered);
+  const allFilteredIds = useMemo(() => filteredPlants.map((p) => p.id), [filteredPlants]);
 
   const load = async () => {
     setLoading(true);
@@ -211,7 +213,12 @@ export default function Dashboard() {
         </div>
       )}
 
-      <MetricsCards metrics={metrics} loading={loading} />
+      <section aria-labelledby="overview-heading">
+        <h2 id="overview-heading" className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
+          Overview
+        </h2>
+        <MetricsCards metrics={metrics} loading={loading} />
+      </section>
 
       {/* Plants section */}
       <section>
@@ -356,7 +363,16 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <PlantTable plants={paginatedPlants} loading={loading} onUpdate={load} embedded />
+          <PlantTable
+            plants={paginatedPlants}
+            loading={loading}
+            onUpdate={load}
+            embedded
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            allFilteredIds={allFilteredIds}
+            totalFilteredCount={totalFiltered}
+          />
         </div>
       </section>
 

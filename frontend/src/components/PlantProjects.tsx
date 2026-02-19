@@ -66,18 +66,24 @@ export default function PlantProjects({ plant, onClose, onUpdate }: PlantProject
           className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Projects — {plant.name ?? "Plant"}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
-            >
-              ×
-            </button>
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Projects — {plant.name ?? "Plant"}
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">Create a new project or open an existing one below.</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
           </div>
           <div className="px-6 py-4 border-b border-gray-200">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Create project</p>
             <form onSubmit={handleCreateProject} className="space-y-2">
               <div className="flex flex-wrap gap-2 items-end">
                 <div>

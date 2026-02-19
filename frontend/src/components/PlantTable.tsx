@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { Plant } from "../api/plants";
 import { updatePlant, deletePlant, deletePlantsBulk } from "../api/plants";
 import PlantContacts from "./PlantContacts";
@@ -46,45 +47,82 @@ interface PlantTableProps {
   onUpdate: () => void;
   /** When true, omit the outer card wrapper (for embedding in parent card) */
   embedded?: boolean;
+  /** Optional controlled selection (persists across pages when used with pagination) */
+  selectedIds?: Set<string>;
+  onSelectionChange?: React.Dispatch<React.SetStateAction<Set<string>>>;
+  /** All plant IDs matching current filters (for "Select all N plants") */
+  allFilteredIds?: string[];
+  totalFilteredCount?: number;
 }
 
-export default function PlantTable({ plants, loading, onUpdate, embedded }: PlantTableProps) {
-  const [editingId, setEditingId] = useState<string | null>(null);
+export default function PlantTable({
+  plants,
+  loading,
+  onUpdate,
+  embedded,
+  selectedIds: controlledSelectedIds,
+  onSelectionChange,
+  allFilteredIds = [],
+  totalFilteredCount = 0,
+}: PlantTableProps) {
+  const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
+  const selectedIds = controlledSelectedIds ?? internalSelectedIds;
+  const setSelectedIds = onSelectionChange ?? setInternalSelectedIds;
+
+  const [editPlant, setEditPlant] = useState<Plant | null>(null);
   const [contacted, setContacted] = useState<boolean>(false);
   const [currentCustomer, setCurrentCustomer] = useState<boolean>(false);
   const [followUpDate, setFollowUpDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [contactsPlant, setContactsPlant] = useState<Plant | null>(null);
   const [visitsPlant, setVisitsPlant] = useState<Plant | null>(null);
   const [projectsPlant, setProjectsPlant] = useState<Plant | null>(null);
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const [notesTooltip, setNotesTooltip] = useState<{ content: string; left: number; top: number; bottom: number } | null>(null);
 
-  const startEdit = (plant: Plant) => {
-    setEditingId(plant.id);
-    setContacted(plant.contacted === 1);
-    setCurrentCustomer(plant.current_customer === 1);
-    setFollowUpDate(plant.follow_up_date ?? "");
-    setNotes(plant.notes ?? "");
+  useEffect(() => {
+    if (openActionsId === null) return;
+    const close = (e: MouseEvent) => {
+      if (actionsMenuRef.current?.contains(e.target as Node)) return;
+      setOpenActionsId(null);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [openActionsId]);
+
+  useEffect(() => {
+    if (editPlant) {
+      setContacted(editPlant.contacted === 1);
+      setCurrentCustomer(editPlant.current_customer === 1);
+      setFollowUpDate(editPlant.follow_up_date ?? "");
+      setNotes(editPlant.notes ?? "");
+    }
+  }, [editPlant]);
+
+  const openEditModal = (plant: Plant) => {
+    setOpenActionsId(null);
+    setEditPlant(plant);
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
+  const closeEditModal = () => {
+    setEditPlant(null);
   };
 
   const saveEdit = async () => {
-    if (!editingId) return;
+    if (!editPlant) return;
     setSaving(true);
     try {
-      await updatePlant(editingId, {
+      await updatePlant(editPlant.id, {
         contacted,
         current_customer: currentCustomer,
         follow_up_date: followUpDate || null,
         notes: notes || null,
       });
-      setEditingId(null);
+      setEditPlant(null);
       onUpdate();
     } catch (err) {
       console.error(err);
@@ -99,7 +137,7 @@ export default function PlantTable({ plants, loading, onUpdate, embedded }: Plan
     setDeletingId(plant.id);
     try {
       await deletePlant(plant.id);
-      setEditingId((id) => (id === plant.id ? null : id));
+      setEditPlant((p) => (p?.id === plant.id ? null : p));
       setSelectedIds((s) => {
         const next = new Set(s);
         next.delete(plant.id);
@@ -114,15 +152,34 @@ export default function PlantTable({ plants, loading, onUpdate, embedded }: Plan
     }
   };
 
-  const allSelected = plants.length > 0 && selectedIds.size === plants.length;
+  const pageIds = plants.map((p) => p.id);
+  const allSelectedOnPage = plants.length > 0 && pageIds.every((id) => selectedIds.has(id));
+  const someSelectedOnPage = pageIds.some((id) => selectedIds.has(id));
   const someSelected = selectedIds.size > 0;
+  const allFilteredSelected = totalFilteredCount > 0 && selectedIds.size >= totalFilteredCount;
 
-  const toggleSelectAll = () => {
-    if (allSelected) {
-      setSelectedIds(new Set());
+  const toggleSelectAllOnPage = () => {
+    if (allSelectedOnPage) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        pageIds.forEach((id) => next.delete(id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(plants.map((p) => p.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        pageIds.forEach((id) => next.add(id));
+        return next;
+      });
     }
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(allFilteredIds));
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
   };
 
   const toggleSelect = (id: string) => {
@@ -142,7 +199,7 @@ export default function PlantTable({ plants, loading, onUpdate, embedded }: Plan
     try {
       const result = await deletePlantsBulk(ids);
       setSelectedIds(new Set());
-      setEditingId(null);
+      setEditPlant(null);
       onUpdate();
       alert(`Removed ${result.deleted} plant${result.deleted === 1 ? "" : "s"}`);
     } catch (err) {
@@ -170,10 +227,22 @@ export default function PlantTable({ plants, loading, onUpdate, embedded }: Plan
   return (
     <div className={cardClass}>
       {someSelected && (
-        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-3">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center gap-3">
           <span className="text-sm text-gray-600">
             {selectedIds.size} selected
           </span>
+          {totalFilteredCount > 0 && selectedIds.size < totalFilteredCount && (
+            <button
+              type="button"
+              onClick={selectAllFiltered}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Select all {totalFilteredCount} plants
+            </button>
+          )}
+          {allFilteredSelected && totalFilteredCount > 0 && (
+            <span className="text-sm text-gray-500">(all matching filters)</span>
+          )}
           <button
             onClick={handleBulkDelete}
             disabled={bulkDeleting}
@@ -182,7 +251,8 @@ export default function PlantTable({ plants, loading, onUpdate, embedded }: Plan
             {bulkDeleting ? "Removing..." : "Remove selected"}
           </button>
           <button
-            onClick={() => setSelectedIds(new Set())}
+            type="button"
+            onClick={clearSelection}
             className="text-sm text-gray-600 hover:text-gray-900"
           >
             Clear selection
@@ -196,10 +266,13 @@ export default function PlantTable({ plants, loading, onUpdate, embedded }: Plan
               <th className="px-4 py-3 w-10">
                 <input
                   type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleSelectAll}
+                  checked={allSelectedOnPage}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelectedOnPage && !allSelectedOnPage;
+                  }}
+                  onChange={toggleSelectAllOnPage}
                   className="rounded border-gray-300"
-                  title="Select all"
+                  title={allFilteredSelected ? "Deselect all on page" : "Select all on page"}
                 />
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
@@ -276,7 +349,10 @@ export default function PlantTable({ plants, loading, onUpdate, embedded }: Plan
               </tr>
             ) : (
               plants.map((plant, idx) => (
-                <tr key={plant.id} className={idx % 2 === 0 ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 hover:bg-gray-100"}>
+                <tr
+                  key={plant.id}
+                  className={idx % 2 === 0 ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 hover:bg-gray-100"}
+                >
                   <td className="px-4 py-3 w-10">
                     <input
                       type="checkbox"
@@ -413,139 +489,112 @@ export default function PlantTable({ plants, loading, onUpdate, embedded }: Plan
                   </td>
                   <td className="px-4 py-3">
                     <button
+                      type="button"
                       onClick={() => setVisitsPlant(plant)}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                      title="View and add visits for this plant"
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200/60"
                     >
+                      <span aria-hidden>📋</span>
                       {plant.visit_count ?? 0}
                     </button>
                   </td>
                   <td className="px-4 py-3">
                     <button
+                      type="button"
                       onClick={() => setProjectsPlant(plant)}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                      title="View and add projects — create new or open existing"
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/60"
                     >
+                      <span aria-hidden>📁</span>
                       {plant.project_count ?? 0}
                     </button>
                   </td>
                   <td className="px-4 py-3">
-                    {editingId === plant.id ? (
-                      <input
-                        type="checkbox"
-                        checked={contacted}
-                        onChange={(e) => setContacted(e.target.checked)}
-                        className="rounded border-gray-300"
-                      />
-                    ) : (
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          plant.contacted === 1
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {plant.contacted === 1 ? "Yes" : "No"}
-                      </span>
-                    )}
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        plant.contacted === 1 ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {plant.contacted === 1 ? "Yes" : "No"}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
-                    {editingId === plant.id ? (
-                      <input
-                        type="checkbox"
-                        checked={currentCustomer}
-                        onChange={(e) => setCurrentCustomer(e.target.checked)}
-                        className="rounded border-gray-300"
-                      />
-                    ) : (
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          plant.current_customer === 1
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {plant.current_customer === 1 ? "Yes" : "No"}
-                      </span>
-                    )}
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        plant.current_customer === 1 ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {plant.current_customer === 1 ? "Yes" : "No"}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
-                    {editingId === plant.id ? (
-                      <input
-                        type="date"
-                        value={followUpDate}
-                        onChange={(e) => setFollowUpDate(e.target.value)}
-                        className="block w-full rounded-md border-gray-300 shadow-sm text-sm"
-                      />
-                    ) : (
-                      plant.follow_up_date ?? "—"
-                    )}
+                    {plant.follow_up_date ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500 max-w-xs">
-                    {editingId === plant.id ? (
-                      <input
-                        type="text"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Notes..."
-                        className="block w-full rounded-md border-gray-300 shadow-sm text-sm"
-                      />
-                    ) : (
-                      <span className="truncate block">
-                        {plant.notes ?? "—"}
-                      </span>
-                    )}
+                  <td
+                    className={`px-4 py-3 text-sm text-gray-500 max-w-xs h-[3.25rem] align-top ${(plant.notes ?? "").trim() ? "cursor-help" : ""}`}
+                    onMouseEnter={(e) => {
+                      const content = (plant.notes ?? "").trim();
+                      if (!content) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setNotesTooltip({
+                        content,
+                        left: rect.left,
+                        top: rect.top,
+                        bottom: rect.bottom,
+                      });
+                    }}
+                    onMouseLeave={() => setNotesTooltip(null)}
+                  >
+                    <span className="line-clamp-3 block overflow-hidden text-ellipsis">
+                      {plant.notes ?? "—"}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right text-sm">
-                    {editingId === plant.id ? (
-                      <div className="flex justify-end gap-2">
+                    <div className="flex justify-end items-center gap-1.5" ref={openActionsId === plant.id ? actionsMenuRef : undefined}>
+                      <button
+                        type="button"
+                        onClick={() => setContactsPlant(plant)}
+                        title="View and manage contacts"
+                        className="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/60"
+                      >
+                        Contacts
+                      </button>
+                      <div className="relative">
                         <button
-                          onClick={cancelEdit}
-                          className="text-gray-600 hover:text-gray-900"
+                          type="button"
+                          onClick={() => setOpenActionsId((id) => (id === plant.id ? null : plant.id))}
+                          title="More actions"
+                          className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 border border-transparent hover:border-gray-200"
+                          aria-expanded={openActionsId === plant.id}
+                          aria-haspopup="true"
                         >
-                          Cancel
+                          <span className="sr-only">Actions</span>
+                          <span aria-hidden>⋮</span>
                         </button>
-                        <button
-                          onClick={saveEdit}
-                          disabled={saving}
-                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {saving ? "Saving..." : "Save"}
-                        </button>
+                        {openActionsId === plant.id && (
+                          <div className="absolute right-0 top-full mt-0.5 z-10 py-1 min-w-[120px] bg-white rounded-lg shadow-lg border border-gray-200">
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(plant)}
+                              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              Edit plant
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionsId(null);
+                                handleDelete(plant);
+                              }}
+                              disabled={deletingId === plant.id}
+                              className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {deletingId === plant.id ? "Removing…" : "Remove plant"}
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="flex justify-end gap-2 flex-wrap">
-                        <button
-                          onClick={() => setContactsPlant(plant)}
-                          className="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100"
-                        >
-                          Contacts
-                        </button>
-                        <button
-                          onClick={() => setVisitsPlant(plant)}
-                          className="px-2.5 py-1 text-xs font-medium rounded-md bg-sky-50 text-sky-700 hover:bg-sky-100"
-                        >
-                          Visits
-                        </button>
-                        <button
-                          onClick={() => setProjectsPlant(plant)}
-                          className="px-2.5 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                        >
-                          Projects
-                        </button>
-                        <button
-                          onClick={() => startEdit(plant)}
-                          className="px-2.5 py-1 text-xs font-medium text-gray-600 hover:text-gray-900"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(plant)}
-                          disabled={deletingId === plant.id}
-                          className="px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
-                        >
-                          {deletingId === plant.id ? "…" : "Remove"}
-                        </button>
-                      </div>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -553,6 +602,82 @@ export default function PlantTable({ plants, loading, onUpdate, embedded }: Plan
           </tbody>
         </table>
       </div>
+
+      {editPlant && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeEditModal}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Edit plant — {editPlant.name ?? "Plant"}</h2>
+              <button type="button" onClick={closeEditModal} className="text-gray-500 hover:text-gray-700 text-2xl leading-none">
+                ×
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={contacted}
+                  onChange={(e) => setContacted(e.target.checked)}
+                  className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Contacted</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={currentCustomer}
+                  onChange={(e) => setCurrentCustomer(e.target.checked)}
+                  className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Current customer</span>
+              </label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Follow-up date</label>
+                <input
+                  type="date"
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-300 shadow-sm text-sm focus:border-sky-500 focus:ring-sky-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add notes about this plant…"
+                  rows={6}
+                  className="block w-full min-h-[140px] rounded-lg border border-gray-300 shadow-sm text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-sky-500 resize-y"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={saving}
+                className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-lg hover:bg-sky-700 disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {contactsPlant && (
         <PlantContacts
           plant={contactsPlant}
@@ -573,6 +698,21 @@ export default function PlantTable({ plants, loading, onUpdate, embedded }: Plan
           onUpdate={onUpdate}
         />
       )}
+
+      {notesTooltip &&
+        createPortal(
+          <div
+            className="fixed z-[9999] w-72 max-w-[90vw] p-3 bg-amber-100 text-gray-900 text-xs rounded-lg shadow-xl whitespace-pre-wrap break-words border border-amber-300 pointer-events-none"
+            style={
+              notesTooltip.top < 220
+                ? { left: notesTooltip.left, top: notesTooltip.bottom + 8 }
+                : { left: notesTooltip.left, top: notesTooltip.top - 8, transform: "translateY(-100%)" }
+            }
+          >
+            {notesTooltip.content}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
