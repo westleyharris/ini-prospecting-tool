@@ -351,7 +351,7 @@ export default function PlantTable({
               plants.map((plant, idx) => (
                 <tr
                   key={plant.id}
-                  className={idx % 2 === 0 ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 hover:bg-gray-100"}
+                  className={`h-[4.75rem] ${idx % 2 === 0 ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 hover:bg-gray-100"}`}
                 >
                   <td className="px-4 py-3 w-10">
                     <input
@@ -531,7 +531,8 @@ export default function PlantTable({
                     {plant.follow_up_date ?? "—"}
                   </td>
                   <td
-                    className={`px-4 py-3 text-sm text-gray-500 max-w-xs h-[3.25rem] align-top ${(plant.notes ?? "").trim() ? "cursor-help" : ""}`}
+                    className={`px-4 py-3 text-sm text-gray-500 max-w-xs h-[3.25rem] max-h-[3.25rem] overflow-hidden align-top ${(plant.notes ?? "").trim() ? "cursor-help" : ""}`}
+                    style={{ height: "3.25rem", maxHeight: "3.25rem" }}
                     onMouseEnter={(e) => {
                       const content = (plant.notes ?? "").trim();
                       if (!content) return;
@@ -545,7 +546,7 @@ export default function PlantTable({
                     }}
                     onMouseLeave={() => setNotesTooltip(null)}
                   >
-                    <span className="line-clamp-3 block overflow-hidden text-ellipsis">
+                    <span className="line-clamp-3 block overflow-hidden text-ellipsis h-[3.25rem]">
                       {plant.notes ?? "—"}
                     </span>
                   </td>
