@@ -17,7 +17,6 @@ function filterPlants(
   locationFilter: string,
   contactedFilter: "all" | "yes" | "no",
   customerFilter: "all" | "yes" | "no",
-  statusFilter: string,
   relevanceFilter: string
 ): Plant[] {
   let result = plants;
@@ -87,10 +86,6 @@ function filterPlants(
     result = result.filter((p) => p.current_customer === 0);
   }
 
-  if (statusFilter !== "all") {
-    result = result.filter((p) => (p.business_status ?? "") === statusFilter);
-  }
-
   if (relevanceFilter !== "all") {
     result = result.filter((p) => (p.manufacturing_relevance ?? "") === relevanceFilter);
   }
@@ -109,7 +104,6 @@ export default function Dashboard() {
   const [locationFilter, setLocationFilter] = useState("");
   const [contactedFilter, setContactedFilter] = useState<"all" | "yes" | "no">("all");
   const [customerFilter, setCustomerFilter] = useState<"all" | "yes" | "no">("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [relevanceFilter, setRelevanceFilter] = useState("all");
   const [showAddPlant, setShowAddPlant] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,8 +111,8 @@ export default function Dashboard() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const filteredPlants = useMemo(
-    () => filterPlants(plants, search, locationFilter, contactedFilter, customerFilter, statusFilter, relevanceFilter),
-    [plants, search, locationFilter, contactedFilter, customerFilter, statusFilter, relevanceFilter]
+    () => filterPlants(plants, search, locationFilter, contactedFilter, customerFilter, relevanceFilter),
+    [plants, search, locationFilter, contactedFilter, customerFilter, relevanceFilter]
   );
 
   const totalFiltered = filteredPlants.length;
@@ -154,7 +148,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, locationFilter, contactedFilter, customerFilter, statusFilter, relevanceFilter]);
+  }, [search, locationFilter, contactedFilter, customerFilter, relevanceFilter]);
 
   const handleRunPipeline = async () => {
     setPipelineRunning(true);
@@ -172,7 +166,7 @@ export default function Dashboard() {
     }
   };
 
-  const hasActiveFilters = search || locationFilter || contactedFilter !== "all" || customerFilter !== "all" || statusFilter !== "all" || relevanceFilter !== "all";
+  const hasActiveFilters = search || locationFilter || contactedFilter !== "all" || customerFilter !== "all" || relevanceFilter !== "all";
 
   return (
     <div className="space-y-8">
@@ -225,141 +219,155 @@ export default function Dashboard() {
         <h2 className="text-lg font-semibold text-gray-800 mb-3">Plants</h2>
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {/* Search and filters bar */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-5 border-b border-gray-100 bg-gray-50/50">
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+              {/* Search row */}
+              <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
                 <div className="flex-1 min-w-0">
+                  <label htmlFor="search" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    Search plants
+                  </label>
                   <input
                     id="search"
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search plants by name, address, phone, type..."
-                    className="block w-full rounded-lg border-gray-300 shadow-sm text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="Name, address, phone, type..."
+                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                   />
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="sm:w-52">
+                  <label htmlFor="location-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    Location
+                  </label>
                   <input
                     id="location-filter"
                     type="text"
                     value={locationFilter}
                     onChange={(e) => setLocationFilter(e.target.value)}
-                    placeholder="City, state, zip"
-                    className="w-32 rounded-lg border-gray-300 shadow-sm text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="City, state, or zip"
+                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                   />
+                </div>
+              </div>
+              {/* Filter row */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label htmlFor="contacted-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    Contacted
+                  </label>
                   <select
                     id="contacted-filter"
                     value={contactedFilter}
                     onChange={(e) => setContactedFilter(e.target.value as "all" | "yes" | "no")}
-                    className="rounded-lg border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-[100px]"
                   >
-                    <option value="all">Contacted: All</option>
+                    <option value="all">All</option>
                     <option value="yes">Yes</option>
                     <option value="no">No</option>
                   </select>
+                </div>
+                <div>
+                  <label htmlFor="customer-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    Customer
+                  </label>
                   <select
                     id="customer-filter"
                     value={customerFilter}
                     onChange={(e) => setCustomerFilter(e.target.value as "all" | "yes" | "no")}
-                    className="rounded-lg border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-[100px]"
                   >
-                    <option value="all">Customer: All</option>
+                    <option value="all">All</option>
                     <option value="yes">Yes</option>
                     <option value="no">No</option>
                   </select>
-                  <select
-                    id="status-filter"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="rounded-lg border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
-                  >
-                    <option value="all">Status: All</option>
-                    <option value="OPERATIONAL">Operational</option>
-                    <option value="CLOSED_TEMPORARILY">Closed temporarily</option>
-                    <option value="CLOSED_PERMANENTLY">Closed permanently</option>
-                  </select>
+                </div>
+                <div>
+                  <label htmlFor="relevance-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    Relevance
+                  </label>
                   <select
                     id="relevance-filter"
                     value={relevanceFilter}
                     onChange={(e) => setRelevanceFilter(e.target.value)}
-                    className="rounded-lg border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-[100px]"
                   >
-                    <option value="all">Relevance: All</option>
+                    <option value="all">All</option>
                     <option value="high">High</option>
                     <option value="medium">Medium</option>
                     <option value="low">Low</option>
                   </select>
-                  {hasActiveFilters && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearch("");
-                        setLocationFilter("");
-                        setContactedFilter("all");
-                        setCustomerFilter("all");
-                        setStatusFilter("all");
-                        setRelevanceFilter("all");
-                      }}
-                      className="text-sm text-gray-500 hover:text-gray-700 font-medium"
-                    >
-                      Clear
-                    </button>
-                  )}
                 </div>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      setLocationFilter("");
+                      setContactedFilter("all");
+                      setCustomerFilter("all");
+                      setRelevanceFilter("all");
+                    }}
+                    className="px-3 py-2 text-sm font-medium text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded-lg"
+                  >
+                    Clear filters
+                  </button>
+                )}
               </div>
-              {/* Pagination bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100">
-                <p className="text-sm text-gray-500">
-                  {totalFiltered === 0
-                    ? "No plants match filters"
-                    : `Showing ${startItem}–${endItem} of ${totalFiltered}`}
-                  {plants.length !== totalFiltered && totalFiltered > 0 && (
-                    <span className="text-gray-400"> (filtered from {plants.length})</span>
-                  )}
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Rows</span>
-                    <select
-                      id="page-size"
-                      value={pageSize}
-                      onChange={(e) => {
-                        setPageSize(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                      className="rounded-lg border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500 py-1.5"
-                    >
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                  {totalPages > 1 && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={safePage <= 1}
-                        className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Previous
-                      </button>
-                      <span className="px-3 py-1.5 text-sm text-gray-600 min-w-[80px] text-center">
-                        {safePage} / {totalPages}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={safePage >= totalPages}
-                        className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  )}
+            </div>
+          </div>
+
+          {/* Pagination bar (header) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 bg-white">
+            <p className="text-sm text-gray-500">
+              {totalFiltered === 0
+                ? "No plants match filters"
+                : `Showing ${startItem}–${endItem} of ${totalFiltered}`}
+              {plants.length !== totalFiltered && totalFiltered > 0 && (
+                <span className="text-gray-400"> (filtered from {plants.length})</span>
+              )}
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Rows per page</span>
+                <select
+                  aria-label="Rows per page"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-3 py-1.5 text-sm text-gray-600 min-w-[80px] text-center">
+                    {safePage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -373,6 +381,60 @@ export default function Dashboard() {
             allFilteredIds={allFilteredIds}
             totalFilteredCount={totalFiltered}
           />
+
+          {/* Pagination bar (footer) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-100 bg-white">
+            <p className="text-sm text-gray-500">
+              {totalFiltered === 0
+                ? "No plants match filters"
+                : `Showing ${startItem}–${endItem} of ${totalFiltered}`}
+              {plants.length !== totalFiltered && totalFiltered > 0 && (
+                <span className="text-gray-400"> (filtered from {plants.length})</span>
+              )}
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Rows per page</span>
+                <select
+                  aria-label="Rows per page"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-3 py-1.5 text-sm text-gray-600 min-w-[80px] text-center">
+                    {safePage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
