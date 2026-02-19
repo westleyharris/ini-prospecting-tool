@@ -109,6 +109,9 @@ export async function runIngestion(
         }
       }
 
+      // Re-filter after enrichment: details may have added excluded types (e.g. building_materials_store)
+      places = places.filter((p) => !isExcludedAsNonManufacturing(p));
+
       const rows: NonNullable<ReturnType<typeof placeToRow>>[] = [];
       for (const place of places) {
         const row = placeToRow(place);

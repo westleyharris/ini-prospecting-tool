@@ -205,6 +205,17 @@ function getSummaryText(place: PlaceForFilter): string {
   return `${edText} ${genText}`.trim();
 }
 
+/** Name/summary patterns that exclude even when e.g. "winery"/"brewery" would otherwise keep (restaurant-first venues). */
+const EXCLUDE_BEFORE_POSITIVE = [
+  /\bwinery\s*[& and]+\s*grill\b/i,
+  /\bgrill\s+[& and]+\s*winery\b/i,
+  /\bwinery\s*[& and]+\s*restaurant\b/i,
+  /\brestaurant\s+[& and]+\s*winery\b/i,
+  /\bbrewery\s*[& and]+\s*(grill|restaurant)\b/i,
+  /\b(grill|restaurant)\s+[& and]+\s*brewery\b/i,
+  /\bprimarily\s+a\s*(brewery|winery)\s+and\s+restaurant\b/i,
+];
+
 /**
  * Returns true if the place should be EXCLUDED (not a manufacturing facility).
  * Returns false if we should keep it (could be manufacturing or unclear).
@@ -217,6 +228,10 @@ export function isExcludedAsNonManufacturing(place: PlaceForFilter): boolean {
       : place.displayName?.text ?? "";
   const summary = getSummaryText(place);
   const combined = `${name} ${summary}`;
+
+  for (const pattern of EXCLUDE_BEFORE_POSITIVE) {
+    if (pattern.test(combined)) return true;
+  }
 
   for (const pattern of MANUFACTURING_POSITIVE_SIGNALS) {
     if (pattern.test(combined)) {
