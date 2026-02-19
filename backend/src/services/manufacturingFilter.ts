@@ -69,6 +69,21 @@ const EXCLUDED_PLACE_TYPES = new Set([
   "casino",
   "stadium",
   "park",
+  // Construction / contracting (not manufacturing plants)
+  "general_contractor",
+  "roofing_contractor",
+  "plumber",
+  "electrician",
+  "moving_company",
+  "painter",
+  "landscaping_company",
+  "locksmith",
+  "hvac_contractor",
+  // Retail / supply (not manufacturing plants)
+  "building_materials_store",
+  "food_store",
+  // HQ-only offices with no plant signal
+  "corporate_office",
 ]);
 
 /** Summary keywords that strongly indicate non-manufacturing.
@@ -104,6 +119,29 @@ const EXCLUDED_SUMMARY_PATTERNS = [
   /\btavern\b/i,
   /\b(bar|restaurant)\s+and\s+grill\b/i,
   /\bgrill\s+(house|restaurant|bar)\b/i,
+  // Construction companies (not manufacturing facilities)
+  /\bconstruction\s*company\b/i,
+  /\bconstruction\s*contractor\b/i,
+  /\bgeneral\s*contractor\b/i,
+  /\bcommercial\s*construction\b/i,
+  /\bresidential\s*construction\b/i,
+  /\bbuilding\s*construction\b/i,
+  /\bcontractor\s*(company|services?)?\b/i,
+  /\b(roofing|electrical|plumbing|hvac)\s*(contractor|company|services?)\b/i,
+  /\bhome\s*(improvement|remodeling|builder)\b/i,
+  /\bremodeling\s*(contractor|company)\b/i,
+  /\bconstruction-related\s*(services?)?\b/i,
+  // Name or summary: contracting, retail building/landscape, utilities
+  /\bcontracting\b/i,
+  /\bcustom\s*concrete\b/i,
+  /\bbuilding\s*materials\s*(store|supplier)?\b/i,
+  /\blandscap(e|ing)\s*(materials?|supply)\b/i,
+  /\blawn\s*care\s*supply\b/i,
+  /\bprimarily\s*a\s*retail\s*store\b/i,
+  /\bcorporate\s*office\b/i,
+  /\bwater\s*treatment\s*plant\b/i,
+  /\bwwtp\b/i,
+  /\bpro\s*desk\b/i,
 ];
 
 /** Keywords indicating manufacturing/industrial despite type (bar, store, etc).
@@ -124,8 +162,8 @@ const MANUFACTURING_POSITIVE_SIGNALS = [
   /\bdairy\s*(plant|processor|manufacturing)?\b/i,
   /\bchemical\s*plant\b/i,
   /\bpharmaceutical\b/i,
-  /\bwater\s*treatment\b/i,
   /\bpackaging\s*(facility|plant)?\b/i,
+  /\bdeer\s*processing\b/i,
   /\bcold\s*storage\b/i,
   /\bplastics\s*(manufactur|plant)?\b/i,
   /\bbeverage\s*(manufactur|producer)?\b/i,
@@ -197,12 +235,13 @@ export function isExcludedAsNonManufacturing(place: PlaceForFilter): boolean {
     }
   }
 
-  const summaryForExclusion = getSummaryText(place);
-  if (!summaryForExclusion) return false;
-
-  for (const pattern of EXCLUDED_SUMMARY_PATTERNS) {
-    if (pattern.test(summaryForExclusion)) {
-      return true;
+  // Check exclusion patterns against both name and summary (catches e.g. "Contracting" in name)
+  const nameAndSummary = `${name} ${summary}`.trim();
+  if (nameAndSummary) {
+    for (const pattern of EXCLUDED_SUMMARY_PATTERNS) {
+      if (pattern.test(nameAndSummary)) {
+        return true;
+      }
     }
   }
 
@@ -216,6 +255,7 @@ export interface DbPlantForFilter {
   types?: string | null;
   editorial_summary?: string | null;
   generative_summary?: string | null;
+  manufacturing_reason?: string | null;
 }
 
 /** Check if an existing DB plant should be excluded (e.g. for cleanup). */
@@ -230,11 +270,14 @@ export function isExcludedFromDbPlant(plant: DbPlantForFilter): boolean {
   } catch {
     /* ignore */
   }
+  // Include LLM reason in summary so exclusion patterns can use it (e.g. "General contractor")
+  const reason = plant.manufacturing_reason ?? "";
+  const editorialSummary = [plant.editorial_summary, reason].filter(Boolean).join(" ") || undefined;
   return isExcludedAsNonManufacturing({
     displayName: plant.name ?? undefined,
     primaryType: plant.primary_type ?? undefined,
     types,
-    editorialSummary: plant.editorial_summary ?? undefined,
+    editorialSummary,
     generativeSummary: plant.generative_summary ?? undefined,
   });
 }

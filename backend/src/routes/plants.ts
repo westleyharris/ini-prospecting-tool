@@ -360,13 +360,14 @@ plantsRouter.patch("/:id", (req, res) => {
 
 plantsRouter.post("/cleanup-non-manufacturing", (req, res) => {
   try {
-    const plants = db.prepare("SELECT id, name, primary_type, types, editorial_summary, generative_summary FROM plants").all() as Array<{
+    const plants = db.prepare("SELECT id, name, primary_type, types, editorial_summary, generative_summary, manufacturing_reason FROM plants").all() as Array<{
       id: string;
       name: string | null;
       primary_type: string | null;
       types: string | null;
       editorial_summary: string | null;
       generative_summary: string | null;
+      manufacturing_reason: string | null;
     }>;
     const toDelete = plants.filter((p) => isExcludedFromDbPlant(p));
     const ids = toDelete.map((p) => p.id);
