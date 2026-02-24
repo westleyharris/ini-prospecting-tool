@@ -94,8 +94,11 @@ function OpenFocusedPopup({
       if (raw) {
         if (typeof (raw as L.Marker).openPopup === "function") {
           marker = raw as L.Marker;
-        } else if ((raw as { leafletElement?: L.Marker }).leafletElement) {
-          marker = (raw as { leafletElement: L.Marker }).leafletElement;
+        } else {
+          const withLeaflet = raw as unknown as { leafletElement?: L.Marker };
+          if (withLeaflet?.leafletElement && typeof withLeaflet.leafletElement.openPopup === "function") {
+            marker = withLeaflet.leafletElement;
+          }
         }
       }
       if (!marker) {
