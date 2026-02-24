@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
@@ -22,18 +22,103 @@ interface PlantMapProps {
   plants: Plant[];
   showContactedOnly?: boolean;
   showNotContactedOnly?: boolean;
+  focusedPlantId?: string | null;
 }
 
-function MapBounds({ plants }: { plants: Plant[] }) {
+function MapBounds({
+  plants,
+  skipWhenFocusedId,
+}: {
+  plants: Plant[];
+  skipWhenFocusedId?: string | null;
+}) {
   const map = useMap();
   const withCoords = plants.filter((p) => p.lat != null && p.lng != null);
   useEffect(() => {
-    if (withCoords.length === 0) return;
+    if (skipWhenFocusedId || withCoords.length === 0) return;
     const bounds = L.latLngBounds(
       withCoords.map((p) => [p.lat!, p.lng!] as [number, number])
     );
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
-  }, [map, plants]);
+  }, [map, plants, skipWhenFocusedId]);
+  return null;
+}
+
+function FocusOnPlant({ plant }: { plant: Plant | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!plant || plant.lat == null || plant.lng == null) return;
+    map.setView([plant.lat, plant.lng], 16, { animate: true });
+  }, [map, plant?.id, plant?.lat, plant?.lng]);
+
+  return null;
+}
+
+function OpenFocusedPopup({
+  focusedPlantId,
+  markerRefs,
+  focusedPlant,
+}: {
+  focusedPlantId: string | null;
+  markerRefs: React.MutableRefObject<Record<string, L.Marker | null>>;
+  focusedPlant: Plant | null;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!focusedPlantId || !focusedPlant || focusedPlant.lat == null || focusedPlant.lng == null) return;
+    const lat = focusedPlant.lat;
+    const lng = focusedPlant.lng;
+
+    const findMarkerAt = (layer: L.Layer): L.Marker | null => {
+      if (layer instanceof L.Marker) {
+        const pos = layer.getLatLng();
+        if (pos && Math.abs(pos.lat - lat) < 1e-5 && Math.abs(pos.lng - lng) < 1e-5) return layer;
+        return null;
+      }
+      const group = layer as L.LayerGroup & { getLayers?: () => L.Layer[] };
+      if (group.getLayers) {
+        const layers = group.getLayers();
+        for (let i = 0; i < layers.length; i++) {
+          const found = findMarkerAt(layers[i]);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const openPopup = () => {
+      let marker: L.Marker | null = null;
+      const raw = markerRefs.current[focusedPlantId];
+      if (raw) {
+        if (typeof (raw as L.Marker).openPopup === "function") {
+          marker = raw as L.Marker;
+        } else if ((raw as { leafletElement?: L.Marker }).leafletElement) {
+          marker = (raw as { leafletElement: L.Marker }).leafletElement;
+        }
+      }
+      if (!marker) {
+        map.eachLayer((layer) => {
+          if (!marker) marker = findMarkerAt(layer);
+        });
+      }
+      if (marker && typeof marker.openPopup === "function") {
+        marker.openPopup();
+      }
+    };
+
+    const onMoveEnd = () => openPopup();
+    map.on("moveend", onMoveEnd);
+    const t1 = setTimeout(openPopup, 800);
+    const t2 = setTimeout(openPopup, 1800);
+    return () => {
+      map.off("moveend", onMoveEnd);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [map, focusedPlantId, focusedPlant, markerRefs]);
+
   return null;
 }
 
@@ -41,6 +126,7 @@ export default function PlantMap({
   plants,
   showContactedOnly,
   showNotContactedOnly,
+  focusedPlantId,
 }: PlantMapProps) {
   let filtered = plants;
   if (showContactedOnly) {
@@ -50,6 +136,11 @@ export default function PlantMap({
   }
 
   const withCoords = filtered.filter((p) => p.lat != null && p.lng != null);
+  const focusedPlant =
+    focusedPlantId != null
+      ? plants.find((p) => p.id === focusedPlantId) ?? null
+      : null;
+  const markerRefs = useRef<Record<string, L.Marker | null>>({});
 
   return (
     <div className="h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
@@ -63,10 +154,22 @@ export default function PlantMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapBounds plants={withCoords} />
+        <MapBounds plants={withCoords} skipWhenFocusedId={focusedPlantId} />
+        <FocusOnPlant plant={focusedPlant} />
+        <OpenFocusedPopup
+          focusedPlantId={focusedPlantId ?? null}
+          markerRefs={markerRefs}
+          focusedPlant={focusedPlant}
+        />
         <MarkerClusterGroup>
           {withCoords.map((plant) => (
-            <Marker key={plant.id} position={[plant.lat!, plant.lng!]}>
+            <Marker
+              key={plant.id}
+              ref={(el) => {
+                if (el) markerRefs.current[plant.id] = el as unknown as L.Marker;
+              }}
+              position={[plant.lat!, plant.lng!]}
+            >
               <Popup>
                 <div className="min-w-[220px]">
                   <div className="flex gap-3">
