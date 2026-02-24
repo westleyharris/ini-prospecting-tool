@@ -17,7 +17,8 @@ function filterPlants(
   locationFilter: string,
   contactedFilter: "all" | "yes" | "no",
   customerFilter: "all" | "yes" | "no",
-  relevanceFilter: string
+  relevanceFilter: string,
+  followUpFilter: "all" | "due" | "none"
 ): Plant[] {
   let result = plants;
 
@@ -90,6 +91,24 @@ function filterPlants(
     result = result.filter((p) => (p.manufacturing_relevance ?? "") === relevanceFilter);
   }
 
+  if (followUpFilter !== "all") {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const msPerDay = 24 * 60 * 60 * 1000;
+    result = result.filter((p) => {
+      const raw = p.follow_up_date;
+      if (!raw) {
+        return followUpFilter === "none";
+      }
+      if (followUpFilter === "none") return false;
+      const d = new Date(`${raw}T00:00:00`);
+      if (isNaN(d.getTime())) return false;
+      const diffDays = Math.round((d.getTime() - today.getTime()) / msPerDay);
+      // Due & overdue within the next 7 days (including past)
+      return diffDays <= 7;
+    });
+  }
+
   return result;
 }
 
@@ -105,14 +124,24 @@ export default function Dashboard() {
   const [contactedFilter, setContactedFilter] = useState<"all" | "yes" | "no">("all");
   const [customerFilter, setCustomerFilter] = useState<"all" | "yes" | "no">("all");
   const [relevanceFilter, setRelevanceFilter] = useState("all");
+  const [followUpFilter, setFollowUpFilter] = useState<"all" | "due" | "none">("all");
   const [showAddPlant, setShowAddPlant] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const filteredPlants = useMemo(
-    () => filterPlants(plants, search, locationFilter, contactedFilter, customerFilter, relevanceFilter),
-    [plants, search, locationFilter, contactedFilter, customerFilter, relevanceFilter]
+    () =>
+      filterPlants(
+        plants,
+        search,
+        locationFilter,
+        contactedFilter,
+        customerFilter,
+        relevanceFilter,
+        followUpFilter
+      ),
+    [plants, search, locationFilter, contactedFilter, customerFilter, relevanceFilter, followUpFilter]
   );
 
   const totalFiltered = filteredPlants.length;
@@ -148,7 +177,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, locationFilter, contactedFilter, customerFilter, relevanceFilter]);
+  }, [search, locationFilter, contactedFilter, customerFilter, relevanceFilter, followUpFilter]);
 
   const handleRunPipeline = async () => {
     setPipelineRunning(true);
@@ -166,7 +195,33 @@ export default function Dashboard() {
     }
   };
 
-  const hasActiveFilters = search || locationFilter || contactedFilter !== "all" || customerFilter !== "all" || relevanceFilter !== "all";
+  const hasActiveFilters =
+    search ||
+    locationFilter ||
+    contactedFilter !== "all" ||
+    customerFilter !== "all" ||
+    relevanceFilter !== "all" ||
+    followUpFilter !== "all";
+
+  const upcomingFollowUps = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const msPerDay = 24 * 60 * 60 * 1000;
+    return plants
+      .filter((p) => p.follow_up_date)
+      .map((p) => {
+        const d = new Date(`${p.follow_up_date}T00:00:00`);
+        if (isNaN(d.getTime())) return null;
+        const diffDays = Math.round((d.getTime() - today.getTime()) / msPerDay);
+        return { plant: p, date: d, diffDays };
+      })
+      .filter(
+        (item): item is { plant: Plant; date: Date; diffDays: number } =>
+          !!item && item.diffDays <= 7
+      )
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .slice(0, 10);
+  }, [plants]);
 
   return (
     <div className="space-y-5 sm:space-y-8">
@@ -217,6 +272,51 @@ export default function Dashboard() {
       {/* Plants section */}
       <section className="min-w-0">
         <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-2 sm:mb-3">Plants</h2>
+        {upcomingFollowUps.length > 0 && (
+          <div className="mb-3">
+            <div className="bg-white rounded-xl border border-amber-200 shadow-sm p-3 sm:p-4">
+              <h3 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2">
+                Upcoming follow-ups (next 7 days & overdue)
+              </h3>
+              <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+                {upcomingFollowUps.map(({ plant, diffDays, date }) => {
+                  let label: string;
+                  if (diffDays < 0) {
+                    const daysAgo = Math.abs(diffDays);
+                    label = daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`;
+                  } else if (diffDays === 0) {
+                    label = "Today";
+                  } else if (diffDays === 1) {
+                    label = "Tomorrow";
+                  } else {
+                    label = `In ${diffDays} days`;
+                  }
+                  return (
+                    <li
+                      key={plant.id}
+                      className="flex items-baseline justify-between gap-2 text-xs sm:text-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate">
+                          {plant.name ?? "Unknown plant"}
+                        </p>
+                        <p className="text-[11px] text-gray-500 truncate">
+                          {plant.formatted_address ?? plant.short_formatted_address ?? ""}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-[11px] font-medium text-amber-800">{label}</p>
+                        <p className="text-[11px] text-gray-400">
+                          {date.toISOString().slice(0, 10)}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        )}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-w-0">
           {/* Search and filters bar */}
           <div className="p-3 sm:p-5 border-b border-gray-100 bg-gray-50/50">
@@ -298,6 +398,21 @@ export default function Dashboard() {
                     <option value="low">Low</option>
                   </select>
                 </div>
+                <div className="min-w-0 col-span-2 sm:col-span-1">
+                  <label htmlFor="followup-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    Follow-ups
+                  </label>
+                  <select
+                    id="followup-filter"
+                    value={followUpFilter}
+                    onChange={(e) => setFollowUpFilter(e.target.value as "all" | "due" | "none")}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0 sm:min-w-[120px]"
+                  >
+                    <option value="all">All</option>
+                    <option value="due">Due & overdue</option>
+                    <option value="none">No follow-up</option>
+                  </select>
+                </div>
                 {hasActiveFilters && (
                   <button
                     type="button"
@@ -307,6 +422,7 @@ export default function Dashboard() {
                       setContactedFilter("all");
                       setCustomerFilter("all");
                       setRelevanceFilter("all");
+                      setFollowUpFilter("all");
                     }}
                     className="px-3 py-2 text-sm font-medium text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded-lg col-span-2 sm:col-span-1"
                   >

@@ -41,6 +41,69 @@ function getSummary(plant: { generative_summary?: string | null; editorial_summa
 
 import { getDisplayType } from "../utils/plant";
 
+function getTodayMidnight(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function parseDateAtMidnight(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const d = new Date(`${dateStr}T00:00:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function getFollowUpStatus(
+  followUpDate: string | null
+): { label: string; className: string } {
+  if (!followUpDate) {
+    return {
+      label: "None",
+      className: "bg-gray-100 text-gray-700",
+    };
+  }
+  const target = parseDateAtMidnight(followUpDate);
+  if (!target) {
+    return {
+      label: followUpDate,
+      className: "bg-gray-100 text-gray-700",
+    };
+  }
+  const today = getTodayMidnight();
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round((target.getTime() - today.getTime()) / msPerDay);
+
+  if (diffDays < 0) {
+    const daysAgo = Math.abs(diffDays);
+    return {
+      label: daysAgo === 1 ? "Overdue (1 day ago)" : `Overdue (${daysAgo} days ago)`,
+      className: "bg-red-100 text-red-800",
+    };
+  }
+  if (diffDays === 0) {
+    return {
+      label: "Today",
+      className: "bg-sky-100 text-sky-800",
+    };
+  }
+  if (diffDays === 1) {
+    return {
+      label: "Tomorrow",
+      className: "bg-amber-100 text-amber-800",
+    };
+  }
+  if (diffDays <= 7) {
+    return {
+      label: `In ${diffDays} days`,
+      className: "bg-amber-100 text-amber-800",
+    };
+  }
+  return {
+    label: followUpDate,
+    className: "bg-gray-100 text-gray-700",
+  };
+}
+
 interface PlantTableProps {
   plants: Plant[];
   loading: boolean;
@@ -527,8 +590,18 @@ export default function PlantTable({
                       {plant.current_customer === 1 ? "Yes" : "No"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {plant.follow_up_date ?? "—"}
+                  <td className="px-4 py-3 text-sm">
+                    {(() => {
+                      const status = getFollowUpStatus(plant.follow_up_date ?? null);
+                      return (
+                        <span
+                          className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${status.className}`}
+                          title={plant.follow_up_date ?? undefined}
+                        >
+                          {status.label}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td
                     className={`px-4 py-3 text-sm text-gray-500 max-w-xs h-[3.25rem] max-h-[3.25rem] overflow-hidden align-top ${(plant.notes ?? "").trim() ? "cursor-help" : ""}`}
