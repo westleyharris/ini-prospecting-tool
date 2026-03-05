@@ -1,10 +1,10 @@
 import { Router } from "express";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
-import { unlinkSync, existsSync, writeFileSync } from "fs";
+import { unlinkSync, existsSync, renameSync, mkdirSync, copyFileSync } from "fs";
 import { join } from "path";
 import { db } from "../db.js";
-import { getVisitFilesPath } from "../services/uploads.js";
+import { getVisitFilesPath, getUploadsPath } from "../services/uploads.js";
 
 export const visitsRouter = Router();
 
@@ -14,9 +14,24 @@ const ALLOWED_MIMES = [
   "application/pdf",
 ];
 
+// Temp directory for in-flight uploads — files land here first, then get moved
+// to the visit-specific folder once the visit record is created.
+// Using diskStorage (instead of memoryStorage) means large files are streamed
+// directly to disk instead of being buffered in RAM.
+const TEMP_UPLOAD_DIR = join(getUploadsPath(), "tmp");
+
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      mkdirSync(TEMP_UPLOAD_DIR, { recursive: true });
+      cb(null, TEMP_UPLOAD_DIR);
+    },
+    filename: (_req, file, cb) => {
+      const ext = file.originalname.split(".").pop() || "bin";
+      cb(null, `${uuidv4()}.${ext}`);
+    },
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB
   fileFilter: (_req, file, cb) => {
     const ok =
       ALLOWED_MIMES.includes(file.mimetype) ||
@@ -30,7 +45,7 @@ const upload = multer({
 visitsRouter.get("/", (req, res) => {
   try {
     const plantId = req.query.plant_id as string | undefined;
-    let sql = `SELECT v.*, pl.name as plant_name FROM visits v
+    let sql = `SELECT v.*, pl.name as plant_name, pl.city as plant_city, pl.state as plant_state FROM visits v
                LEFT JOIN plants pl ON v.plant_id = pl.id WHERE 1=1`;
     const params: string[] = [];
 
@@ -73,13 +88,18 @@ visitsRouter.get("/:id", (req, res) => {
 });
 
 visitsRouter.post("/", upload.single("file"), (req, res) => {
+  // Track temp file path so we can clean it up if anything goes wrong
+  const tempFilePath = req.file?.path ?? null;
+
   try {
     const { plant_id, visit_date, notes } = req.body;
     if (!plant_id || !visit_date) {
+      if (tempFilePath && existsSync(tempFilePath)) unlinkSync(tempFilePath);
       return res.status(400).json({ error: "plant_id and visit_date are required" });
     }
     const plant = db.prepare("SELECT id FROM plants WHERE id = ?").get(plant_id);
     if (!plant) {
+      if (tempFilePath && existsSync(tempFilePath)) unlinkSync(tempFilePath);
       return res.status(404).json({ error: "Plant not found" });
     }
 
@@ -89,12 +109,18 @@ visitsRouter.post("/", upload.single("file"), (req, res) => {
        VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`
     ).run(id, plant_id, visit_date, notes ?? null);
 
-    if (req.file && req.file.buffer) {
-      const ext = req.file.originalname.split(".").pop() || "bin";
-      const storedName = `${uuidv4()}.${ext}`;
+    if (req.file) {
+      const storedName = req.file.filename; // UUID.ext set by diskStorage filename fn
       const destDir = getVisitFilesPath(id);
-      const filePath = join(destDir, storedName);
-      writeFileSync(filePath, req.file.buffer);
+      const finalPath = join(destDir, storedName);
+
+      try {
+        renameSync(req.file.path, finalPath);
+      } catch {
+        // Fallback for cross-device rename (shouldn't happen in practice)
+        copyFileSync(req.file.path, finalPath);
+        try { unlinkSync(req.file.path); } catch { /* ignore */ }
+      }
 
       db.prepare(
         `INSERT INTO visit_files (id, visit_id, filename, original_name, content_type, created_at)
@@ -106,6 +132,10 @@ visitsRouter.post("/", upload.single("file"), (req, res) => {
     const files = db.prepare("SELECT * FROM visit_files WHERE visit_id = ?").all(id);
     res.status(201).json({ ...(visit ?? {}), files });
   } catch (err) {
+    // Clean up temp file if it was never moved to its final location
+    if (tempFilePath && existsSync(tempFilePath)) {
+      try { unlinkSync(tempFilePath); } catch { /* ignore */ }
+    }
     console.error(err);
     res.status(500).json({ error: "Failed to create visit" });
   }

@@ -31,6 +31,8 @@ export interface Plant {
   contacted: number;
   current_customer: number;
   follow_up_date: string | null;
+  follow_up_type: string | null;
+  follow_up_notes: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -94,12 +96,25 @@ export async function fetchMetrics(): Promise<Metrics> {
   return res.json();
 }
 
+export interface FollowUpHistoryEntry {
+  id: string;
+  plant_id: string;
+  completed_date: string;
+  outcome: string;
+  notes: string | null;
+  next_follow_up_date: string | null;
+  next_follow_up_type: string | null;
+  created_at: string;
+}
+
 export async function updatePlant(
   id: string,
   updates: {
     contacted?: boolean;
     current_customer?: boolean;
     follow_up_date?: string | null;
+    follow_up_type?: string | null;
+    follow_up_notes?: string | null;
     notes?: string | null;
   }
 ): Promise<Plant> {
@@ -139,6 +154,33 @@ export async function cleanupNonManufacturing(): Promise<{
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) throw new Error("Failed to cleanup non-manufacturing plants");
+  return res.json();
+}
+
+export async function completeFollowUp(
+  plantId: string,
+  data: {
+    outcome: string;
+    notes?: string | null;
+    next_follow_up_date?: string | null;
+    next_follow_up_type?: string | null;
+  }
+): Promise<{ plant: Plant; historyId: string }> {
+  const res = await fetch(`/api/plants/${plantId}/complete-follow-up`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to complete follow-up");
+  }
+  return res.json();
+}
+
+export async function fetchFollowUpHistory(plantId: string): Promise<FollowUpHistoryEntry[]> {
+  const res = await fetch(`/api/plants/${plantId}/follow-up-history`);
+  if (!res.ok) throw new Error("Failed to fetch follow-up history");
   return res.json();
 }
 

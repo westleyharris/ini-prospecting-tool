@@ -5,6 +5,8 @@ import { updatePlant, deletePlant, deletePlantsBulk } from "../api/plants";
 import PlantContacts from "./PlantContacts";
 import PlantVisits from "./PlantVisits";
 import PlantProjects from "./PlantProjects";
+import CompleteFollowUpModal from "./CompleteFollowUpModal";
+import FollowUpHistoryModal from "./FollowUpHistoryModal";
 
 function formatOpeningHours(json: string | null): string {
   if (!json) return "";
@@ -136,7 +138,11 @@ export default function PlantTable({
   const [contacted, setContacted] = useState<boolean>(false);
   const [currentCustomer, setCurrentCustomer] = useState<boolean>(false);
   const [followUpDate, setFollowUpDate] = useState<string>("");
+  const [followUpType, setFollowUpType] = useState<string>("");
+  const [followUpNotes, setFollowUpNotes] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
+  const [completeFollowUpPlant, setCompleteFollowUpPlant] = useState<Plant | null>(null);
+  const [historyPlant, setHistoryPlant] = useState<Plant | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -162,6 +168,8 @@ export default function PlantTable({
       setContacted(editPlant.contacted === 1);
       setCurrentCustomer(editPlant.current_customer === 1);
       setFollowUpDate(editPlant.follow_up_date ?? "");
+      setFollowUpType(editPlant.follow_up_type ?? "");
+      setFollowUpNotes(editPlant.follow_up_notes ?? "");
       setNotes(editPlant.notes ?? "");
     }
   }, [editPlant]);
@@ -183,6 +191,8 @@ export default function PlantTable({
         contacted,
         current_customer: currentCustomer,
         follow_up_date: followUpDate || null,
+        follow_up_type: followUpType || null,
+        follow_up_notes: followUpNotes || null,
         notes: notes || null,
       });
       setEditPlant(null);
@@ -594,12 +604,39 @@ export default function PlantTable({
                     {(() => {
                       const status = getFollowUpStatus(plant.follow_up_date ?? null);
                       return (
-                        <span
-                          className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${status.className}`}
-                          title={plant.follow_up_date ?? undefined}
-                        >
-                          {status.label}
-                        </span>
+                        <div className="flex flex-col gap-1 min-w-[110px]">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${status.className}`}
+                              title={plant.follow_up_date ?? undefined}
+                            >
+                              {status.label}
+                            </span>
+                            {plant.follow_up_date && (
+                              <button
+                                type="button"
+                                onClick={() => setCompleteFollowUpPlant(plant)}
+                                title="Mark follow-up as complete"
+                                className="inline-flex items-center px-1.5 py-0.5 text-[11px] font-medium rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60 leading-none"
+                              >
+                                ✓
+                              </button>
+                            )}
+                          </div>
+                          {plant.follow_up_type && (
+                            <span className="text-[11px] text-gray-400 capitalize leading-none">
+                              {plant.follow_up_type}
+                            </span>
+                          )}
+                          {plant.follow_up_notes && (
+                            <span
+                              className="text-[11px] text-gray-400 truncate max-w-[130px] leading-none"
+                              title={plant.follow_up_notes}
+                            >
+                              {plant.follow_up_notes}
+                            </span>
+                          )}
+                        </div>
                       );
                     })()}
                   </td>
@@ -646,13 +683,35 @@ export default function PlantTable({
                           <span aria-hidden>⋮</span>
                         </button>
                         {openActionsId === plant.id && (
-                          <div className="absolute right-0 top-full mt-0.5 z-10 py-1 min-w-[120px] bg-white rounded-lg shadow-lg border border-gray-200">
+                          <div className="absolute right-0 top-full mt-0.5 z-10 py-1 min-w-[150px] bg-white rounded-lg shadow-lg border border-gray-200">
                             <button
                               type="button"
                               onClick={() => openEditModal(plant)}
                               className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                             >
                               Edit plant
+                            </button>
+                            {plant.follow_up_date && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionsId(null);
+                                  setCompleteFollowUpPlant(plant);
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50"
+                              >
+                                Complete follow-up
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionsId(null);
+                                setHistoryPlant(plant);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              Follow-up history
                             </button>
                             <button
                               type="button"
@@ -711,13 +770,39 @@ export default function PlantTable({
                 />
                 <span className="text-sm font-medium text-gray-700">Current customer</span>
               </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Follow-up date</label>
+                  <input
+                    type="date"
+                    value={followUpDate}
+                    onChange={(e) => setFollowUpDate(e.target.value)}
+                    className="block w-full rounded-lg border border-gray-300 shadow-sm text-sm focus:border-sky-500 focus:ring-sky-500 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Follow-up type</label>
+                  <select
+                    value={followUpType}
+                    onChange={(e) => setFollowUpType(e.target.value)}
+                    className="block w-full rounded-lg border border-gray-300 bg-white shadow-sm text-sm focus:border-sky-500 focus:ring-sky-500 px-3 py-2"
+                  >
+                    <option value="">— none —</option>
+                    <option value="call">Call</option>
+                    <option value="email">Email</option>
+                    <option value="visit">Visit</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Follow-up date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Follow-up notes</label>
                 <input
-                  type="date"
-                  value={followUpDate}
-                  onChange={(e) => setFollowUpDate(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-300 shadow-sm text-sm focus:border-sky-500 focus:ring-sky-500"
+                  type="text"
+                  value={followUpNotes}
+                  onChange={(e) => setFollowUpNotes(e.target.value)}
+                  placeholder="What to discuss, context…"
+                  className="block w-full rounded-lg border border-gray-300 shadow-sm text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-sky-500 px-3 py-2"
                 />
               </div>
               <div>
@@ -770,6 +855,24 @@ export default function PlantTable({
           plant={projectsPlant}
           onClose={() => setProjectsPlant(null)}
           onUpdate={onUpdate}
+        />
+      )}
+
+      {completeFollowUpPlant && (
+        <CompleteFollowUpModal
+          plant={completeFollowUpPlant}
+          onClose={() => setCompleteFollowUpPlant(null)}
+          onCompleted={() => {
+            setCompleteFollowUpPlant(null);
+            onUpdate();
+          }}
+        />
+      )}
+
+      {historyPlant && (
+        <FollowUpHistoryModal
+          plant={historyPlant}
+          onClose={() => setHistoryPlant(null)}
         />
       )}
 

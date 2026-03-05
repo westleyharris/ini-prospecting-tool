@@ -2,12 +2,12 @@ import { useState, useEffect } from "react";
 import type { Plant } from "../api/plants";
 import {
   fetchVisits,
-  createVisit,
   deleteVisit,
   getVisitFileUrl,
   type Visit,
   type VisitFile,
 } from "../api/visits";
+import CompleteFollowUpModal from "./CompleteFollowUpModal";
 
 interface PlantVisitsProps {
   plant: Plant;
@@ -24,6 +24,9 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
   const [visitDate, setVisitDate] = useState("");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [showFollowUpBanner, setShowFollowUpBanner] = useState(false);
+  const [completeFollowUpOpen, setCompleteFollowUpOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -48,22 +51,54 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
       return;
     }
     setAdding(true);
+    setUploadProgress(file ? 0 : null);
     try {
-      await createVisit({
-        plant_id: plant.id,
-        visit_date: visitDate,
-        notes: notes.trim() || undefined,
-        file: file ?? undefined,
+      const form = new FormData();
+      form.set("plant_id", plant.id);
+      form.set("visit_date", visitDate);
+      if (notes.trim()) form.set("notes", notes.trim());
+      if (file) form.set("file", file);
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        if (file) {
+          xhr.upload.addEventListener("progress", (ev) => {
+            if (ev.lengthComputable) {
+              setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+            }
+          });
+        }
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            try {
+              const err = JSON.parse(xhr.responseText);
+              reject(new Error(err.error || "Failed to add visit"));
+            } catch {
+              reject(new Error(`Upload failed (${xhr.status})`));
+            }
+          }
+        });
+        xhr.addEventListener("error", () => reject(new Error("Upload failed — check your connection")));
+        xhr.open("POST", "/api/visits");
+        xhr.send(form);
       });
+
       setShowAddForm(false);
       setVisitDate("");
       setNotes("");
       setFile(null);
+      setUploadProgress(null);
       await load();
       onUpdate?.();
+      if (plant.follow_up_date) {
+        setShowFollowUpBanner(true);
+      }
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : "Failed to add visit");
+      setUploadProgress(null);
     } finally {
       setAdding(false);
     }
@@ -87,6 +122,18 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
   const visitsWithFiles = visits as (Visit & { files?: VisitFile[] })[];
 
   return (
+    <>
+    {completeFollowUpOpen && (
+      <CompleteFollowUpModal
+        plant={plant}
+        onClose={() => setCompleteFollowUpOpen(false)}
+        onCompleted={() => {
+          setCompleteFollowUpOpen(false);
+          setShowFollowUpBanner(false);
+          onUpdate?.();
+        }}
+      />
+    )}
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
@@ -111,6 +158,31 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
           </button>
           </div>
         </div>
+        {showFollowUpBanner && plant.follow_up_date && (
+          <div className="px-6 py-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-amber-900 font-medium">Follow-up scheduled for {plant.follow_up_date}</p>
+              <p className="text-xs text-amber-700 mt-0.5">Would you like to mark it as complete?</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setCompleteFollowUpOpen(true)}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
+              >
+                Complete
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowFollowUpBanner(false)}
+                className="px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 rounded-lg"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="px-6 py-4 border-b border-gray-200">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Add visit</p>
           <button
@@ -144,7 +216,7 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Report (Word or PDF)
+                  Report (Word or PDF, up to 500 MB)
                 </label>
                 <input
                   type="file"
@@ -152,13 +224,32 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
+                {file && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {file.name} — {(file.size / (1024 * 1024)).toFixed(1)} MB
+                  </p>
+                )}
               </div>
+              {uploadProgress !== null && (
+                <div>
+                  <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                    <span>Uploading…</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-150"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               <button
                 type="submit"
                 disabled={adding}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
-                {adding ? "Adding..." : "Save visit"}
+                {adding ? (uploadProgress !== null ? `Uploading ${uploadProgress}%…` : "Saving…") : "Save visit"}
               </button>
             </form>
           )}
@@ -208,5 +299,6 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
         </div>
       </div>
     </div>
+    </>
   );
 }

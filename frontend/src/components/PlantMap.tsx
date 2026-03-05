@@ -88,7 +88,12 @@ function OpenFocusedPopup({
       return null;
     };
 
-    const openPopup = () => {
+    // opened flag prevents the popup from re-opening after the user closes it
+    // and then interacts with the map (moveend fires on any pan/zoom)
+    let opened = false;
+
+    const tryOpenPopup = () => {
+      if (opened) return;
       let marker: L.Marker | null = null;
       const raw = markerRefs.current[focusedPlantId];
       if (raw) {
@@ -108,13 +113,16 @@ function OpenFocusedPopup({
       }
       if (marker && typeof marker.openPopup === "function") {
         marker.openPopup();
+        opened = true;
+        // Remove the moveend listener once the popup has opened — no need to re-open
+        map.off("moveend", onMoveEnd);
       }
     };
 
-    const onMoveEnd = () => openPopup();
+    const onMoveEnd = () => tryOpenPopup();
     map.on("moveend", onMoveEnd);
-    const t1 = setTimeout(openPopup, 800);
-    const t2 = setTimeout(openPopup, 1800);
+    const t1 = setTimeout(tryOpenPopup, 800);
+    const t2 = setTimeout(tryOpenPopup, 1800);
     return () => {
       map.off("moveend", onMoveEnd);
       clearTimeout(t1);

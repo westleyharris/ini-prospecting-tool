@@ -15,6 +15,8 @@ export interface Visit {
   created_at: string;
   updated_at: string;
   plant_name?: string;
+  plant_city?: string | null;
+  plant_state?: string | null;
   files?: VisitFile[];
 }
 

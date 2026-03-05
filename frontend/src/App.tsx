@@ -6,6 +6,7 @@ import ReportsPage from "./pages/ReportsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import CommissioningsPage from "./pages/CommissioningsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
+import FollowUpsPage from "./pages/FollowUpsPage";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
@@ -39,6 +40,7 @@ function App() {
             <div className="hidden md:flex md:items-center md:space-x-1 lg:space-x-4">
               <NavLink to="/" className={navLinkClass}>Dashboard</NavLink>
               <NavLink to="/map" className={navLinkClass}>Map</NavLink>
+              <NavLink to="/follow-ups" className={navLinkClass}>Follow-ups</NavLink>
               <NavLink to="/reports" className={navLinkClass}>Reports</NavLink>
               <NavLink to="/projects" className={navLinkClass}>Projects</NavLink>
               <NavLink to="/commissionings" className={navLinkClass}>Commissionings</NavLink>
@@ -73,6 +75,7 @@ function App() {
               <div className="pt-2 pb-3 space-y-0.5">
                 <NavLink to="/" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Dashboard</NavLink>
                 <NavLink to="/map" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Map</NavLink>
+                <NavLink to="/follow-ups" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Follow-ups</NavLink>
                 <NavLink to="/reports" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Reports</NavLink>
                 <NavLink to="/projects" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Projects</NavLink>
                 <NavLink to="/commissionings" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Commissionings</NavLink>
@@ -89,6 +92,7 @@ function App() {
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
+          <Route path="/follow-ups" element={<FollowUpsPage />} />
           <Route path="/commissionings" element={<CommissioningsPage />} />
         </Routes>
       </main>

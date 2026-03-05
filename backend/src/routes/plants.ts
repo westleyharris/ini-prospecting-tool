@@ -315,7 +315,7 @@ plantsRouter.get("/:id", async (req, res) => {
 
 plantsRouter.patch("/:id", (req, res) => {
   try {
-    const { contacted, current_customer, follow_up_date, notes } = req.body;
+    const { contacted, current_customer, follow_up_date, follow_up_type, follow_up_notes, notes } = req.body;
     const id = req.params.id as string;
 
     const updates: string[] = ["updated_at = datetime('now')"];
@@ -332,6 +332,14 @@ plantsRouter.patch("/:id", (req, res) => {
     if (follow_up_date !== undefined) {
       updates.push("follow_up_date = ?");
       params.push(follow_up_date === null || follow_up_date === "" ? null : follow_up_date);
+    }
+    if (follow_up_type !== undefined) {
+      updates.push("follow_up_type = ?");
+      params.push(follow_up_type ?? null);
+    }
+    if (follow_up_notes !== undefined) {
+      updates.push("follow_up_notes = ?");
+      params.push(follow_up_notes ?? null);
     }
     if (notes !== undefined) {
       updates.push("notes = ?");
@@ -355,6 +363,69 @@ plantsRouter.patch("/:id", (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to update plant" });
+  }
+});
+
+plantsRouter.post("/:id/complete-follow-up", (req, res) => {
+  try {
+    const plantId = req.params.id as string;
+    const { outcome, notes, next_follow_up_date, next_follow_up_type } = req.body;
+
+    const plant = db.prepare("SELECT id FROM plants WHERE id = ?").get(plantId);
+    if (!plant) {
+      return res.status(404).json({ error: "Plant not found" });
+    }
+    if (!outcome || typeof outcome !== "string") {
+      return res.status(400).json({ error: "outcome is required" });
+    }
+
+    const histId = uuidv4();
+    const completedDate = new Date().toISOString().slice(0, 10);
+    db.prepare(
+      `INSERT INTO follow_up_history (id, plant_id, completed_date, outcome, notes, next_follow_up_date, next_follow_up_type, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+    ).run(
+      histId,
+      plantId,
+      completedDate,
+      outcome,
+      notes ?? null,
+      next_follow_up_date ?? null,
+      next_follow_up_type ?? null
+    );
+
+    if (next_follow_up_date) {
+      db.prepare(
+        `UPDATE plants SET follow_up_date = ?, follow_up_type = ?, updated_at = datetime('now') WHERE id = ?`
+      ).run(next_follow_up_date, next_follow_up_type ?? null, plantId);
+    } else {
+      db.prepare(
+        `UPDATE plants SET follow_up_date = NULL, follow_up_type = NULL, follow_up_notes = NULL, updated_at = datetime('now') WHERE id = ?`
+      ).run(plantId);
+    }
+
+    const updatedPlant = db.prepare("SELECT * FROM plants WHERE id = ?").get(plantId);
+    res.json({ plant: updatedPlant, historyId: histId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to complete follow-up" });
+  }
+});
+
+plantsRouter.get("/:id/follow-up-history", (req, res) => {
+  try {
+    const plantId = req.params.id as string;
+    const plant = db.prepare("SELECT id FROM plants WHERE id = ?").get(plantId);
+    if (!plant) {
+      return res.status(404).json({ error: "Plant not found" });
+    }
+    const history = db
+      .prepare("SELECT * FROM follow_up_history WHERE plant_id = ? ORDER BY created_at DESC")
+      .all(plantId);
+    res.json(history);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch follow-up history" });
   }
 });
 

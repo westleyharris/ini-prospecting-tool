@@ -108,6 +108,19 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_commissionings_project_id ON commissionings(project_id);
   CREATE INDEX IF NOT EXISTS idx_commissionings_comm_number ON commissionings(comm_number);
+
+  CREATE TABLE IF NOT EXISTS follow_up_history (
+    id TEXT PRIMARY KEY,
+    plant_id TEXT NOT NULL REFERENCES plants(id) ON DELETE CASCADE,
+    completed_date TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    notes TEXT,
+    next_follow_up_date TEXT,
+    next_follow_up_type TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_follow_up_history_plant_id ON follow_up_history(plant_id);
+  CREATE INDEX IF NOT EXISTS idx_follow_up_history_completed_date ON follow_up_history(completed_date);
 `);
 
 // Migrations: add new columns if they don't exist
@@ -131,6 +144,8 @@ const newColumns = [
   { name: "postal_code", type: "TEXT" },
   { name: "manufacturing_relevance", type: "TEXT" },
   { name: "manufacturing_reason", type: "TEXT" },
+  { name: "follow_up_type", type: "TEXT" },
+  { name: "follow_up_notes", type: "TEXT" },
 ];
 const tableInfo = db.prepare("PRAGMA table_info(plants)").all() as { name: string }[];
 const existingCols = new Set(tableInfo.map((c) => c.name));
@@ -174,9 +189,22 @@ export interface Plant {
   manufacturing_relevance: string | null;
   manufacturing_reason: string | null;
   follow_up_date: string | null;
+  follow_up_type: string | null;
+  follow_up_notes: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FollowUpHistory {
+  id: string;
+  plant_id: string;
+  completed_date: string;
+  outcome: string;
+  notes: string | null;
+  next_follow_up_date: string | null;
+  next_follow_up_type: string | null;
+  created_at: string;
 }
 
 export interface Contact {
