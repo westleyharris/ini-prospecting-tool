@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useEffect, useMemo, useRef } from "react";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import type { Plant } from "../api/plants";
@@ -18,11 +18,24 @@ const defaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = defaultIcon;
 
+function makeNumberedIcon(n: number): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    html: `<div style="background:#2563eb;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid white;box-shadow:0 1px 5px rgba(0,0,0,0.4)">${n}</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -16],
+  });
+}
+
 interface PlantMapProps {
   plants: Plant[];
   showContactedOnly?: boolean;
   showNotContactedOnly?: boolean;
   focusedPlantId?: string | null;
+  routeMode?: boolean;
+  routePlantIds?: string[];
+  onRouteToggle?: (plantId: string) => void;
 }
 
 function MapBounds({
@@ -88,8 +101,6 @@ function OpenFocusedPopup({
       return null;
     };
 
-    // opened flag prevents the popup from re-opening after the user closes it
-    // and then interacts with the map (moveend fires on any pan/zoom)
     let opened = false;
 
     const tryOpenPopup = () => {
@@ -114,7 +125,6 @@ function OpenFocusedPopup({
       if (marker && typeof marker.openPopup === "function") {
         marker.openPopup();
         opened = true;
-        // Remove the moveend listener once the popup has opened — no need to re-open
         map.off("moveend", onMoveEnd);
       }
     };
@@ -133,11 +143,118 @@ function OpenFocusedPopup({
   return null;
 }
 
+function PlantPopup({
+  plant,
+  routeMode,
+  inRoute,
+  onRouteToggle,
+}: {
+  plant: Plant;
+  routeMode: boolean;
+  inRoute: boolean;
+  onRouteToggle?: (id: string) => void;
+}) {
+  return (
+    <div className="min-w-[220px]">
+      <div className="flex gap-3">
+        {plant.photo_name && (
+          <img
+            src={`/api/plants/${plant.id}/photo`}
+            alt=""
+            className="w-14 h-14 object-cover rounded border border-gray-200 flex-shrink-0"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">{plant.name ?? "Unknown"}</p>
+          {plant.distance_miles != null && (
+            <p className="text-xs text-gray-500 mt-0.5">
+              {plant.distance_miles} mi from Forney, TX
+            </p>
+          )}
+        </div>
+      </div>
+      {(plant.generative_summary ?? plant.editorial_summary) && (
+        <p className="text-xs text-gray-600 mt-2 line-clamp-2">
+          {plant.generative_summary ?? plant.editorial_summary}
+          {plant.generative_summary && (
+            <span className="text-[10px] text-gray-400 ml-1">(Summarized with Gemini)</span>
+          )}
+        </p>
+      )}
+      {getDisplayType(plant) && (
+        <p className="text-xs text-gray-500 mt-0.5">{getDisplayType(plant)}</p>
+      )}
+      <p className="text-sm text-gray-600 mt-1">{plant.formatted_address ?? ""}</p>
+      {plant.phone && (
+        <p className="text-sm mt-1">
+          <a href={`tel:${plant.phone}`} className="text-blue-600 hover:underline">
+            {plant.phone}
+          </a>
+        </p>
+      )}
+      <div className="mt-2 flex flex-wrap gap-1">
+        {plant.website && (
+          <a href={plant.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+            Website
+          </a>
+        )}
+        {plant.google_maps_uri && (
+          <a href={plant.google_maps_uri} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+            Maps
+          </a>
+        )}
+      </div>
+      {plant.regular_opening_hours && (() => {
+        try {
+          const data = JSON.parse(plant.regular_opening_hours);
+          const desc = data.weekdayDescriptions?.[0] as string | undefined;
+          if (desc) {
+            return (
+              <p className="text-xs text-gray-500 mt-1" title={data.weekdayDescriptions?.join("\n")}>
+                {desc.replace(/^[^:]+:\s*/, "")}
+              </p>
+            );
+          }
+        } catch {}
+        return null;
+      })()}
+      <div className="mt-2 flex flex-wrap gap-1">
+        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+          plant.contacted === 1 ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+        }`}>
+          {plant.contacted === 1 ? "Contacted" : "Not contacted"}
+        </span>
+        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+          plant.current_customer === 1 ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-800"
+        }`}>
+          {plant.current_customer === 1 ? "Customer" : "Not customer"}
+        </span>
+      </div>
+      {routeMode && onRouteToggle && (
+        <button
+          type="button"
+          onClick={() => onRouteToggle(plant.id)}
+          className={`mt-2 w-full py-1.5 text-xs font-medium rounded transition-colors ${
+            inRoute
+              ? "border border-red-300 text-red-600 hover:bg-red-50"
+              : "bg-blue-600 text-white hover:bg-blue-700"
+          }`}
+        >
+          {inRoute ? "Remove from Route" : "Add to Route"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function PlantMap({
   plants,
   showContactedOnly,
   showNotContactedOnly,
   focusedPlantId,
+  routeMode = false,
+  routePlantIds = [],
+  onRouteToggle,
 }: PlantMapProps) {
   let filtered = plants;
   if (showContactedOnly) {
@@ -152,6 +269,20 @@ export default function PlantMap({
       ? plants.find((p) => p.id === focusedPlantId) ?? null
       : null;
   const markerRefs = useRef<Record<string, L.Marker | null>>({});
+
+  // Split into route stops (ordered, outside cluster) and regular markers
+  const routePlantIdSet = useMemo(() => new Set(routePlantIds), [routePlantIds]);
+  const routeStops = useMemo(
+    () =>
+      routePlantIds
+        .map((id) => withCoords.find((p) => p.id === id))
+        .filter(Boolean) as Plant[],
+    [routePlantIds, withCoords]
+  );
+  const clusterPlants = useMemo(
+    () => withCoords.filter((p) => !routePlantIdSet.has(p.id)),
+    [withCoords, routePlantIdSet]
+  );
 
   return (
     <div className="h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
@@ -172,8 +303,39 @@ export default function PlantMap({
           markerRefs={markerRefs}
           focusedPlant={focusedPlant}
         />
+
+        {/* Route polyline */}
+        {routeStops.length >= 2 && (
+          <Polyline
+            positions={routeStops.map((p) => [p.lat!, p.lng!] as [number, number])}
+            pathOptions={{ color: "#2563eb", weight: 3, dashArray: "8 5", opacity: 0.85 }}
+          />
+        )}
+
+        {/* Route stop markers — outside cluster so numbers are always visible */}
+        {routeStops.map((plant, idx) => (
+          <Marker
+            key={`route-${plant.id}`}
+            ref={(el) => {
+              if (el) markerRefs.current[plant.id] = el as unknown as L.Marker;
+            }}
+            position={[plant.lat!, plant.lng!]}
+            icon={makeNumberedIcon(idx + 1)}
+          >
+            <Popup>
+              <PlantPopup
+                plant={plant}
+                routeMode={routeMode}
+                inRoute={true}
+                onRouteToggle={onRouteToggle}
+              />
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* All other markers — inside cluster group */}
         <MarkerClusterGroup>
-          {withCoords.map((plant) => (
+          {clusterPlants.map((plant) => (
             <Marker
               key={plant.id}
               ref={(el) => {
@@ -182,104 +344,12 @@ export default function PlantMap({
               position={[plant.lat!, plant.lng!]}
             >
               <Popup>
-                <div className="min-w-[220px]">
-                  <div className="flex gap-3">
-                    {plant.photo_name && (
-                      <img
-                        src={`/api/plants/${plant.id}/photo`}
-                        alt=""
-                        className="w-14 h-14 object-cover rounded border border-gray-200 flex-shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold">{plant.name ?? "Unknown"}</p>
-                      {plant.distance_miles != null && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {plant.distance_miles} mi from Forney, TX
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {(plant.generative_summary ?? plant.editorial_summary) && (
-                    <p className="text-xs text-gray-600 mt-2 line-clamp-2">
-                      {plant.generative_summary ?? plant.editorial_summary}
-                      {plant.generative_summary && (
-                        <span className="text-[10px] text-gray-400 ml-1">(Summarized with Gemini)</span>
-                      )}
-                    </p>
-                  )}
-                  {getDisplayType(plant) && (
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {getDisplayType(plant)}
-                    </p>
-                  )}
-                  <p className="text-sm text-gray-600 mt-1">
-                    {plant.formatted_address ?? ""}
-                  </p>
-                  {plant.phone && (
-                    <p className="text-sm mt-1">
-                      <a href={`tel:${plant.phone}`} className="text-blue-600 hover:underline">
-                        {plant.phone}
-                      </a>
-                    </p>
-                  )}
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {plant.website && (
-                      <a
-                        href={plant.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        Website
-                      </a>
-                    )}
-                    {plant.google_maps_uri && (
-                      <a
-                        href={plant.google_maps_uri}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        Maps
-                      </a>
-                    )}
-                  </div>
-                  {plant.regular_opening_hours && (() => {
-                    try {
-                      const data = JSON.parse(plant.regular_opening_hours);
-                      const desc = data.weekdayDescriptions?.[0] as string | undefined;
-                      if (desc) {
-                        return (
-                          <p className="text-xs text-gray-500 mt-1" title={data.weekdayDescriptions?.join("\n")}>
-                            {desc.replace(/^[^:]+:\s*/, "")}
-                          </p>
-                        );
-                      }
-                    } catch {}
-                    return null;
-                  })()}
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    <span
-                      className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
-                        plant.contacted === 1
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {plant.contacted === 1 ? "Contacted" : "Not contacted"}
-                    </span>
-                    <span
-                      className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
-                        plant.current_customer === 1
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {plant.current_customer === 1 ? "Customer" : "Not customer"}
-                    </span>
-                  </div>
-                </div>
+                <PlantPopup
+                  plant={plant}
+                  routeMode={routeMode}
+                  inRoute={false}
+                  onRouteToggle={onRouteToggle}
+                />
               </Popup>
             </Marker>
           ))}
