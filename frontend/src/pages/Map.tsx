@@ -216,12 +216,12 @@ export default function MapPage() {
 
       {/* Map + route panel */}
       {loading ? (
-        <div className="h-[600px] bg-gray-100 rounded-lg flex items-center justify-center">
+        <div className="h-[50vh] sm:h-[600px] bg-gray-100 rounded-lg flex items-center justify-center">
           <p className="text-gray-500">Loading map...</p>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row gap-4 items-start">
-          <div className="flex-1 min-w-0">
+        <div className="lg:flex lg:flex-row lg:gap-4 lg:items-start space-y-4 lg:space-y-0">
+          <div className="w-full lg:flex-1 lg:min-w-0">
             <PlantMap
               plants={plants}
               showContactedOnly={showContactedOnly}

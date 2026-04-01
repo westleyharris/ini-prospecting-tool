@@ -290,7 +290,7 @@ export default function PlantMap({
   );
 
   return (
-    <div className="h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
+    <div className="h-[50vh] sm:h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
       <MapContainer
         center={[32.78, -96.8]}
         zoom={10}
