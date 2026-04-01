@@ -146,6 +146,7 @@ const newColumns = [
   { name: "manufacturing_reason", type: "TEXT" },
   { name: "follow_up_type", type: "TEXT" },
   { name: "follow_up_notes", type: "TEXT" },
+  { name: "not_icp", type: "INTEGER DEFAULT 0" },
 ];
 const tableInfo = db.prepare("PRAGMA table_info(plants)").all() as { name: string }[];
 const existingCols = new Set(tableInfo.map((c) => c.name));
@@ -191,6 +192,7 @@ export interface Plant {
   follow_up_date: string | null;
   follow_up_type: string | null;
   follow_up_notes: string | null;
+  not_icp: number;
   notes: string | null;
   created_at: string;
   updated_at: string;

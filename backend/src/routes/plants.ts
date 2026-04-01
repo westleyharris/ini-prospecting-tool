@@ -315,7 +315,7 @@ plantsRouter.get("/:id", async (req, res) => {
 
 plantsRouter.patch("/:id", (req, res) => {
   try {
-    const { contacted, current_customer, follow_up_date, follow_up_type, follow_up_notes, notes } = req.body;
+    const { contacted, current_customer, follow_up_date, follow_up_type, follow_up_notes, notes, not_icp } = req.body;
     const id = req.params.id as string;
 
     const updates: string[] = ["updated_at = datetime('now')"];
@@ -344,6 +344,10 @@ plantsRouter.patch("/:id", (req, res) => {
     if (notes !== undefined) {
       updates.push("notes = ?");
       params.push(notes ?? null);
+    }
+    if (typeof not_icp === "boolean") {
+      updates.push("not_icp = ?");
+      params.push(not_icp ? 1 : 0);
     }
 
     if (params.length === 0) {

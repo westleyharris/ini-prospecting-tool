@@ -152,6 +152,7 @@ export default function PlantTable({
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const [notesTooltip, setNotesTooltip] = useState<{ content: string; left: number; top: number; bottom: number } | null>(null);
+  const [togglingIcpId, setTogglingIcpId] = useState<string | null>(null);
 
   useEffect(() => {
     if (openActionsId === null) return;
@@ -181,6 +182,19 @@ export default function PlantTable({
 
   const closeEditModal = () => {
     setEditPlant(null);
+  };
+
+  const toggleNotIcp = async (plant: Plant) => {
+    if (togglingIcpId === plant.id) return;
+    setTogglingIcpId(plant.id);
+    try {
+      await updatePlant(plant.id, { not_icp: plant.not_icp !== 1 });
+      onUpdate();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTogglingIcpId(null);
+    }
   };
 
   const saveEdit = async () => {
@@ -403,6 +417,9 @@ export default function PlantTable({
                 Customer
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Not ICP
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Follow-up
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -416,7 +433,7 @@ export default function PlantTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {plants.length === 0 ? (
               <tr>
-                <td colSpan={22} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={23} className="px-4 py-8 text-center text-gray-500">
                   No plants
                 </td>
               </tr>
@@ -424,7 +441,7 @@ export default function PlantTable({
               plants.map((plant, idx) => (
                 <tr
                   key={plant.id}
-                  className={`h-[4.75rem] ${idx % 2 === 0 ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 hover:bg-gray-100"}`}
+                  className={`h-[4.75rem] ${plant.not_icp === 1 ? "opacity-40" : idx % 2 === 0 ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 hover:bg-gray-100"}`}
                 >
                   <td className="px-4 py-3 w-10">
                     <input
@@ -599,6 +616,21 @@ export default function PlantTable({
                     >
                       {plant.current_customer === 1 ? "Yes" : "No"}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleNotIcp(plant)}
+                      disabled={togglingIcpId === plant.id}
+                      title={plant.not_icp === 1 ? "Mark as ICP" : "Mark as Not ICP"}
+                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full transition-colors disabled:opacity-50 ${
+                        plant.not_icp === 1
+                          ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}
+                    >
+                      {plant.not_icp === 1 ? "Not ICP" : "—"}
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {(() => {

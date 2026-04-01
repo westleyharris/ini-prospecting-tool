@@ -32,6 +32,7 @@ interface PlantMapProps {
   plants: Plant[];
   showContactedOnly?: boolean;
   showNotContactedOnly?: boolean;
+  hideNonIcp?: boolean;
   focusedPlantId?: string | null;
   routeMode?: boolean;
   routePlantIds?: string[];
@@ -251,16 +252,20 @@ export default function PlantMap({
   plants,
   showContactedOnly,
   showNotContactedOnly,
+  hideNonIcp = true,
   focusedPlantId,
   routeMode = false,
   routePlantIds = [],
   onRouteToggle,
 }: PlantMapProps) {
   let filtered = plants;
+  if (hideNonIcp) {
+    filtered = filtered.filter((p) => !p.not_icp);
+  }
   if (showContactedOnly) {
-    filtered = plants.filter((p) => p.contacted === 1);
+    filtered = filtered.filter((p) => p.contacted === 1);
   } else if (showNotContactedOnly) {
-    filtered = plants.filter((p) => p.contacted === 0);
+    filtered = filtered.filter((p) => p.contacted === 0);
   }
 
   const withCoords = filtered.filter((p) => p.lat != null && p.lng != null);

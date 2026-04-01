@@ -33,6 +33,7 @@ export interface Plant {
   follow_up_date: string | null;
   follow_up_type: string | null;
   follow_up_notes: string | null;
+  not_icp: number;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -115,6 +116,7 @@ export async function updatePlant(
     follow_up_date?: string | null;
     follow_up_type?: string | null;
     follow_up_notes?: string | null;
+    not_icp?: boolean;
     notes?: string | null;
   }
 ): Promise<Plant> {

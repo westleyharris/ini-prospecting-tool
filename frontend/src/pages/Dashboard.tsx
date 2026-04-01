@@ -18,7 +18,8 @@ function filterPlants(
   contactedFilter: "all" | "yes" | "no",
   customerFilter: "all" | "yes" | "no",
   relevanceFilter: string,
-  followUpFilter: "all" | "due" | "none"
+  followUpFilter: "all" | "due" | "none",
+  icpFilter: "all" | "icp" | "not_icp"
 ): Plant[] {
   let result = plants;
 
@@ -91,6 +92,12 @@ function filterPlants(
     result = result.filter((p) => (p.manufacturing_relevance ?? "") === relevanceFilter);
   }
 
+  if (icpFilter === "icp") {
+    result = result.filter((p) => !p.not_icp);
+  } else if (icpFilter === "not_icp") {
+    result = result.filter((p) => p.not_icp === 1);
+  }
+
   if (followUpFilter !== "all") {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -125,6 +132,7 @@ export default function Dashboard() {
   const [customerFilter, setCustomerFilter] = useState<"all" | "yes" | "no">("all");
   const [relevanceFilter, setRelevanceFilter] = useState("all");
   const [followUpFilter, setFollowUpFilter] = useState<"all" | "due" | "none">("all");
+  const [icpFilter, setIcpFilter] = useState<"all" | "icp" | "not_icp">("all");
   const [showAddPlant, setShowAddPlant] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -139,9 +147,10 @@ export default function Dashboard() {
         contactedFilter,
         customerFilter,
         relevanceFilter,
-        followUpFilter
+        followUpFilter,
+        icpFilter
       ),
-    [plants, search, locationFilter, contactedFilter, customerFilter, relevanceFilter, followUpFilter]
+    [plants, search, locationFilter, contactedFilter, customerFilter, relevanceFilter, followUpFilter, icpFilter]
   );
 
   const totalFiltered = filteredPlants.length;
@@ -177,7 +186,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, locationFilter, contactedFilter, customerFilter, relevanceFilter, followUpFilter]);
+  }, [search, locationFilter, contactedFilter, customerFilter, relevanceFilter, followUpFilter, icpFilter]);
 
   const handleRunPipeline = async () => {
     setPipelineRunning(true);
@@ -201,7 +210,8 @@ export default function Dashboard() {
     contactedFilter !== "all" ||
     customerFilter !== "all" ||
     relevanceFilter !== "all" ||
-    followUpFilter !== "all";
+    followUpFilter !== "all" ||
+    icpFilter !== "all";
 
   const upcomingFollowUps = useMemo(() => {
     const today = new Date();
@@ -413,6 +423,21 @@ export default function Dashboard() {
                     <option value="none">No follow-up</option>
                   </select>
                 </div>
+                <div className="min-w-0 col-span-2 sm:col-span-1">
+                  <label htmlFor="icp-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    ICP
+                  </label>
+                  <select
+                    id="icp-filter"
+                    value={icpFilter}
+                    onChange={(e) => setIcpFilter(e.target.value as "all" | "icp" | "not_icp")}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0 sm:min-w-[120px]"
+                  >
+                    <option value="all">All</option>
+                    <option value="icp">ICP only</option>
+                    <option value="not_icp">Non-ICP only</option>
+                  </select>
+                </div>
                 {hasActiveFilters && (
                   <button
                     type="button"
@@ -423,6 +448,7 @@ export default function Dashboard() {
                       setCustomerFilter("all");
                       setRelevanceFilter("all");
                       setFollowUpFilter("all");
+                      setIcpFilter("all");
                     }}
                     className="px-3 py-2 text-sm font-medium text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded-lg col-span-2 sm:col-span-1"
                   >

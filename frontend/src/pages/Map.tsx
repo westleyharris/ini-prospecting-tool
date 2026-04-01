@@ -18,6 +18,8 @@ export default function MapPage() {
     width: number;
   } | null>(null);
 
+  const [hideNonIcp, setHideNonIcp] = useState(true);
+
   // Route state
   const [routeMode, setRouteMode] = useState(false);
   const [routePlantIds, setRoutePlantIds] = useState<string[]>([]);
@@ -171,6 +173,17 @@ export default function MapPage() {
             </select>
           </div>
 
+          {/* ICP toggle */}
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={!hideNonIcp}
+              onChange={(e) => setHideNonIcp(!e.target.checked)}
+              className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+            />
+            <span className="text-sm text-gray-600">Show non-ICP</span>
+          </label>
+
           {/* Route mode toggle */}
           <button
             type="button"
@@ -213,6 +226,7 @@ export default function MapPage() {
               plants={plants}
               showContactedOnly={showContactedOnly}
               showNotContactedOnly={showNotContactedOnly}
+              hideNonIcp={hideNonIcp}
               focusedPlantId={focusedPlantId}
               routeMode={routeMode}
               routePlantIds={routePlantIds}
