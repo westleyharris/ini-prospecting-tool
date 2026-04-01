@@ -43,6 +43,59 @@ function getSummary(plant: { generative_summary?: string | null; editorial_summa
 
 import { getDisplayType } from "../utils/plant";
 
+// ─── Column visibility ────────────────────────────────────────────────────────
+
+type ColumnKey =
+  | "photo" | "address" | "location" | "distance"
+  | "phone" | "website" | "status" | "type" | "relevance"
+  | "summary" | "hours" | "price" | "rating"
+  | "visits" | "projects" | "contacted" | "customer"
+  | "not_icp" | "followup" | "notes";
+
+interface ColumnConfig { key: ColumnKey; label: string; defaultVisible: boolean }
+
+const COLUMNS: ColumnConfig[] = [
+  { key: "photo",      label: "Photo",      defaultVisible: true },
+  { key: "address",    label: "Address",    defaultVisible: true },
+  { key: "location",   label: "Location",   defaultVisible: true },
+  { key: "distance",   label: "Distance",   defaultVisible: true },
+  { key: "phone",      label: "Phone",      defaultVisible: true },
+  { key: "website",    label: "Website",    defaultVisible: true },
+  { key: "status",     label: "Status",     defaultVisible: false },
+  { key: "type",       label: "Type",       defaultVisible: true },
+  { key: "relevance",  label: "Relevance",  defaultVisible: true },
+  { key: "summary",    label: "Summary",    defaultVisible: true },
+  { key: "hours",      label: "Hours",      defaultVisible: false },
+  { key: "price",      label: "Price",      defaultVisible: false },
+  { key: "rating",     label: "Rating",     defaultVisible: false },
+  { key: "visits",     label: "Visits",     defaultVisible: true },
+  { key: "projects",   label: "Projects",   defaultVisible: true },
+  { key: "contacted",  label: "Contacted",  defaultVisible: true },
+  { key: "customer",   label: "Customer",   defaultVisible: true },
+  { key: "not_icp",    label: "Not ICP",    defaultVisible: true },
+  { key: "followup",   label: "Follow-up",  defaultVisible: true },
+  { key: "notes",      label: "Notes",      defaultVisible: true },
+];
+
+const STORAGE_KEY = "ini-pipeline-columns-v1";
+
+function loadVisibleCols(): Set<ColumnKey> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as ColumnKey[];
+      if (Array.isArray(parsed)) return new Set(parsed);
+    }
+  } catch {}
+  return new Set(COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key));
+}
+
+function saveVisibleCols(cols: Set<ColumnKey>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(cols)));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function getTodayMidnight(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -153,6 +206,23 @@ export default function PlantTable({
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const [notesTooltip, setNotesTooltip] = useState<{ content: string; left: number; top: number; bottom: number } | null>(null);
   const [togglingIcpId, setTogglingIcpId] = useState<string | null>(null);
+  const [visibleCols, setVisibleCols] = useState<Set<ColumnKey>>(loadVisibleCols);
+  const [showColPanel, setShowColPanel] = useState(false);
+  const colPanelRef = useRef<HTMLDivElement>(null);
+
+  const vis = (key: ColumnKey) => visibleCols.has(key);
+
+  const toggleCol = (key: ColumnKey) => {
+    setVisibleCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      saveVisibleCols(next);
+      return next;
+    });
+  };
+
+  const colSpan = 3 + visibleCols.size; // checkbox + name + actions always visible
 
   useEffect(() => {
     if (openActionsId === null) return;
@@ -163,6 +233,16 @@ export default function PlantTable({
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [openActionsId]);
+
+  useEffect(() => {
+    if (!showColPanel) return;
+    const close = (e: MouseEvent) => {
+      if (colPanelRef.current?.contains(e.target as Node)) return;
+      setShowColPanel(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [showColPanel]);
 
   useEffect(() => {
     if (editPlant) {
@@ -313,39 +393,94 @@ export default function PlantTable({
 
   return (
     <div className={cardClass}>
-      {someSelected && (
-        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center gap-3">
-          <span className="text-sm text-gray-600">
-            {selectedIds.size} selected
-          </span>
-          {totalFilteredCount > 0 && selectedIds.size < totalFilteredCount && (
-            <button
-              type="button"
-              onClick={selectAllFiltered}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Select all {totalFilteredCount} plants
+      {/* Toolbar: Columns button always visible; bulk-select controls appear when rows selected */}
+      <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center gap-3">
+        {someSelected ? (
+          <>
+            <span className="text-sm text-gray-600">{selectedIds.size} selected</span>
+            {totalFilteredCount > 0 && selectedIds.size < totalFilteredCount && (
+              <button type="button" onClick={selectAllFiltered} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                Select all {totalFilteredCount} plants
+              </button>
+            )}
+            {allFilteredSelected && totalFilteredCount > 0 && (
+              <span className="text-sm text-gray-500">(all matching filters)</span>
+            )}
+            <button onClick={handleBulkDelete} disabled={bulkDeleting} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50">
+              {bulkDeleting ? "Removing..." : "Remove selected"}
             </button>
-          )}
-          {allFilteredSelected && totalFilteredCount > 0 && (
-            <span className="text-sm text-gray-500">(all matching filters)</span>
-          )}
-          <button
-            onClick={handleBulkDelete}
-            disabled={bulkDeleting}
-            className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-          >
-            {bulkDeleting ? "Removing..." : "Remove selected"}
-          </button>
+            <button type="button" onClick={clearSelection} className="text-sm text-gray-600 hover:text-gray-900">
+              Clear selection
+            </button>
+          </>
+        ) : (
+          <span className="text-xs text-gray-400">Select rows to bulk-remove</span>
+        )}
+
+        {/* Columns picker */}
+        <div className="relative ml-auto" ref={colPanelRef}>
           <button
             type="button"
-            onClick={clearSelection}
-            className="text-sm text-gray-600 hover:text-gray-900"
+            onClick={() => setShowColPanel((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+              showColPanel
+                ? "bg-gray-900 text-white border-gray-900"
+                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+            }`}
           >
-            Clear selection
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Columns
+            <span className="text-xs opacity-70">{visibleCols.size}/{COLUMNS.length}</span>
           </button>
+
+          {showColPanel && (
+            <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-56">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Show / hide columns</span>
+              </div>
+              <div className="space-y-0.5">
+                {COLUMNS.map((col) => (
+                  <label key={col.key} className="flex items-center gap-2 px-1 py-1 rounded hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={vis(col.key)}
+                      onChange={() => toggleCol(col.key)}
+                      className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                    />
+                    <span className="text-sm text-gray-700">{col.label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="mt-2 pt-2 border-t border-gray-100 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const all = new Set(COLUMNS.map((c) => c.key));
+                    setVisibleCols(all);
+                    saveVisibleCols(all);
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-800"
+                >
+                  Show all
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const defaults = new Set(COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key));
+                    setVisibleCols(defaults);
+                    saveVisibleCols(defaults);
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-800"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50/80">
@@ -362,78 +497,34 @@ export default function PlantTable({
                   title={allFilteredSelected ? "Deselect all on page" : "Select all on page"}
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                Photo
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
-                Name
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
-                Address
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Location
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Distance
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Phone
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Website
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Relevance
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Summary
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Hours
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Price
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Rating
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Visits
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Projects
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Contacted
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Customer
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Not ICP
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Follow-up
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Notes
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
+              {vis("photo") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">Photo</th>}
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">Name</th>
+              {vis("address") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">Address</th>}
+              {vis("location") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>}
+              {vis("distance") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distance</th>}
+              {vis("phone") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>}
+              {vis("website") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Website</th>}
+              {vis("status") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>}
+              {vis("type") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>}
+              {vis("relevance") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relevance</th>}
+              {vis("summary") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Summary</th>}
+              {vis("hours") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours</th>}
+              {vis("price") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>}
+              {vis("rating") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>}
+              {vis("visits") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visits</th>}
+              {vis("projects") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Projects</th>}
+              {vis("contacted") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacted</th>}
+              {vis("customer") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>}
+              {vis("not_icp") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Not ICP</th>}
+              {vis("followup") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Follow-up</th>}
+              {vis("notes") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>}
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {plants.length === 0 ? (
               <tr>
-                <td colSpan={23} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={colSpan} className="px-4 py-8 text-center text-gray-500">
                   No plants
                 </td>
               </tr>
@@ -451,19 +542,15 @@ export default function PlantTable({
                       className="rounded border-gray-300"
                     />
                   </td>
-                  <td className="px-4 py-3 w-12">
-                    {plant.photo_name ? (
-                      <img
-                        src={`/api/plants/${plant.id}/photo`}
-                        alt=""
-                        className="w-10 h-10 object-cover rounded border border-gray-200"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded border border-gray-200 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">
-                        —
-                      </div>
-                    )}
-                  </td>
+                  {vis("photo") && (
+                    <td className="px-4 py-3 w-12">
+                      {plant.photo_name ? (
+                        <img src={`/api/plants/${plant.id}/photo`} alt="" className="w-10 h-10 object-cover rounded border border-gray-200" />
+                      ) : (
+                        <div className="w-10 h-10 rounded border border-gray-200 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">—</div>
+                      )}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">
                     <span className="flex items-center gap-1">
                       {plant.name ?? "—"}
@@ -480,218 +567,171 @@ export default function PlantTable({
                       )}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500 max-w-[240px]" title={plant.formatted_address ?? undefined}>
-                    <span className="line-clamp-2">{plant.formatted_address ?? "—"}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {[plant.city, plant.state].filter(Boolean).join(", ") || plant.postal_code || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500 tabular-nums">
-                    {plant.distance_miles != null ? `${plant.distance_miles} mi` : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {plant.phone ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    {plant.website ? (
-                      <a
-                        href={plant.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline truncate block max-w-[120px]"
-                      >
-                        {plant.website.replace(/^https?:\/\//, "").slice(0, 25)}…
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
-                        plant.business_status === "OPERATIONAL"
-                          ? "bg-green-100 text-green-800"
-                          : plant.business_status === "CLOSED_PERMANENTLY"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {plant.business_status ?? "—"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500" title={plant.types ?? undefined}>
-                    {getDisplayType(plant) || "—"}
-                  </td>
-                  <td className="px-4 py-3" title={plant.manufacturing_reason ?? undefined}>
-                    {plant.manufacturing_relevance ? (
-                      <span
-                        className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
-                          plant.manufacturing_relevance === "high"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : plant.manufacturing_relevance === "medium"
-                              ? "bg-blue-100 text-blue-800"
-                              : plant.manufacturing_relevance === "low"
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {plant.manufacturing_relevance}
+                  {vis("address") && (
+                    <td className="px-4 py-3 text-sm text-gray-500 max-w-[240px]" title={plant.formatted_address ?? undefined}>
+                      <span className="line-clamp-2">{plant.formatted_address ?? "—"}</span>
+                    </td>
+                  )}
+                  {vis("location") && (
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {[plant.city, plant.state].filter(Boolean).join(", ") || plant.postal_code || "—"}
+                    </td>
+                  )}
+                  {vis("distance") && (
+                    <td className="px-4 py-3 text-sm text-gray-500 tabular-nums">
+                      {plant.distance_miles != null ? `${plant.distance_miles} mi` : "—"}
+                    </td>
+                  )}
+                  {vis("phone") && (
+                    <td className="px-4 py-3 text-sm text-gray-500">{plant.phone ?? "—"}</td>
+                  )}
+                  {vis("website") && (
+                    <td className="px-4 py-3 text-sm">
+                      {plant.website ? (
+                        <a href={plant.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate block max-w-[120px]">
+                          {plant.website.replace(/^https?:\/\//, "").slice(0, 25)}…
+                        </a>
+                      ) : "—"}
+                    </td>
+                  )}
+                  {vis("status") && (
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
+                        plant.business_status === "OPERATIONAL" ? "bg-green-100 text-green-800"
+                          : plant.business_status === "CLOSED_PERMANENTLY" ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}>
+                        {plant.business_status ?? "—"}
                       </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500 max-w-[180px]">
-                    <div className="truncate" title={getSummary(plant) ?? undefined}>
-                      {getSummary(plant) ?? "—"}
-                    </div>
-                    {plant.generative_summary && (
-                      <span className="text-[10px] text-gray-400" title="Summarized with Gemini">
-                        Gemini
+                    </td>
+                  )}
+                  {vis("type") && (
+                    <td className="px-4 py-3 text-sm text-gray-500" title={plant.types ?? undefined}>
+                      {getDisplayType(plant) || "—"}
+                    </td>
+                  )}
+                  {vis("relevance") && (
+                    <td className="px-4 py-3" title={plant.manufacturing_reason ?? undefined}>
+                      {plant.manufacturing_relevance ? (
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
+                          plant.manufacturing_relevance === "high" ? "bg-emerald-100 text-emerald-800"
+                            : plant.manufacturing_relevance === "medium" ? "bg-blue-100 text-blue-800"
+                            : plant.manufacturing_relevance === "low" ? "bg-amber-100 text-amber-800"
+                            : "bg-gray-100 text-gray-600"
+                        }`}>
+                          {plant.manufacturing_relevance}
+                        </span>
+                      ) : "—"}
+                    </td>
+                  )}
+                  {vis("summary") && (
+                    <td className="px-4 py-3 text-sm text-gray-500 max-w-[180px]">
+                      <div className="truncate" title={getSummary(plant) ?? undefined}>{getSummary(plant) ?? "—"}</div>
+                      {plant.generative_summary && <span className="text-[10px] text-gray-400" title="Summarized with Gemini">Gemini</span>}
+                    </td>
+                  )}
+                  {vis("hours") && (
+                    <td className="px-4 py-3 text-sm text-gray-500 max-w-[140px] truncate" title={formatOpeningHours(plant.regular_opening_hours)}>
+                      {formatOpeningHoursShort(plant.regular_opening_hours)}
+                    </td>
+                  )}
+                  {vis("price") && (
+                    <td className="px-4 py-3">
+                      {plant.price_level ? (
+                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-amber-50 text-amber-800">
+                          {formatPriceLevel(plant.price_level)}
+                        </span>
+                      ) : "—"}
+                    </td>
+                  )}
+                  {vis("rating") && (
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {plant.rating != null ? (
+                        <span title={`${plant.user_rating_count ?? 0} reviews`}>
+                          {plant.rating}★
+                          {plant.user_rating_count != null && <span className="text-gray-400 ml-1">({plant.user_rating_count})</span>}
+                        </span>
+                      ) : "—"}
+                    </td>
+                  )}
+                  {vis("visits") && (
+                    <td className="px-4 py-3">
+                      <button type="button" onClick={() => setVisitsPlant(plant)} title="View and add visits for this plant"
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200/60">
+                        <span aria-hidden>📋</span>{plant.visit_count ?? 0}
+                      </button>
+                    </td>
+                  )}
+                  {vis("projects") && (
+                    <td className="px-4 py-3">
+                      <button type="button" onClick={() => setProjectsPlant(plant)} title="View and add projects — create new or open existing"
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/60">
+                        <span aria-hidden>📁</span>{plant.project_count ?? 0}
+                      </button>
+                    </td>
+                  )}
+                  {vis("contacted") && (
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${plant.contacted === 1 ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                        {plant.contacted === 1 ? "Yes" : "No"}
                       </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500 max-w-[140px] truncate" title={formatOpeningHours(plant.regular_opening_hours)}>
-                    {formatOpeningHoursShort(plant.regular_opening_hours)}
-                  </td>
-                  <td className="px-4 py-3">
-                    {plant.price_level ? (
-                      <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-amber-50 text-amber-800">
-                        {formatPriceLevel(plant.price_level)}
+                    </td>
+                  )}
+                  {vis("customer") && (
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${plant.current_customer === 1 ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-800"}`}>
+                        {plant.current_customer === 1 ? "Yes" : "No"}
                       </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {plant.rating != null ? (
-                      <span title={`${plant.user_rating_count ?? 0} reviews`}>
-                        {plant.rating}★
-                        {plant.user_rating_count != null && (
-                          <span className="text-gray-400 ml-1">
-                            ({plant.user_rating_count})
-                          </span>
-                        )}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => setVisitsPlant(plant)}
-                      title="View and add visits for this plant"
-                      className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200/60"
-                    >
-                      <span aria-hidden>📋</span>
-                      {plant.visit_count ?? 0}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => setProjectsPlant(plant)}
-                      title="View and add projects — create new or open existing"
-                      className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/60"
-                    >
-                      <span aria-hidden>📁</span>
-                      {plant.project_count ?? 0}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        plant.contacted === 1 ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {plant.contacted === 1 ? "Yes" : "No"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        plant.current_customer === 1 ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {plant.current_customer === 1 ? "Yes" : "No"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleNotIcp(plant)}
-                      disabled={togglingIcpId === plant.id}
-                      title={plant.not_icp === 1 ? "Mark as ICP" : "Mark as Not ICP"}
-                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full transition-colors disabled:opacity-50 ${
-                        plant.not_icp === 1
-                          ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                      }`}
-                    >
-                      {plant.not_icp === 1 ? "Not ICP" : "—"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    {(() => {
-                      const status = getFollowUpStatus(plant.follow_up_date ?? null);
-                      return (
-                        <div className="flex flex-col gap-1 min-w-[110px]">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span
-                              className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${status.className}`}
-                              title={plant.follow_up_date ?? undefined}
-                            >
-                              {status.label}
-                            </span>
-                            {plant.follow_up_date && (
-                              <button
-                                type="button"
-                                onClick={() => setCompleteFollowUpPlant(plant)}
-                                title="Mark follow-up as complete"
-                                className="inline-flex items-center px-1.5 py-0.5 text-[11px] font-medium rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60 leading-none"
-                              >
-                                ✓
-                              </button>
-                            )}
+                    </td>
+                  )}
+                  {vis("not_icp") && (
+                    <td className="px-4 py-3">
+                      <button type="button" onClick={() => toggleNotIcp(plant)} disabled={togglingIcpId === plant.id}
+                        title={plant.not_icp === 1 ? "Mark as ICP" : "Mark as Not ICP"}
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full transition-colors disabled:opacity-50 ${plant.not_icp === 1 ? "bg-orange-100 text-orange-700 hover:bg-orange-200" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}>
+                        {plant.not_icp === 1 ? "Not ICP" : "—"}
+                      </button>
+                    </td>
+                  )}
+                  {vis("followup") && (
+                    <td className="px-4 py-3 text-sm">
+                      {(() => {
+                        const status = getFollowUpStatus(plant.follow_up_date ?? null);
+                        return (
+                          <div className="flex flex-col gap-1 min-w-[110px]">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${status.className}`} title={plant.follow_up_date ?? undefined}>
+                                {status.label}
+                              </span>
+                              {plant.follow_up_date && (
+                                <button type="button" onClick={() => setCompleteFollowUpPlant(plant)} title="Mark follow-up as complete"
+                                  className="inline-flex items-center px-1.5 py-0.5 text-[11px] font-medium rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60 leading-none">
+                                  ✓
+                                </button>
+                              )}
+                            </div>
+                            {plant.follow_up_type && <span className="text-[11px] text-gray-400 capitalize leading-none">{plant.follow_up_type}</span>}
+                            {plant.follow_up_notes && <span className="text-[11px] text-gray-400 truncate max-w-[130px] leading-none" title={plant.follow_up_notes}>{plant.follow_up_notes}</span>}
                           </div>
-                          {plant.follow_up_type && (
-                            <span className="text-[11px] text-gray-400 capitalize leading-none">
-                              {plant.follow_up_type}
-                            </span>
-                          )}
-                          {plant.follow_up_notes && (
-                            <span
-                              className="text-[11px] text-gray-400 truncate max-w-[130px] leading-none"
-                              title={plant.follow_up_notes}
-                            >
-                              {plant.follow_up_notes}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-sm text-gray-500 max-w-xs h-[3.25rem] max-h-[3.25rem] overflow-hidden align-top ${(plant.notes ?? "").trim() ? "cursor-help" : ""}`}
-                    style={{ height: "3.25rem", maxHeight: "3.25rem" }}
-                    onMouseEnter={(e) => {
-                      const content = (plant.notes ?? "").trim();
-                      if (!content) return;
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setNotesTooltip({
-                        content,
-                        left: rect.left,
-                        top: rect.top,
-                        bottom: rect.bottom,
-                      });
-                    }}
-                    onMouseLeave={() => setNotesTooltip(null)}
-                  >
-                    <span className="line-clamp-3 block overflow-hidden text-ellipsis h-[3.25rem]">
-                      {plant.notes ?? "—"}
-                    </span>
-                  </td>
+                        );
+                      })()}
+                    </td>
+                  )}
+                  {vis("notes") && (
+                    <td
+                      className={`px-4 py-3 text-sm text-gray-500 max-w-xs h-[3.25rem] max-h-[3.25rem] overflow-hidden align-top ${(plant.notes ?? "").trim() ? "cursor-help" : ""}`}
+                      style={{ height: "3.25rem", maxHeight: "3.25rem" }}
+                      onMouseEnter={(e) => {
+                        const content = (plant.notes ?? "").trim();
+                        if (!content) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setNotesTooltip({ content, left: rect.left, top: rect.top, bottom: rect.bottom });
+                      }}
+                      onMouseLeave={() => setNotesTooltip(null)}
+                    >
+                      <span className="line-clamp-3 block overflow-hidden text-ellipsis h-[3.25rem]">{plant.notes ?? "—"}</span>
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-right text-sm">
                     <div className="flex justify-end items-center gap-1.5" ref={openActionsId === plant.id ? actionsMenuRef : undefined}>
                       <button
