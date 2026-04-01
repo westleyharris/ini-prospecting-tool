@@ -112,12 +112,16 @@ export default function MapPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header row */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between relative z-20">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Plant Map</h1>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto items-start sm:items-center">
-          {/* Search */}
-          <div ref={searchWrapperRef} className="relative w-full sm:w-72">
+      </div>
+
+      {/* Controls — two compact rows on mobile, one row on desktop */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap relative z-20">
+        {/* Row 1: Search + Filter */}
+        <div className="flex gap-2 items-center flex-1 min-w-0">
+          <div ref={searchWrapperRef} className="relative flex-1 min-w-0 sm:max-w-xs">
             <input
               type="text"
               value={search}
@@ -126,8 +130,8 @@ export default function MapPage() {
                 setDropdownClosed(false);
                 if (!e.target.value) setFocusedPlantId(null);
               }}
-              placeholder="Search plants by name"
-              className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0"
+              placeholder="Search plants…"
+              className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             />
             {dropdownRect != null &&
               createPortal(
@@ -158,22 +162,19 @@ export default function MapPage() {
                 document.body
               )}
           </div>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as "all" | "contacted" | "not_contacted")}
+            className="rounded-lg border border-gray-300 bg-white text-sm px-2 py-2 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shrink-0"
+          >
+            <option value="all">All</option>
+            <option value="contacted">Contacted</option>
+            <option value="not_contacted">Not contacted</option>
+          </select>
+        </div>
 
-          {/* Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Filter:</span>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as "all" | "contacted" | "not_contacted")}
-              className="rounded-md border-gray-300 shadow-sm text-sm"
-            >
-              <option value="all">All plants</option>
-              <option value="contacted">Contacted only</option>
-              <option value="not_contacted">Not contacted only</option>
-            </select>
-          </div>
-
-          {/* ICP toggle */}
+        {/* Row 2 on mobile / continues same row on desktop: ICP toggle + Route button */}
+        <div className="flex items-center gap-3 sm:gap-2">
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -181,23 +182,21 @@ export default function MapPage() {
               onChange={(e) => setHideNonIcp(!e.target.checked)}
               className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
             />
-            <span className="text-sm text-gray-600">Show non-ICP</span>
+            <span className="text-sm text-gray-600 whitespace-nowrap">Show non-ICP</span>
           </label>
-
-          {/* Route mode toggle */}
           <button
             type="button"
             onClick={handleToggleRouteMode}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
               routeMode
                 ? "bg-blue-600 text-white hover:bg-blue-700"
                 : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
             }`}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
-            {routeMode ? "Exit Route Mode" : "Plan Route"}
+            {routeMode ? "Exit Route" : "Plan Route"}
             {routeMode && routePlantIds.length > 0 && (
               <span className="ml-1 bg-white/20 text-white text-xs rounded-full px-1.5 py-px font-bold">
                 {routePlantIds.length}
@@ -216,7 +215,7 @@ export default function MapPage() {
 
       {/* Map + route panel */}
       {loading ? (
-        <div className="h-[50vh] sm:h-[600px] bg-gray-100 rounded-lg flex items-center justify-center">
+        <div className="h-[60vh] sm:h-[600px] bg-gray-100 rounded-lg flex items-center justify-center">
           <p className="text-gray-500">Loading map...</p>
         </div>
       ) : (

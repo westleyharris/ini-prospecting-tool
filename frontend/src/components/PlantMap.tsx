@@ -156,7 +156,7 @@ function PlantPopup({
   onRouteToggle?: (id: string) => void;
 }) {
   return (
-    <div className="min-w-[220px]">
+    <div className="min-w-[220px] max-w-[280px] max-h-[40vh] overflow-y-auto">
       <div className="flex gap-3">
         {plant.photo_name && (
           <img
@@ -290,7 +290,7 @@ export default function PlantMap({
   );
 
   return (
-    <div className="h-[50vh] sm:h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
+    <div className="h-[60vh] sm:h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
       <MapContainer
         center={[32.78, -96.8]}
         zoom={10}
@@ -327,7 +327,7 @@ export default function PlantMap({
             position={[plant.lat!, plant.lng!]}
             icon={makeNumberedIcon(idx + 1)}
           >
-            <Popup>
+            <Popup autoPan={false}>
               <PlantPopup
                 plant={plant}
                 routeMode={routeMode}
