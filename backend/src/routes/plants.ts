@@ -3,10 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { db } from "../db.js";
 import { getReferenceCoords } from "../services/distance.js";
 import { haversineMiles } from "../services/distance.js";
-import {
-  searchPeopleByDomain,
-  extractDomain,
-} from "../services/hunter.js";
+import { searchContactsWithN8n } from "../services/contactSearch.js";
 import { isExcludedFromDbPlant } from "../services/manufacturingFilter.js";
 
 export const plantsRouter = Router();
@@ -202,65 +199,77 @@ plantsRouter.post("/:id/find-contacts", async (req, res) => {
   try {
     const plantId = req.params.id as string;
     const plant = db.prepare("SELECT * FROM plants WHERE id = ?").get(plantId) as
-      | { id: string; website: string | null; name: string | null }
+      | {
+          id: string;
+          name: string | null;
+          website: string | null;
+          city: string | null;
+          state: string | null;
+          formatted_address: string | null;
+        }
       | undefined;
 
     if (!plant) {
       return res.status(404).json({ error: "Plant not found" });
     }
-
-    const domain = extractDomain(plant.website);
-    if (!domain) {
-      return res.status(400).json({
-        error: "Plant has no website. Add a website to find contacts.",
-      });
+    if (!plant.name) {
+      return res.status(400).json({ error: "Plant has no name — cannot search for contacts." });
     }
 
-    const apiKey = (process.env.HUNTER_API_KEY || "").trim();
-    if (!apiKey) {
-      return res.status(503).json({
-        error: "HUNTER_API_KEY not configured. Add it to .env in the project root.",
-      });
-    }
+    console.log(`[find-contacts] n8n search for "${plant.name}" (${plant.city ?? ""}, ${plant.state ?? ""})`);
 
-    const result = await searchPeopleByDomain(apiKey, domain, {
-      limit: 10,
-      offset: 0,
+    const found = await searchContactsWithN8n({
+      name: plant.name,
+      city: plant.city ?? null,
+      state: plant.state ?? null,
     });
 
-    const emails = result.data?.emails ?? [];
+    console.log(`[find-contacts] n8n returned ${found.length} contacts`);
+
+    // Deduplicate against what's already saved for this plant
+    const existingNames = new Set(
+      (db.prepare("SELECT first_name, last_name FROM contacts WHERE plant_id = ?").all(plantId) as
+        { first_name: string | null; last_name: string | null }[])
+        .map((c) => `${(c.first_name ?? "").toLowerCase()}|${(c.last_name ?? "").toLowerCase()}`)
+    );
     const existingEmails = new Set(
-      (
-        db
-          .prepare("SELECT email FROM contacts WHERE plant_id = ? AND email IS NOT NULL")
-          .all(plantId) as { email: string }[]
-      ).map((c) => c.email.toLowerCase())
+      (db.prepare("SELECT email FROM contacts WHERE plant_id = ? AND email IS NOT NULL").all(plantId) as
+        { email: string }[])
+        .map((c) => c.email.toLowerCase())
     );
 
     const insertStmt = db.prepare(`
-      INSERT INTO contacts (id, plant_id, apollo_id, first_name, last_name, title, email, phone, linkedin_url, source, created_at, updated_at)
-      VALUES (@id, @plant_id, NULL, @first_name, @last_name, @title, @email, @phone, @linkedin_url, 'hunter', datetime('now'), datetime('now'))
+      INSERT INTO contacts (id, plant_id, apollo_id, first_name, last_name, title, email, phone, linkedin_url, source, source_url, created_at, updated_at)
+      VALUES (@id, @plant_id, NULL, @first_name, @last_name, @title, @email, @phone, @linkedin_url, @source, @source_url, datetime('now'), datetime('now'))
     `);
 
     let added = 0;
-    for (const person of emails) {
-      const email = person.value?.trim();
-      if (!email || existingEmails.has(email.toLowerCase())) continue;
-      existingEmails.add(email.toLowerCase());
+    for (const person of found) {
+      const nameKey = `${(person.first_name ?? "").toLowerCase()}|${(person.last_name ?? "").toLowerCase()}`;
+      const email = person.email ?? null;
 
-      const linkedin = person.linkedin?.trim() || null;
-      const linkedinUrl = linkedin && !linkedin.startsWith("http") ? `https://linkedin.com/in/${linkedin.replace(/^\//, "")}` : linkedin;
+      // Skip if we already have this person (by name or email)
+      if (existingNames.has(nameKey) && nameKey !== "|") continue;
+      if (email && existingEmails.has(email)) continue;
+      if (!person.first_name && !person.last_name) continue; // skip nameless results
+
+      const source = "n8n-search";
 
       insertStmt.run({
         id: uuidv4(),
         plant_id: plantId,
-        first_name: person.first_name ?? null,
-        last_name: person.last_name ?? null,
-        title: person.position ?? person.position_raw ?? null,
+        first_name: person.first_name,
+        last_name: person.last_name,
+        title: person.title,
         email,
-        phone: person.phone_number ?? null,
-        linkedin_url: linkedinUrl,
+        phone: person.phone,
+        linkedin_url: person.linkedin_url,
+        source,
+        source_url: person.source_url ?? null,
       });
+
+      existingNames.add(nameKey);
+      if (email) existingEmails.add(email);
       added++;
     }
 
@@ -268,11 +277,7 @@ plantsRouter.post("/:id/find-contacts", async (req, res) => {
       .prepare("SELECT * FROM contacts WHERE plant_id = ? ORDER BY created_at DESC")
       .all(plantId);
 
-    res.json({
-      added,
-      total: contacts.length,
-      contacts,
-    });
+    res.json({ added, total: contacts.length, contacts, raw_found: found.length });
   } catch (err) {
     console.error(err);
     res.status(500).json({

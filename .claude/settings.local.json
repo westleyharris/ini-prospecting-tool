@@ -6,7 +6,12 @@
       "WebFetch(domain:ime-us.com)",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
       "Bash(npx tsc:*)",
-      "Bash(/usr/local/bin/npm run:*)"
+      "Bash(/usr/local/bin/npm run:*)",
+      "Bash(/opt/homebrew/bin/npm run:*)",
+      "Read(//opt/homebrew/opt/**)",
+      "Read(//Users/westleyharris/.nvm/versions/**)",
+      "Read(//usr/local/**)",
+      "Bash(export PATH=\"/opt/homebrew/opt/node@22/bin:$PATH\")"
     ]
   }
 }

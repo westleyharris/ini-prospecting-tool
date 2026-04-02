@@ -9,6 +9,7 @@ export interface Contact {
   phone: string | null;
   linkedin_url: string | null;
   source: string;
+  source_url: string | null;
   created_at: string;
   updated_at: string;
 }

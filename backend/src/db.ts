@@ -158,6 +158,18 @@ for (const col of newColumns) {
 
 db.exec("CREATE INDEX IF NOT EXISTS idx_plants_current_customer ON plants(current_customer)");
 
+// Migrations: contacts table
+const contactTableInfo = db.prepare("PRAGMA table_info(contacts)").all() as { name: string }[];
+const existingContactCols = new Set(contactTableInfo.map((c) => c.name));
+const newContactColumns = [
+  { name: "source_url", type: "TEXT" },
+];
+for (const col of newContactColumns) {
+  if (!existingContactCols.has(col.name)) {
+    db.exec(`ALTER TABLE contacts ADD COLUMN ${col.name} ${col.type}`);
+  }
+}
+
 export interface Plant {
   id: string;
   place_id: string;
