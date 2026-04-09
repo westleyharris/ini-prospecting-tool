@@ -109,6 +109,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_commissionings_project_id ON commissionings(project_id);
   CREATE INDEX IF NOT EXISTS idx_commissionings_comm_number ON commissionings(comm_number);
 
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
   CREATE TABLE IF NOT EXISTS follow_up_history (
     id TEXT PRIMARY KEY,
     plant_id TEXT NOT NULL REFERENCES plants(id) ON DELETE CASCADE,

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Routes, Route, NavLink } from "react-router-dom";
+import { Routes, Route, NavLink, Navigate, useNavigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Dashboard from "./pages/Dashboard";
 import MapPage from "./pages/Map";
 import ReportsPage from "./pages/ReportsPage";
@@ -7,6 +8,8 @@ import ProjectsPage from "./pages/ProjectsPage";
 import CommissioningsPage from "./pages/CommissioningsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import FollowUpsPage from "./pages/FollowUpsPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
@@ -22,8 +25,23 @@ const navLinkClassMobile = ({ isActive }: { isActive: boolean }) =>
       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
   }`;
 
-function App() {
+// Wraps any route that requires authentication
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-gray-50" />;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function AppShell() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -36,7 +54,7 @@ function App() {
               </span>
             </div>
 
-            {/* Desktop nav: horizontal links */}
+            {/* Desktop nav */}
             <div className="hidden md:flex md:items-center md:space-x-1 lg:space-x-4">
               <NavLink to="/" className={navLinkClass}>Dashboard</NavLink>
               <NavLink to="/map" className={navLinkClass}>Map</NavLink>
@@ -44,6 +62,21 @@ function App() {
               <NavLink to="/reports" className={navLinkClass}>Reports</NavLink>
               <NavLink to="/projects" className={navLinkClass}>Projects</NavLink>
               <NavLink to="/commissionings" className={navLinkClass}>Commissionings</NavLink>
+            </div>
+
+            {/* Desktop: user + logout */}
+            <div className="hidden md:flex items-center gap-3">
+              {user && (
+                <span className="text-xs text-gray-400 truncate max-w-[160px]" title={user.email}>
+                  {user.email}
+                </span>
+              )}
+              <button
+                onClick={handleLogout}
+                className="text-sm text-gray-500 hover:text-gray-800 px-2 py-1 rounded hover:bg-gray-100"
+              >
+                Sign out
+              </button>
             </div>
 
             {/* Mobile: hamburger */}
@@ -69,7 +102,7 @@ function App() {
             </div>
           </div>
 
-          {/* Mobile menu panel */}
+          {/* Mobile menu */}
           {mobileMenuOpen && (
             <div className="md:hidden border-t border-gray-200 bg-white py-2">
               <div className="pt-2 pb-3 space-y-0.5">
@@ -79,6 +112,17 @@ function App() {
                 <NavLink to="/reports" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Reports</NavLink>
                 <NavLink to="/projects" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Projects</NavLink>
                 <NavLink to="/commissionings" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Commissionings</NavLink>
+                <div className="border-t border-gray-100 pt-2 mt-2 px-4">
+                  {user && (
+                    <p className="text-xs text-gray-400 mb-2 truncate">{user.email}</p>
+                  )}
+                  <button
+                    onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+                    className="text-sm text-gray-600 hover:text-gray-900"
+                  >
+                    Sign out
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -87,16 +131,30 @@ function App() {
 
       <main className="w-full max-w-7xl xl:max-w-[1600px] 2xl:max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/map" element={<MapPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:id" element={<ProjectDetailPage />} />
-          <Route path="/follow-ups" element={<FollowUpsPage />} />
-          <Route path="/commissionings" element={<CommissioningsPage />} />
+          <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path="/map" element={<RequireAuth><MapPage /></RequireAuth>} />
+          <Route path="/reports" element={<RequireAuth><ReportsPage /></RequireAuth>} />
+          <Route path="/projects" element={<RequireAuth><ProjectsPage /></RequireAuth>} />
+          <Route path="/projects/:id" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />
+          <Route path="/follow-ups" element={<RequireAuth><FollowUpsPage /></RequireAuth>} />
+          <Route path="/commissionings" element={<RequireAuth><CommissioningsPage /></RequireAuth>} />
         </Routes>
       </main>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Routes>
+        {/* Public auth routes — no shell */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        {/* Everything else goes through the app shell */}
+        <Route path="/*" element={<AppShell />} />
+      </Routes>
+    </AuthProvider>
   );
 }
 

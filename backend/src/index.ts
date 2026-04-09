@@ -28,27 +28,35 @@ if (!loaded) config(); // Fallback to default .env in cwd
 
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { plantsRouter } from "./routes/plants.js";
 import { pipelineRouter } from "./routes/pipeline.js";
 import { contactsRouter } from "./routes/contacts.js";
 import { visitsRouter } from "./routes/visits.js";
 import { projectsRouter } from "./routes/projects.js";
 import { commissioningsRouter } from "./routes/commissionings.js";
+import { authRouter } from "./routes/auth.js";
+import { requireAuth } from "./middleware/requireAuth.js";
 import "./db.js";
 import "./services/uploads.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
-app.use("/api/plants", plantsRouter);
-app.use("/api/pipeline", pipelineRouter);
-app.use("/api/contacts", contactsRouter);
-app.use("/api/visits", visitsRouter);
-app.use("/api/projects", projectsRouter);
-app.use("/api/commissionings", commissioningsRouter);
+// Public — no auth required
+app.use("/api/auth", authRouter);
+
+// Protected — all other API routes require a valid session
+app.use("/api/plants", requireAuth, plantsRouter);
+app.use("/api/pipeline", requireAuth, pipelineRouter);
+app.use("/api/contacts", requireAuth, contactsRouter);
+app.use("/api/visits", requireAuth, visitsRouter);
+app.use("/api/projects", requireAuth, projectsRouter);
+app.use("/api/commissionings", requireAuth, commissioningsRouter);
 
 app.get("/api/health", (_, res) => {
   res.json({ status: "ok" });

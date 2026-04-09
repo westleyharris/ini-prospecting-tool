@@ -11,7 +11,10 @@
       "Read(//opt/homebrew/opt/**)",
       "Read(//Users/westleyharris/.nvm/versions/**)",
       "Read(//usr/local/**)",
-      "Bash(export PATH=\"/opt/homebrew/opt/node@22/bin:$PATH\")"
+      "Bash(export PATH=\"/opt/homebrew/opt/node@22/bin:$PATH\")",
+      "Bash(npm install:*)",
+      "Bash(openssl rand:*)",
+      "Bash(echo \"JWT_SECRET=$\\(openssl rand -hex 32\\)\")"
     ]
   }
 }
