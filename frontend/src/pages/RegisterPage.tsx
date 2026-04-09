@@ -19,7 +19,7 @@ export default function RegisterPage() {
 
     const domain = email.trim().toLowerCase().split("@")[1];
     if (!ALLOWED_DOMAINS.includes(domain)) {
-      setError("Only @ini-automation.com, @ime-us.com, and @integratec.hn email addresses are allowed.");
+      setError("Not valid email domain");
       return;
     }
     if (password.length < 8) {
