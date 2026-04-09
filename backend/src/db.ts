@@ -1,7 +1,20 @@
 import Database from "better-sqlite3";
-import { join } from "path";
+import { join, dirname } from "path";
+import { existsSync, mkdirSync } from "fs";
 
-const dbPath = process.env.DATABASE_PATH || join(process.cwd(), "data.db");
+function resolveDbPath(): string {
+  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
+  // Railway volume is mounted at /data — keep DB off the ephemeral filesystem
+  if (process.env.NODE_ENV === "production") return "/data/data.db";
+  return join(process.cwd(), "data.db");
+}
+
+const dbPath = resolveDbPath();
+const dbDir = dirname(dbPath);
+if (!existsSync(dbDir)) {
+  mkdirSync(dbDir, { recursive: true });
+}
+
 export const db = new Database(dbPath);
 
 // Enable foreign keys so ON DELETE CASCADE works for contacts when plants are deleted

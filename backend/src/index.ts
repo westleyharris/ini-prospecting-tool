@@ -91,6 +91,11 @@ const SERVER_TIMEOUT_MS = 15 * 60 * 1000;
 
 const server = app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
+  if (!process.env.JWT_SECRET) {
+    console.warn(
+      "WARNING: JWT_SECRET is not set. Login, registration, and protected API routes will fail until it is configured."
+    );
+  }
   if (!process.env.GOOGLE_PLACES_API_KEY) {
     console.warn("WARNING: GOOGLE_PLACES_API_KEY not set. Checked:", envPaths.join(", "));
   }

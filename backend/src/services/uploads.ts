@@ -1,7 +1,13 @@
 import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
 
-const UPLOADS_PATH = process.env.UPLOADS_PATH || join(process.cwd(), "uploads");
+function resolveUploadsPath(): string {
+  if (process.env.UPLOADS_PATH) return process.env.UPLOADS_PATH;
+  if (process.env.NODE_ENV === "production") return "/data/uploads";
+  return join(process.cwd(), "uploads");
+}
+
+const UPLOADS_PATH = resolveUploadsPath();
 
 function ensureDir(path: string): void {
   if (!existsSync(path)) {

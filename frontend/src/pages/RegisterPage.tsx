@@ -1,17 +1,17 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const ALLOWED_DOMAINS = ["ini-automation.com", "ime-us.com", "integratec.hn"];
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { user, loading: authLoading, register } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,16 +31,23 @@ export default function RegisterPage() {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       await register(email.trim(), password);
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  if (authLoading) {
+    return <div className="min-h-screen bg-gray-50" />;
+  }
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -66,7 +73,9 @@ export default function RegisterPage() {
                 placeholder="you@ini-automation.com"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              
+              <p className="mt-1.5 text-xs text-gray-500">
+                not allowed domain
+              </p>
             </div>
 
             <div>
@@ -107,10 +116,10 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={submitting}
               className="w-full bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? "Creating account..." : "Create account"}
+              {submitting ? "Creating account..." : "Create account"}
             </button>
           </form>
 
