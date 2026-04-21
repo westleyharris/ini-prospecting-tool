@@ -8,6 +8,7 @@ import ProjectsPage from "./pages/ProjectsPage";
 import CommissioningsPage from "./pages/CommissioningsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import FollowUpsPage from "./pages/FollowUpsPage";
+import ContactsPage from "./pages/ContactsPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 
@@ -61,6 +62,7 @@ function AppShell() {
               <NavLink to="/follow-ups" className={navLinkClass}>Follow-ups</NavLink>
               <NavLink to="/reports" className={navLinkClass}>Reports</NavLink>
               <NavLink to="/projects" className={navLinkClass}>Projects</NavLink>
+              <NavLink to="/contacts" className={navLinkClass}>Contacts</NavLink>
               <NavLink to="/commissionings" className={navLinkClass}>Commissionings</NavLink>
             </div>
 
@@ -111,6 +113,7 @@ function AppShell() {
                 <NavLink to="/follow-ups" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Follow-ups</NavLink>
                 <NavLink to="/reports" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Reports</NavLink>
                 <NavLink to="/projects" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Projects</NavLink>
+                <NavLink to="/contacts" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Contacts</NavLink>
                 <NavLink to="/commissionings" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Commissionings</NavLink>
                 <div className="border-t border-gray-100 pt-2 mt-2 px-4">
                   {user && (
@@ -137,6 +140,7 @@ function AppShell() {
           <Route path="/projects" element={<RequireAuth><ProjectsPage /></RequireAuth>} />
           <Route path="/projects/:id" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />
           <Route path="/follow-ups" element={<RequireAuth><FollowUpsPage /></RequireAuth>} />
+          <Route path="/contacts" element={<RequireAuth><ContactsPage /></RequireAuth>} />
           <Route path="/commissionings" element={<RequireAuth><CommissioningsPage /></RequireAuth>} />
         </Routes>
       </main>

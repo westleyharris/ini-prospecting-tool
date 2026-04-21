@@ -12,10 +12,19 @@ export interface Contact {
   source_url: string | null;
   created_at: string;
   updated_at: string;
+  // joined from plants table (present when fetched from /api/contacts)
+  plant_name?: string | null;
+  plant_city?: string | null;
+  plant_state?: string | null;
+  plant_website?: string | null;
+  plant_address?: string | null;
 }
 
-export async function fetchContacts(plantId: string): Promise<Contact[]> {
-  const res = await fetch(`/api/plants/${plantId}/contacts`);
+export async function fetchContacts(plantId?: string): Promise<Contact[]> {
+  const url = plantId
+    ? `/api/plants/${plantId}/contacts`
+    : `/api/contacts`;
+  const res = await fetch(url, { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch contacts");
   return res.json();
 }

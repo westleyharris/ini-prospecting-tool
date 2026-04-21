@@ -43,15 +43,24 @@ contactsRouter.post("/", (req, res) => {
 contactsRouter.get("/", (req, res) => {
   try {
     const plantId = req.query.plant_id as string | undefined;
-    let sql = "SELECT * FROM contacts WHERE 1=1";
+    let sql = `
+      SELECT c.*,
+             p.name        AS plant_name,
+             p.city        AS plant_city,
+             p.state       AS plant_state,
+             p.website     AS plant_website,
+             p.formatted_address AS plant_address
+      FROM contacts c
+      LEFT JOIN plants p ON c.plant_id = p.id
+      WHERE 1=1`;
     const params: string[] = [];
 
     if (plantId) {
-      sql += " AND plant_id = ?";
+      sql += " AND c.plant_id = ?";
       params.push(plantId);
     }
 
-    sql += " ORDER BY created_at DESC";
+    sql += " ORDER BY c.created_at DESC";
     const contacts = params.length
       ? db.prepare(sql).all(...params)
       : db.prepare(sql).all();
