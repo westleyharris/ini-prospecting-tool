@@ -9,6 +9,7 @@ import CommissioningsPage from "./pages/CommissioningsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import FollowUpsPage from "./pages/FollowUpsPage";
 import ContactsPage from "./pages/ContactsPage";
+import ScriptsPage from "./pages/ScriptsPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 
@@ -51,7 +52,7 @@ function AppShell() {
           <div className="flex justify-between items-center h-14 sm:h-16">
             <div className="flex-shrink-0 flex items-center">
               <span className="text-xl font-semibold text-gray-800">
-                INI Prospecting
+                I&amp;I Prospecting
               </span>
             </div>
 
@@ -63,6 +64,7 @@ function AppShell() {
               <NavLink to="/reports" className={navLinkClass}>Reports</NavLink>
               <NavLink to="/projects" className={navLinkClass}>Projects</NavLink>
               <NavLink to="/contacts" className={navLinkClass}>Contacts</NavLink>
+              <NavLink to="/scripts" className={navLinkClass}>Scripts</NavLink>
               <NavLink to="/commissionings" className={navLinkClass}>Commissionings</NavLink>
             </div>
 
@@ -114,6 +116,7 @@ function AppShell() {
                 <NavLink to="/reports" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Reports</NavLink>
                 <NavLink to="/projects" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Projects</NavLink>
                 <NavLink to="/contacts" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Contacts</NavLink>
+                <NavLink to="/scripts" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Scripts</NavLink>
                 <NavLink to="/commissionings" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Commissionings</NavLink>
                 <div className="border-t border-gray-100 pt-2 mt-2 px-4">
                   {user && (
@@ -141,6 +144,7 @@ function AppShell() {
           <Route path="/projects/:id" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />
           <Route path="/follow-ups" element={<RequireAuth><FollowUpsPage /></RequireAuth>} />
           <Route path="/contacts" element={<RequireAuth><ContactsPage /></RequireAuth>} />
+          <Route path="/scripts" element={<RequireAuth><ScriptsPage /></RequireAuth>} />
           <Route path="/commissionings" element={<RequireAuth><CommissioningsPage /></RequireAuth>} />
         </Routes>
       </main>

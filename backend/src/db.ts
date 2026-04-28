@@ -183,7 +183,11 @@ db.exec("CREATE INDEX IF NOT EXISTS idx_plants_current_customer ON plants(curren
 const contactTableInfo = db.prepare("PRAGMA table_info(contacts)").all() as { name: string }[];
 const existingContactCols = new Set(contactTableInfo.map((c) => c.name));
 const newContactColumns = [
-  { name: "source_url", type: "TEXT" },
+  { name: "source_url",      type: "TEXT" },
+  { name: "notes",           type: "TEXT" },
+  { name: "last_contacted",  type: "TEXT" },
+  { name: "verified",        type: "INTEGER DEFAULT 0" },
+  { name: "buying_role",     type: "TEXT DEFAULT 'unknown'" },
 ];
 for (const col of newContactColumns) {
   if (!existingContactCols.has(col.name)) {

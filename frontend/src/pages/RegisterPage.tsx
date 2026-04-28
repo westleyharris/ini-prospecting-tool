@@ -54,7 +54,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         {/* Logo / title */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">INI Prospecting</h1>
+          <h1 className="text-2xl font-bold text-gray-900">I&amp;I Prospecting</h1>
           <p className="text-sm text-gray-500 mt-1">Create your account</p>
         </div>
 

@@ -154,6 +154,39 @@ contactsRouter.post("/:id/enrich", async (req, res) => {
   }
 });
 
+contactsRouter.patch("/:id", (req, res) => {
+  try {
+    const id = req.params.id as string;
+    const contact = db.prepare("SELECT id FROM contacts WHERE id = ?").get(id);
+    if (!contact) return res.status(404).json({ error: "Contact not found" });
+
+    const allowed = ["notes", "last_contacted", "verified", "buying_role", "first_name", "last_name", "title", "email", "phone", "linkedin_url"];
+    const fields: string[] = [];
+    const values: unknown[] = [];
+
+    for (const key of allowed) {
+      if (key in req.body) {
+        fields.push(`${key} = ?`);
+        values.push(req.body[key] ?? null);
+      }
+    }
+    if (fields.length === 0) return res.status(400).json({ error: "No valid fields to update" });
+
+    fields.push("updated_at = datetime('now')");
+    values.push(id);
+
+    db.prepare(`UPDATE contacts SET ${fields.join(", ")} WHERE id = ?`).run(...values);
+    const updated = db.prepare(`
+      SELECT c.*, p.name AS plant_name, p.city AS plant_city, p.state AS plant_state,
+             p.website AS plant_website, p.formatted_address AS plant_address
+      FROM contacts c LEFT JOIN plants p ON c.plant_id = p.id WHERE c.id = ?`).get(id);
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update contact" });
+  }
+});
+
 contactsRouter.delete("/:id", (req, res) => {
   try {
     const id = req.params.id as string;

@@ -10,6 +10,10 @@ export interface Contact {
   linkedin_url: string | null;
   source: string;
   source_url: string | null;
+  notes: string | null;
+  last_contacted: string | null;
+  verified: number; // 0 or 1
+  buying_role: "decision_maker" | "technical_influencer" | "champion" | "gatekeeper" | "unknown";
   created_at: string;
   updated_at: string;
   // joined from plants table (present when fetched from /api/contacts)
@@ -73,6 +77,22 @@ export async function createContact(data: {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "Failed to create contact");
+  }
+  return res.json();
+}
+
+export async function patchContact(contactId: string, data: Partial<Pick<Contact,
+  "notes" | "last_contacted" | "verified" | "buying_role" | "first_name" | "last_name" | "title" | "email" | "phone" | "linkedin_url"
+>>): Promise<Contact> {
+  const res = await fetch(`/api/contacts/${contactId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update contact");
   }
   return res.json();
 }
