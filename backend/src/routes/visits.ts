@@ -12,6 +12,10 @@ const ALLOWED_MIMES = [
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/pdf",
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/x-zip",
+  "multipart/x-zip",
 ];
 
 // Temp directory for in-flight uploads — files land here first, then get moved
@@ -37,7 +41,8 @@ const upload = multer({
       ALLOWED_MIMES.includes(file.mimetype) ||
       file.originalname.toLowerCase().endsWith(".doc") ||
       file.originalname.toLowerCase().endsWith(".docx") ||
-      file.originalname.toLowerCase().endsWith(".pdf");
+      file.originalname.toLowerCase().endsWith(".pdf") ||
+      file.originalname.toLowerCase().endsWith(".zip");
     cb(null, !!ok);
   },
 });

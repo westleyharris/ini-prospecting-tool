@@ -216,11 +216,11 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Report (Word or PDF, up to 500 MB)
+                  Report (Word, PDF, or ZIP, up to 500 MB)
                 </label>
                 <input
                   type="file"
-                  accept=".doc,.docx,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+                  accept=".doc,.docx,.pdf,.zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,application/zip,application/x-zip-compressed"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
