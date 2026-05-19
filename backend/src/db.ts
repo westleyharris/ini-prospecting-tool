@@ -122,6 +122,43 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_commissionings_project_id ON commissionings(project_id);
   CREATE INDEX IF NOT EXISTS idx_commissionings_comm_number ON commissionings(comm_number);
 
+  CREATE TABLE IF NOT EXISTS mappings (
+    id TEXT PRIMARY KEY,
+    plant_id TEXT NOT NULL REFERENCES plants(id) ON DELETE CASCADE,
+    name TEXT NOT NULL DEFAULT 'New Mapping',
+    status TEXT DEFAULT 'in_progress',
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_mappings_plant_id ON mappings(plant_id);
+
+  CREATE TABLE IF NOT EXISTS mapping_machines (
+    id TEXT PRIMARY KEY,
+    mapping_id TEXT NOT NULL REFERENCES mappings(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    plc_make TEXT, plc_model TEXT, plc_series TEXT, plc_part_no TEXT,
+    hmi_make TEXT, hmi_model TEXT, hmi_part_no TEXT,
+    vfd_make TEXT, vfd_model TEXT, vfd_hp TEXT, vfd_voltage TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_mapping_machines_mapping_id ON mapping_machines(mapping_id);
+
+  CREATE TABLE IF NOT EXISTS mapping_photos (
+    id TEXT PRIMARY KEY,
+    machine_id TEXT NOT NULL REFERENCES mapping_machines(id) ON DELETE CASCADE,
+    category TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    original_name TEXT,
+    ocr_raw TEXT,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_mapping_photos_machine_id ON mapping_photos(machine_id);
+
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,

@@ -14,7 +14,16 @@
       "Bash(export PATH=\"/opt/homebrew/opt/node@22/bin:$PATH\")",
       "Bash(npm install:*)",
       "Bash(openssl rand:*)",
-      "Bash(echo \"JWT_SECRET=$\\(openssl rand -hex 32\\)\")"
+      "Bash(echo \"JWT_SECRET=$\\(openssl rand -hex 32\\)\")",
+      "Bash(brew install *)",
+      "Bash(pdfinfo \"/Users/westleyharris/Downloads/Coke - Abilene/Abilene L1-3 + Util_compressed.pdf\")",
+      "Bash(ls /opt/homebrew/bin/pdftoppm 2>/dev/null && echo \"ready\" || echo \"not yet\")",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(pdftoppm -r 120 -png -f 1 -l 4 \"/Users/westleyharris/Downloads/Coke - Abilene/Abilene L1-3 + Util_compressed.pdf\" /tmp/coke_page)",
+      "Read(//private/tmp/**)",
+      "Bash(pdftoppm -r 80 -png -f 2 -l 4 \"/Users/westleyharris/Downloads/Coke - Abilene/Abilene L1-3 + Util_compressed.pdf\" /tmp/coke_sm)",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\(JSON.stringify\\(Object.keys\\(p.dependencies\\)\\)\\)\")",
+      "Bash(node -e \"require\\('react-icons/hi2'\\); console.log\\('ok'\\)\")"
     ]
   }
 }

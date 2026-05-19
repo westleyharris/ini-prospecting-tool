@@ -19,6 +19,7 @@ function ensureDir(path: string): void {
 ensureDir(UPLOADS_PATH);
 ensureDir(join(UPLOADS_PATH, "visits"));
 ensureDir(join(UPLOADS_PATH, "projects"));
+ensureDir(join(UPLOADS_PATH, "mappings"));
 
 export function getUploadsPath(): string {
   return UPLOADS_PATH;
@@ -32,6 +33,12 @@ export function getVisitFilesPath(visitId: string): string {
 
 export function getProjectFilesPath(projectId: string): string {
   const p = join(UPLOADS_PATH, "projects", projectId);
+  ensureDir(p);
+  return p;
+}
+
+export function getMappingPhotosPath(machineId: string): string {
+  const p = join(UPLOADS_PATH, "mappings", machineId);
   ensureDir(p);
   return p;
 }

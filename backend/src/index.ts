@@ -36,9 +36,11 @@ import { visitsRouter } from "./routes/visits.js";
 import { projectsRouter } from "./routes/projects.js";
 import { commissioningsRouter } from "./routes/commissionings.js";
 import { authRouter } from "./routes/auth.js";
+import { mappingsRouter } from "./routes/mappings.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import "./db.js";
 import "./services/uploads.js";
+import { getUploadsPath } from "./services/uploads.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -57,6 +59,13 @@ app.use("/api/contacts", requireAuth, contactsRouter);
 app.use("/api/visits", requireAuth, visitsRouter);
 app.use("/api/projects", requireAuth, projectsRouter);
 app.use("/api/commissionings", requireAuth, commissioningsRouter);
+app.use("/api/mappings", requireAuth, mappingsRouter);
+
+// Serve uploaded files — no auth required on the route itself.
+// Files are stored under UUID-based paths (128-bit random), making them
+// unguessable. This is the same pattern used by S3, Dropbox, Slack, etc.
+// Auth-gating this route breaks browser print/PDF generation.
+app.use("/uploads", express.static(getUploadsPath()));
 
 app.get("/api/health", (_, res) => {
   res.json({ status: "ok" });
