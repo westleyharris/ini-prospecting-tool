@@ -306,14 +306,45 @@ function PhotoSection({
         })()}
       </div>
 
-      {/* "Other" label input — appears when Other is tapped */}
+      {/* Existing "other" label groups — tap to add more photos to that group */}
+      {(() => {
+        const labels = [...new Set(
+          photos.filter((p) => p.category === "other").map((p) => p.label?.trim() || "Other")
+        )];
+        if (labels.length === 0) return null;
+        return (
+          <div className="flex flex-wrap gap-2">
+            {labels.map((lbl) => {
+              const count = photos.filter((p) => p.category === "other" && (p.label?.trim() || "Other") === lbl).length;
+              const isUploading = uploading === "other" && pendingLabel.current === lbl;
+              return (
+                <button
+                  key={lbl}
+                  onClick={() => triggerUpload("other", lbl)}
+                  disabled={!!uploading || showOtherInput}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl text-xs font-medium text-gray-700 disabled:opacity-50 transition-colors"
+                >
+                  {isUploading
+                    ? <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                    : <HiCamera className="w-3.5 h-3.5 text-gray-500" />
+                  }
+                  {lbl}
+                  <span className="ml-0.5 text-gray-400">({count})</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {/* New "other" label input — appears when Other button is tapped */}
       {showOtherInput && (
         <div className="flex gap-2 items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
           <HiCamera className="w-4 h-4 text-gray-400 shrink-0" />
           <input
             autoFocus
             type="text"
-            placeholder="Label this photo (e.g. Nameplate, Panel, Motor…)"
+            placeholder="Label (e.g. Servo Motors, Nameplate, Panel…)"
             value={otherLabel}
             onChange={(e) => setOtherLabel(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleOtherCapture(); if (e.key === "Escape") setShowOtherInput(false); }}
