@@ -232,6 +232,13 @@ for (const col of newContactColumns) {
   }
 }
 
+// Migrations: mapping_photos table
+const mappingPhotosInfo = db.prepare("PRAGMA table_info(mapping_photos)").all() as { name: string }[];
+const existingMappingPhotoCols = new Set(mappingPhotosInfo.map((c) => c.name));
+if (!existingMappingPhotoCols.has("label")) {
+  db.exec("ALTER TABLE mapping_photos ADD COLUMN label TEXT");
+}
+
 export interface Plant {
   id: string;
   place_id: string;

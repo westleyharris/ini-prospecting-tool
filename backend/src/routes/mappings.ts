@@ -300,7 +300,7 @@ mappingsRouter.post(
 
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    const { category = "other", sort_order = 0 } = req.body;
+    const { category = "other", sort_order = 0, label } = req.body;
 
     // Move file to machine-specific folder
     const destDir = getMappingPhotosPath(machine.id);
@@ -312,9 +312,9 @@ mappingsRouter.post(
     const ts = now();
 
     db.prepare(
-      `INSERT INTO mapping_photos (id, machine_id, category, filename, original_name, sort_order, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, machine.id, category, req.file.filename, req.file.originalname, sort_order, ts);
+      `INSERT INTO mapping_photos (id, machine_id, category, label, filename, original_name, sort_order, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, machine.id, category, label ?? null, req.file.filename, req.file.originalname, sort_order, ts);
 
     const photo = db.prepare("SELECT * FROM mapping_photos WHERE id = ?").get(id);
 

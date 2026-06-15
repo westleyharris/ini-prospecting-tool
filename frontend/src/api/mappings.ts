@@ -6,6 +6,7 @@ export interface MappingPhoto {
   id: string;
   machine_id: string;
   category: "plc" | "hmi" | "vfd" | "machine" | "other";
+  label: string | null;
   filename: string;
   original_name: string;
   ocr_raw: string | null;
@@ -127,12 +128,14 @@ export function uploadPhoto(
   machineId: string,
   file: File,
   category: MappingPhoto["category"],
-  sortOrder?: number
+  sortOrder?: number,
+  label?: string
 ): Promise<MappingPhoto> {
   const form = new FormData();
   form.append("photo", file);
   form.append("category", category);
   if (sortOrder !== undefined) form.append("sort_order", String(sortOrder));
+  if (label) form.append("label", label);
   return apiFetch(`${BASE}/mappings/machines/${machineId}/photos`, {
     method: "POST",
     body: form,

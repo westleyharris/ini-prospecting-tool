@@ -172,23 +172,40 @@ function PhotoSection({
   const [uploading, setUploading] = useState<PhotoCategory | null>(null);
   const [lightbox, setLightbox] = useState<MappingPhoto | null>(null);
   const [ocrRunning, setOcrRunning] = useState<string | null>(null);
+  // "Other" label flow
+  const [showOtherInput, setShowOtherInput] = useState(false);
+  const [otherLabel, setOtherLabel] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingCategory = useRef<PhotoCategory>("other");
+  const pendingLabel = useRef<string | undefined>(undefined);
   const photos = machine.photos ?? [];
 
-  function triggerUpload(category: PhotoCategory) {
+  function triggerUpload(category: PhotoCategory, label?: string) {
     pendingCategory.current = category;
+    pendingLabel.current = label;
     if (fileInputRef.current) { fileInputRef.current.value = ""; fileInputRef.current.click(); }
+  }
+
+  function handleOtherClick() {
+    setShowOtherInput(true);
+    setOtherLabel("");
+  }
+
+  function handleOtherCapture() {
+    const label = otherLabel.trim() || "Other";
+    setShowOtherInput(false);
+    triggerUpload("other", label);
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const category = pendingCategory.current;
+    const label = pendingLabel.current;
     setUploading(category);
     try {
       for (const file of Array.from(files)) {
-        const photo = await uploadPhoto(machine.id, file, category, photos.length);
+        const photo = await uploadPhoto(machine.id, file, category, photos.length, label);
         onPhotoAdded(photo);
       }
     } catch (err) {
@@ -219,25 +236,30 @@ function PhotoSection({
     }
   }
 
+  // Count non-other photos by category; count "other" photos overall for the button badge
   const photosByCategory: Record<string, MappingPhoto[]> = {};
   for (const p of photos) {
-    if (!photosByCategory[p.category]) photosByCategory[p.category] = [];
-    photosByCategory[p.category].push(p);
+    const key = p.category === "other" ? "other" : p.category;
+    if (!photosByCategory[key]) photosByCategory[key] = [];
+    photosByCategory[key].push(p);
   }
+
+  // Unique "other" labels for thumbnail grouping display
+  const otherPhotos = photos.filter((p) => p.category === "other");
 
   return (
     <div className="space-y-3">
       <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment"
         className="hidden" onChange={handleFileChange} />
 
-      {/* Category buttons */}
+      {/* Category buttons — 4 standard + Other */}
       <div className="grid grid-cols-5 gap-1.5">
-        {PHOTO_CATEGORIES.map((cat) => {
+        {PHOTO_CATEGORIES.filter((c) => c.key !== "other").map((cat) => {
           const count = (photosByCategory[cat.key] ?? []).length;
           const isUploading = uploading === cat.key;
           const CatIcon = cat.Icon;
           return (
-            <button key={cat.key} onClick={() => triggerUpload(cat.key)} disabled={!!uploading}
+            <button key={cat.key} onClick={() => triggerUpload(cat.key)} disabled={!!uploading || showOtherInput}
               className={`relative flex flex-col items-center gap-1 rounded-xl py-2.5 px-1 border text-xs font-medium transition-all disabled:opacity-60 ${
                 count > 0
                   ? "border-blue-200 bg-blue-50 text-blue-700"
@@ -256,13 +278,63 @@ function PhotoSection({
             </button>
           );
         })}
+        {/* Other button */}
+        {(() => {
+          const count = otherPhotos.length;
+          const isUploading = uploading === "other";
+          return (
+            <button onClick={handleOtherClick} disabled={!!uploading || showOtherInput}
+              className={`relative flex flex-col items-center gap-1 rounded-xl py-2.5 px-1 border text-xs font-medium transition-all disabled:opacity-60 ${
+                showOtherInput
+                  ? "border-blue-400 bg-blue-50 text-blue-700"
+                  : count > 0
+                    ? "border-blue-200 bg-blue-50 text-blue-700"
+                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+              }`}>
+              {isUploading
+                ? <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                : <HiCamera className="w-5 h-5" />
+              }
+              <span className="leading-tight text-center text-[11px]">Other</span>
+              {count > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blue-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })()}
       </div>
+
+      {/* "Other" label input — appears when Other is tapped */}
+      {showOtherInput && (
+        <div className="flex gap-2 items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+          <HiCamera className="w-4 h-4 text-gray-400 shrink-0" />
+          <input
+            autoFocus
+            type="text"
+            placeholder="Label this photo (e.g. Nameplate, Panel, Motor…)"
+            value={otherLabel}
+            onChange={(e) => setOtherLabel(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleOtherCapture(); if (e.key === "Escape") setShowOtherInput(false); }}
+            className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
+          />
+          <button onClick={handleOtherCapture}
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 shrink-0">
+            Capture
+          </button>
+          <button onClick={() => setShowOtherInput(false)} className="p-1 text-gray-400 hover:text-gray-600">
+            <HiXMark className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Thumbnails */}
       {photos.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {photos.map((photo) => {
             const cat = PHOTO_CATEGORIES.find((c) => c.key === photo.category);
+            const displayLabel = photo.category === "other" && photo.label ? photo.label : cat?.label ?? photo.category;
             const ocrData = parseOcr(photo.ocr_raw);
             const hasOcr = Object.entries(ocrData).some(([k, v]) => k !== "raw" && v);
             const ocrError = !!ocrData.error;
@@ -272,7 +344,7 @@ function PhotoSection({
                   className="w-full h-full object-cover cursor-pointer" onClick={() => setLightbox(photo)} />
                 <div className={`absolute bottom-0 left-0 right-0 flex items-center gap-1 px-1.5 py-1 ${cat?.color ?? "bg-gray-100 text-gray-500"} bg-opacity-90`}>
                   {cat && <cat.Icon className="w-3 h-3 shrink-0" />}
-                  <span className="text-[9px] font-medium truncate">{cat?.label}</span>
+                  <span className="text-[9px] font-medium truncate">{displayLabel}</span>
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); handleDelete(photo); }}
                   className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -550,7 +622,16 @@ function PrintView({ mapping }: { mapping: Mapping }) {
             photosByCat[k]!.push(p);
           }
           const orderedCats = (["machine", "plc", "hmi", "vfd", "other"] as CatKey[])
-            .filter((k) => (photosByCat[k] ?? []).length > 0);
+            .filter((k) => k !== "other" && (photosByCat[k] ?? []).length > 0);
+          // "other" photos grouped by their label — each label = its own section
+          const otherPhotos = (machine.photos ?? []).filter((p) => p.category === "other");
+          const otherGroups: { label: string; photos: MappingPhoto[] }[] = [];
+          for (const p of otherPhotos) {
+            const lbl = p.label?.trim() || "Other";
+            const existing = otherGroups.find((g) => g.label === lbl);
+            if (existing) existing.photos.push(p);
+            else otherGroups.push({ label: lbl, photos: [p] });
+          }
           const hasSpecs = !!(
             machine.plc_make || machine.plc_model ||
             machine.hmi_make || machine.hmi_model ||
@@ -639,8 +720,27 @@ function PrintView({ mapping }: { mapping: Mapping }) {
                 );
               })}
 
+              {/* "Other" sections — one per unique label */}
+              {otherGroups.map((group) => (
+                <div key={group.label} style={s.catSection}>
+                  <div style={s.catHeader("#9ca3af", "#f9fafb", "#6b7280")}>
+                    {group.label}
+                  </div>
+                  <div style={s.photosColWide}>
+                    {group.photos.map((photo) => (
+                      <img
+                        key={photo.id}
+                        src={photoUrl(photo.machine_id, photo.filename)}
+                        alt={photo.original_name}
+                        style={s.photoImg}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
               {/* If machine has no photos and no specs */}
-              {orderedCats.length === 0 && !hasSpecs && (
+              {orderedCats.length === 0 && otherGroups.length === 0 && !hasSpecs && (
                 <div style={{ padding: "12px 14px", color: "#9ca3af", fontSize: "11px", fontStyle: "italic" }}>
                   No photos or specs recorded for this machine.
                 </div>
