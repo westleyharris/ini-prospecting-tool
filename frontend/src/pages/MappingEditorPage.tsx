@@ -445,102 +445,209 @@ function MachineCard({
 }
 
 // ─── Print view ───────────────────────────────────────────────────────────────
-// This renders outside the no-print wrapper so @media print can reveal it
+// Renders outside the screen wrapper; @media print reveals it and hides the UI.
 function PrintView({ mapping }: { mapping: Mapping }) {
   const machines = mapping.machines ?? [];
 
+  // Category display config for print
+  const CAT_PRINT = {
+    machine: { label: "Machine Overview", borderColor: "#9ca3af", bgColor: "#f9fafb", textColor: "#374151" },
+    plc:     { label: "PLC",              borderColor: "#3b82f6", bgColor: "#eff6ff", textColor: "#1d4ed8" },
+    hmi:     { label: "HMI",              borderColor: "#8b5cf6", bgColor: "#f5f3ff", textColor: "#6d28d9" },
+    vfd:     { label: "VFD",              borderColor: "#f59e0b", bgColor: "#fffbeb", textColor: "#b45309" },
+    other:   { label: "Other",            borderColor: "#9ca3af", bgColor: "#f9fafb", textColor: "#6b7280" },
+  } as const;
+
+  type CatKey = keyof typeof CAT_PRINT;
+
+  // Specs associated with each category
+  function getCatSpecs(machine: MappingMachine, cat: CatKey): { label: string; value: string }[] {
+    if (cat === "plc") return [
+      { label: "Make",   value: machine.plc_make ?? "" },
+      { label: "Model",  value: machine.plc_model ?? "" },
+      { label: "Series", value: machine.plc_series ?? "" },
+      { label: "P/N",    value: machine.plc_part_no ?? "" },
+    ].filter((s) => s.value);
+    if (cat === "hmi") return [
+      { label: "Make",  value: machine.hmi_make ?? "" },
+      { label: "Model", value: machine.hmi_model ?? "" },
+      { label: "P/N",   value: machine.hmi_part_no ?? "" },
+    ].filter((s) => s.value);
+    if (cat === "vfd") return [
+      { label: "Make",    value: machine.vfd_make ?? "" },
+      { label: "Model",   value: machine.vfd_model ?? "" },
+      { label: "HP",      value: machine.vfd_hp ?? "" },
+      { label: "Voltage", value: machine.vfd_voltage ?? "" },
+    ].filter((s) => s.value);
+    return [];
+  }
+
+  const s = {
+    // Page shell
+    root:     { fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#111", lineHeight: "1.4" } as React.CSSProperties,
+    header:   { marginBottom: "20px", paddingBottom: "14px", borderBottom: "2px solid #e5e7eb" } as React.CSSProperties,
+    title:    { fontSize: "22px", fontWeight: "bold", color: "#111827", marginBottom: "4px" } as React.CSSProperties,
+    subtitle: { fontSize: "13px", color: "#6b7280" } as React.CSSProperties,
+    summary:  { fontSize: "11px", color: "#9ca3af", marginTop: "2px" } as React.CSSProperties,
+
+    // Machine card
+    machine:      { border: "2px solid #16a34a", borderRadius: "8px", marginBottom: "20px", overflow: "hidden", pageBreakInside: "avoid" } as React.CSSProperties,
+    machineHead:  { background: "#166534", color: "#fff", padding: "8px 14px", fontSize: "15px", fontWeight: "bold" } as React.CSSProperties,
+    machineBody:  { padding: "0" } as React.CSSProperties,
+    machineNotes: { padding: "8px 14px", fontSize: "11px", color: "#374151", fontStyle: "italic", borderBottom: "1px solid #dcfce7", background: "#f0fdf4" } as React.CSSProperties,
+
+    // Category section
+    catSection:   { borderBottom: "1px solid #e5e7eb" } as React.CSSProperties,
+    catHeader:    (borderColor: string, bgColor: string, textColor: string): React.CSSProperties => ({
+      display: "flex", alignItems: "center", gap: "8px",
+      padding: "5px 14px",
+      background: bgColor,
+      borderLeft: `4px solid ${borderColor}`,
+      fontSize: "10px", fontWeight: "bold", textTransform: "uppercase",
+      letterSpacing: "0.08em", color: textColor,
+    }),
+    catBody:      { display: "flex", gap: "0", minHeight: "100px" } as React.CSSProperties,
+    photosCol:    { flex: "1 1 60%", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", padding: "10px 14px", alignContent: "start" } as React.CSSProperties,
+    photosColWide:{ flex: "1 1 100%", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px", padding: "10px 14px", alignContent: "start" } as React.CSSProperties,
+    photoImg:     { width: "100%", borderRadius: "4px", border: "1px solid #e5e7eb", display: "block", aspectRatio: "4/3", objectFit: "cover" } as React.CSSProperties,
+    specsCol:     { flex: "0 0 38%", padding: "10px 14px", borderLeft: "1px solid #e5e7eb", display: "flex", flexDirection: "column", justifyContent: "center" } as React.CSSProperties,
+    specRow:      { marginBottom: "5px" } as React.CSSProperties,
+    specLabel:    { fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: "1px" } as React.CSSProperties,
+    specValue:    { fontSize: "13px", fontWeight: "700", color: "#111827" } as React.CSSProperties,
+    noSpec:       { fontSize: "11px", color: "#d1d5db", fontStyle: "italic" } as React.CSSProperties,
+  };
+
   return (
     <>
-      {/* Global print styles */}
       <style>{`
         @media screen { .mapping-print-root { display: none; } }
-        @media print {
-          .mapping-print-root { display: block; }
-          .mapping-screen-only { display: none !important; }
-          body { margin: 0; font-family: Arial, sans-serif; font-size: 12px; color: #111; }
-          .print-machine { border: 2px solid #16a34a; border-radius: 8px; padding: 14px; margin-bottom: 18px; page-break-inside: avoid; }
-          .print-machine-title { font-size: 15px; font-weight: bold; color: #166534; border-bottom: 1px solid #bbf7d0; padding-bottom: 6px; margin-bottom: 10px; }
-          .print-specs { display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 10px; }
-          .print-spec-block { }
-          .print-spec-type { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 2px; }
-          .print-spec-value { font-weight: 700; font-size: 12px; }
-          .print-spec-sub { color: #6b7280; font-size: 11px; }
-          .print-notes { font-style: italic; color: #374151; margin-bottom: 10px; font-size: 11px; }
-          .print-photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
-          .print-photo { }
-          .print-photo img { width: 100%; border-radius: 5px; border: 1px solid #e5e7eb; display: block; }
-          .print-photo-label { font-size: 9px; color: #9ca3af; margin-top: 3px; }
-          .print-header { margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb; }
-          .print-title { font-size: 20px; font-weight: bold; color: #111827; }
-          .print-subtitle { font-size: 12px; color: #6b7280; margin-top: 4px; }
-          .print-summary { font-size: 11px; color: #9ca3af; margin-top: 2px; }
-        }
+        @media print  { .mapping-print-root { display: block; } .mapping-screen-only { display: none !important; } body { margin: 0.5in; } }
+        @media print  { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
       `}</style>
 
-      <div className="mapping-print-root">
-        <div className="print-header">
-          <div className="print-title">{mapping.plant_name ?? "Plant"} — Equipment Mapping</div>
-          <div className="print-subtitle">
-            {mapping.name}
-            {mapping.city && mapping.state ? ` · ${mapping.city}, ${mapping.state}` : ""}
+      <div className="mapping-print-root" style={s.root}>
+
+        {/* Report header */}
+        <div style={s.header}>
+          <div style={s.title}>{mapping.plant_name ?? "Plant"} — Equipment Mapping</div>
+          <div style={s.subtitle}>
+            {mapping.name}{mapping.city && mapping.state ? ` · ${mapping.city}, ${mapping.state}` : ""}
           </div>
-          <div className="print-summary">
-            {machines.length} machine{machines.length !== 1 ? "s" : ""} ·
-            {machines.reduce((s, m) => s + (m.photos ?? []).length, 0)} photos ·
+          <div style={s.summary}>
+            {machines.length} machine{machines.length !== 1 ? "s" : ""} &nbsp;·&nbsp;
+            {machines.reduce((n, m) => n + (m.photos ?? []).length, 0)} photos &nbsp;·&nbsp;
             Printed {new Date().toLocaleDateString()}
           </div>
         </div>
 
-        {machines.map((machine, idx) => (
-          <div key={machine.id} className="print-machine">
-            <div className="print-machine-title">{idx + 1}. {machine.name}</div>
+        {/* Machines */}
+        {machines.map((machine, idx) => {
+          // Group photos by category in display order
+          const photosByCat: Partial<Record<CatKey, MappingPhoto[]>> = {};
+          for (const p of machine.photos ?? []) {
+            const k = p.category as CatKey;
+            if (!photosByCat[k]) photosByCat[k] = [];
+            photosByCat[k]!.push(p);
+          }
+          const orderedCats = (["machine", "plc", "hmi", "vfd", "other"] as CatKey[])
+            .filter((k) => (photosByCat[k] ?? []).length > 0);
+          const hasSpecs = !!(
+            machine.plc_make || machine.plc_model ||
+            machine.hmi_make || machine.hmi_model ||
+            machine.vfd_make || machine.vfd_model
+          );
+          // If no photos at all, still show spec-only sections
+          const specOnlyCats = (["plc", "hmi", "vfd"] as CatKey[]).filter((k) => {
+            const specs = getCatSpecs(machine, k);
+            return specs.length > 0 && !(photosByCat[k] ?? []).length;
+          });
 
-            <div className="print-specs">
-              {(machine.plc_make || machine.plc_model) && (
-                <div className="print-spec-block">
-                  <div className="print-spec-type">PLC</div>
-                  <div className="print-spec-value">{[machine.plc_make, machine.plc_model].filter(Boolean).join(" ")}</div>
-                  {machine.plc_series  && <div className="print-spec-sub">Series: {machine.plc_series}</div>}
-                  {machine.plc_part_no && <div className="print-spec-sub">P/N: {machine.plc_part_no}</div>}
-                </div>
+          return (
+            <div key={machine.id} style={s.machine}>
+              {/* Machine title bar */}
+              <div style={s.machineHead}>{idx + 1}. {machine.name}</div>
+
+              {machine.notes && (
+                <div style={s.machineNotes}>{machine.notes}</div>
               )}
-              {(machine.hmi_make || machine.hmi_model) && (
-                <div className="print-spec-block">
-                  <div className="print-spec-type">HMI</div>
-                  <div className="print-spec-value">{[machine.hmi_make, machine.hmi_model].filter(Boolean).join(" ")}</div>
-                  {machine.hmi_part_no && <div className="print-spec-sub">P/N: {machine.hmi_part_no}</div>}
-                </div>
-              )}
-              {(machine.vfd_make || machine.vfd_model) && (
-                <div className="print-spec-block">
-                  <div className="print-spec-type">VFD</div>
-                  <div className="print-spec-value">{[machine.vfd_make, machine.vfd_model].filter(Boolean).join(" ")}</div>
-                  {machine.vfd_hp      && <div className="print-spec-sub">{machine.vfd_hp}</div>}
-                  {machine.vfd_voltage && <div className="print-spec-sub">{machine.vfd_voltage}</div>}
+
+              {/* Category sections — photos + specs together */}
+              {orderedCats.map((catKey) => {
+                const meta = CAT_PRINT[catKey];
+                const photos = photosByCat[catKey] ?? [];
+                const specs = getCatSpecs(machine, catKey);
+                const hasSpecsForCat = specs.length > 0;
+                // Machine/other: full-width photos, no specs column
+                const isSpecCat = catKey === "plc" || catKey === "hmi" || catKey === "vfd";
+
+                return (
+                  <div key={catKey} style={s.catSection}>
+                    {/* Category label row */}
+                    <div style={s.catHeader(meta.borderColor, meta.bgColor, meta.textColor)}>
+                      {meta.label}
+                    </div>
+                    <div style={s.catBody}>
+                      {/* Photos */}
+                      <div style={isSpecCat ? s.photosCol : s.photosColWide}>
+                        {photos.map((photo) => (
+                          <img
+                            key={photo.id}
+                            src={photoUrl(photo.machine_id, photo.filename)}
+                            alt={photo.original_name}
+                            style={s.photoImg}
+                          />
+                        ))}
+                      </div>
+                      {/* Specs (only for PLC / HMI / VFD) */}
+                      {isSpecCat && (
+                        <div style={s.specsCol}>
+                          {hasSpecsForCat ? (
+                            specs.map((spec) => (
+                              <div key={spec.label} style={s.specRow}>
+                                <div style={s.specLabel}>{spec.label}</div>
+                                <div style={s.specValue}>{spec.value}</div>
+                              </div>
+                            ))
+                          ) : (
+                            <div style={s.noSpec}>No specs recorded</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Spec-only sections (have specs but no photos) */}
+              {specOnlyCats.map((catKey) => {
+                const meta = CAT_PRINT[catKey];
+                const specs = getCatSpecs(machine, catKey);
+                return (
+                  <div key={`spec-${catKey}`} style={s.catSection}>
+                    <div style={s.catHeader(meta.borderColor, meta.bgColor, meta.textColor)}>
+                      {meta.label}
+                    </div>
+                    <div style={{ padding: "10px 14px", display: "flex", flexWrap: "wrap", gap: "24px" }}>
+                      {specs.map((spec) => (
+                        <div key={spec.label} style={s.specRow}>
+                          <div style={s.specLabel}>{spec.label}</div>
+                          <div style={s.specValue}>{spec.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* If machine has no photos and no specs */}
+              {orderedCats.length === 0 && !hasSpecs && (
+                <div style={{ padding: "12px 14px", color: "#9ca3af", fontSize: "11px", fontStyle: "italic" }}>
+                  No photos or specs recorded for this machine.
                 </div>
               )}
             </div>
-
-            {machine.notes && <div className="print-notes">{machine.notes}</div>}
-
-            {(machine.photos ?? []).length > 0 && (
-              <div className="print-photos">
-                {(machine.photos ?? []).map((photo) => {
-                  const cat = PHOTO_CATEGORIES.find((c) => c.key === photo.category);
-                  return (
-                    <div key={photo.id} className="print-photo">
-                      <img
-                        src={photoUrl(photo.machine_id, photo.filename)}
-                        alt={photo.original_name}
-                      />
-                      <div className="print-photo-label">{cat?.printLabel ?? photo.category}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
