@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   HiArrowLeft, HiPrinter, HiPlus, HiTrash, HiPencil,
@@ -831,17 +832,16 @@ function PhotoTile({ photo, onClick }: { photo: MappingPhoto; onClick: () => voi
   );
 }
 
-// Per-category display config for the view
-const VIEW_CATS = {
-  plc:   { label: "PLC",   Icon: HiCpuChip,         border: "border-blue-300",   bg: "bg-blue-50",   badge: "bg-blue-100 text-blue-700",   heading: "text-blue-700" },
-  hmi:   { label: "HMI",   Icon: HiComputerDesktop, border: "border-purple-300", bg: "bg-purple-50", badge: "bg-purple-100 text-purple-700",heading: "text-purple-700" },
-  vfd:   { label: "VFD",   Icon: HiBolt,            border: "border-amber-300",  bg: "bg-amber-50",  badge: "bg-amber-100 text-amber-700",  heading: "text-amber-700" },
-  servo: { label: "Servo", Icon: HiCog8Tooth,       border: "border-green-300",  bg: "bg-green-50",  badge: "bg-green-100 text-green-700",  heading: "text-green-700" },
-} as const;
+type SpecCatKey = "plc" | "hmi" | "vfd" | "servo";
 
-type SpecCatKey = keyof typeof VIEW_CATS;
+const SPEC_META: Record<SpecCatKey, { label: string; Icon: React.ElementType; accent: string; bg: string; text: string }> = {
+  plc:   { label: "PLC",   Icon: HiCpuChip,         accent: "#1d4ed8", bg: "#eff6ff", text: "#1e40af" },
+  hmi:   { label: "HMI",   Icon: HiComputerDesktop, accent: "#7c3aed", bg: "#faf5ff", text: "#6d28d9" },
+  vfd:   { label: "VFD",   Icon: HiBolt,            accent: "#b45309", bg: "#fffbeb", text: "#92400e" },
+  servo: { label: "Servo", Icon: HiCog8Tooth,       accent: "#15803d", bg: "#f0fdf4", text: "#166534" },
+};
 
-function specFields(m: MappingMachine, cat: SpecCatKey): { label: string; value: string }[] {
+function specRows(m: MappingMachine, cat: SpecCatKey): { label: string; value: string }[] {
   if (cat === "plc") return [
     { label: "Make",   value: m.plc_make ?? "" },
     { label: "Model",  value: m.plc_model ?? "" },
@@ -859,19 +859,19 @@ function specFields(m: MappingMachine, cat: SpecCatKey): { label: string; value:
     { label: "HP",      value: m.vfd_hp ?? "" },
     { label: "Voltage", value: m.vfd_voltage ?? "" },
   ].filter((f) => f.value);
-  if (cat === "servo") return [
+  return [
     { label: "Drive Make",  value: m.servo_drive_make ?? "" },
     { label: "Drive Model", value: m.servo_drive_model ?? "" },
     { label: "Motor Make",  value: m.servo_motor_make ?? "" },
     { label: "Motor Model", value: m.servo_motor_model ?? "" },
     { label: "Motor P/N",   value: m.servo_motor_part_no ?? "" },
   ].filter((f) => f.value);
-  return [];
 }
 
 function MappingView({ mapping }: { mapping: Mapping }) {
   const machines = mapping.machines ?? [];
   const [lightbox, setLightbox] = useState<{ photo: MappingPhoto; list: MappingPhoto[]; idx: number } | null>(null);
+  const [activeTab, setActiveTab] = useState(machines[0]?.id ?? "");
 
   function openLightbox(list: MappingPhoto[], idx: number) {
     setLightbox({ photo: list[idx], list, idx });
@@ -879,226 +879,320 @@ function MappingView({ mapping }: { mapping: Mapping }) {
   function lbNav(dir: 1 | -1) {
     if (!lightbox) return;
     const next = lightbox.idx + dir;
-    if (next < 0 || next >= lightbox.list.length) return;
-    setLightbox({ photo: lightbox.list[next], list: lightbox.list, idx: next });
+    if (next >= 0 && next < lightbox.list.length)
+      setLightbox({ ...lightbox, photo: lightbox.list[next], idx: next });
   }
+  useEffect(() => {
+    if (!lightbox) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setLightbox(null); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [lightbox]);
 
   const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
-  const totalPLCs   = machines.filter((m) => m.plc_make || m.plc_model).length;
-  const totalDrives = machines.filter((m) => m.vfd_make || m.vfd_model || m.servo_drive_make).length;
+
+  // Build photo groups for a machine
+  function buildGroups(machine: MappingMachine) {
+    const byKey: Record<string, MappingPhoto[]> = {};
+    for (const p of machine.photos ?? []) {
+      const key = p.category === "other" ? `other§${p.label?.trim() || "Other"}` : p.category;
+      if (!byKey[key]) byKey[key] = [];
+      byKey[key].push(p);
+    }
+    const groups: { key: string; label: string; catKey: string; photos: MappingPhoto[] }[] = [];
+    for (const ck of ["machine", "plc", "hmi", "vfd", "servo"]) {
+      if (byKey[ck]?.length) {
+        const cat = PHOTO_CATEGORIES.find((c) => c.key === ck);
+        groups.push({ key: ck, label: cat?.label ?? ck, catKey: ck, photos: byKey[ck] });
+      }
+    }
+    for (const [k, photos] of Object.entries(byKey)) {
+      if (k.startsWith("other§")) groups.push({ key: k, label: k.replace("other§", ""), catKey: "other", photos });
+    }
+    return groups;
+  }
 
   return (
-    <div className="space-y-6">
+    <>
+      {/* ── Break out of page container padding ── */}
+      <div className="-mx-3 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-8">
 
-      {/* ── Hero summary banner ─────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl shadow-lg"
-        style={{ background: "linear-gradient(135deg, #14532d 0%, #166534 55%, #15803d 100%)" }}>
-        {/* dot-grid overlay */}
-        <div className="absolute inset-0 pointer-events-none"
-          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.10) 1.5px, transparent 1.5px)", backgroundSize: "22px 22px" }} />
-        <div className="relative flex flex-wrap gap-x-10 gap-y-5 px-7 py-6">
-          {[
-            { label: "Machines",        value: machines.length, Icon: HiCog8Tooth,       glow: "#4ade80" },
-            { label: "Photos",          value: totalPhotos,     Icon: HiPhoto,           glow: "#86efac" },
-            { label: "Control Systems", value: totalPLCs,       Icon: HiCpuChip,         glow: "#93c5fd" },
-            { label: "Drive Systems",   value: totalDrives,     Icon: HiBolt,            glow: "#fcd34d" },
-          ].map(({ label, value, Icon, glow }) => (
-            <div key={label} className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: "rgba(255,255,255,0.08)", boxShadow: `0 0 0 1px rgba(255,255,255,0.12)` }}>
-                <Icon className="w-5 h-5" style={{ color: glow }} />
-              </div>
-              <div>
-                <div className="text-4xl font-black text-white leading-none tracking-tight">{value}</div>
-                <div className="text-xs mt-1 font-semibold" style={{ color: "rgba(187,247,208,0.85)" }}>{label}</div>
-              </div>
+        {/* ── Report header ── */}
+        <div className="relative overflow-hidden" style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 100%)" }}>
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+          <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 px-5 sm:px-8 py-5">
+            {/* Title block */}
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 mb-1">Equipment Mapping Report</p>
+              <h1 className="text-white font-black text-xl sm:text-2xl leading-tight truncate">{mapping.name}</h1>
+              {(mapping.plant_name || mapping.city) && (
+                <p className="text-green-300 text-sm mt-0.5">
+                  {mapping.plant_name}{mapping.city ? ` · ${mapping.city}, ${mapping.state}` : ""}
+                </p>
+              )}
             </div>
-          ))}
+            {/* Stats row */}
+            <div className="flex gap-5 sm:gap-8 shrink-0">
+              {[
+                { n: machines.length, l: "Machines",      Icon: HiCog8Tooth, c: "#4ade80" },
+                { n: totalPhotos,     l: "Photos",        Icon: HiPhoto,     c: "#86efac" },
+                { n: machines.filter(m => m.plc_make || m.plc_model).length, l: "PLCs", Icon: HiCpuChip, c: "#93c5fd" },
+                { n: machines.filter(m => m.vfd_make || m.servo_drive_make).length, l: "Drives", Icon: HiBolt, c: "#fcd34d" },
+              ].map(({ n, l, Icon, c }) => (
+                <div key={l} className="text-center">
+                  <div className="text-3xl font-black text-white tabular-nums leading-none">{n}</div>
+                  <div className="flex items-center justify-center gap-1 mt-1">
+                    <Icon className="w-3 h-3" style={{ color: c }} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: c }}>{l}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Machine tab bar ── */}
+          <div className="border-t border-white/10 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            <div className="flex min-w-max px-5 sm:px-8">
+              {machines.map((m, i) => (
+                <button key={m.id}
+                  onClick={() => {
+                    setActiveTab(m.id);
+                    document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
+                    activeTab === m.id
+                      ? "border-green-400 text-green-300"
+                      : "border-transparent text-white/40 hover:text-white/70 hover:border-white/20"
+                  }`}>
+                  <span className="font-mono opacity-60">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="uppercase tracking-wide">{m.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* ── Machine cards ───────────────────────────────────────────────── */}
-      {machines.map((machine, idx) => {
-        const byKey: Record<string, MappingPhoto[]> = {};
-        for (const p of machine.photos ?? []) {
-          const key = p.category === "other" ? `other§${p.label?.trim() || "Other"}` : p.category;
-          if (!byKey[key]) byKey[key] = [];
-          byKey[key].push(p);
-        }
-        const activeSpecs = (["plc", "hmi", "vfd", "servo"] as SpecCatKey[])
-          .filter((k) => specFields(machine, k).length > 0);
+        {/* ── Machine list ── */}
+        <div className="bg-gray-100 divide-y-4 divide-gray-200">
+          {machines.map((machine, idx) => {
+            const groups   = buildGroups(machine);
+            const allPhotos = groups.flatMap((g) => g.photos);
+            const ctrlCats  = (["plc", "hmi"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
+            const driveCats = (["vfd", "servo"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
+            const hasSpecs  = ctrlCats.length > 0 || driveCats.length > 0;
 
-        const orderedGroups: { key: string; label: string; catKey: string; photos: MappingPhoto[] }[] = [];
-        for (const ck of ["machine", "plc", "hmi", "vfd", "servo"]) {
-          if (byKey[ck]?.length) {
-            const cat = PHOTO_CATEGORIES.find((c) => c.key === ck);
-            orderedGroups.push({ key: ck, label: cat?.label ?? ck, catKey: ck, photos: byKey[ck] });
-          }
-        }
-        for (const [k, photos] of Object.entries(byKey)) {
-          if (k.startsWith("other§")) {
-            orderedGroups.push({ key: k, label: k.replace("other§", ""), catKey: "other", photos });
-          }
-        }
-        const allPhotos = orderedGroups.flatMap((g) => g.photos);
+            return (
+              <div id={`mv-${machine.id}`} key={machine.id} className="bg-white scroll-mt-0">
 
-        return (
-          <div key={machine.id} className="overflow-hidden rounded-2xl shadow-md border border-gray-100 bg-white">
-
-            {/* Machine header */}
-            <div className="relative overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #14532d 0%, #166534 100%)" }}>
-              {/* Hatch texture */}
-              <div className="absolute inset-0 pointer-events-none opacity-[0.07]"
-                style={{ backgroundImage: "repeating-linear-gradient(45deg, white, white 1px, transparent 1px, transparent 8px)" }} />
-              {/* Big watermark number */}
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-white select-none pointer-events-none"
-                style={{ fontSize: "6rem", lineHeight: 1, opacity: 0.06 }}>
-                {String(idx + 1).padStart(2, "0")}
-              </div>
-              <div className="relative flex items-center gap-4 px-6 py-5">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 font-black text-lg text-white"
-                  style={{ background: "rgba(255,255,255,0.12)", border: "2px solid rgba(255,255,255,0.25)" }}>
-                  {String(idx + 1).padStart(2, "0")}
+                {/* ── Machine header bar ── */}
+                <div className="flex items-center gap-3 px-5 sm:px-6 py-3"
+                  style={{ background: "linear-gradient(90deg, #14532d, #166534)" }}
+                  onClick={() => setActiveTab(machine.id)}>
+                  <span className="font-mono text-[11px] font-black text-green-400 shrink-0 tracking-widest">
+                    M-{String(idx + 1).padStart(2, "0")}
+                  </span>
+                  <div className="w-px h-4 bg-green-600 shrink-0" />
+                  <h2 className="text-white font-black text-sm sm:text-base uppercase tracking-widest flex-1 min-w-0 truncate">
+                    {machine.name}
+                  </h2>
+                  {machine.notes && (
+                    <span className="hidden sm:block text-green-300 text-xs italic shrink-0 max-w-[200px] truncate">{machine.notes}</span>
+                  )}
+                  {allPhotos.length > 0 && (
+                    <span className="flex items-center gap-1 text-green-300 text-xs font-bold shrink-0">
+                      <HiPhoto className="w-3.5 h-3.5" />{allPhotos.length}
+                    </span>
+                  )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-white font-black text-xl tracking-tight leading-tight">{machine.name}</h2>
-                  {machine.notes && <p className="text-green-200 text-sm mt-0.5 truncate">{machine.notes}</p>}
-                </div>
+
+                {/* ── Spec sections ── */}
+                {hasSpecs && (
+                  <div className="border-b border-gray-200">
+
+                    {/* Control systems */}
+                    {ctrlCats.length > 0 && (
+                      <>
+                        <div className="flex items-center gap-2 px-5 sm:px-6 py-2 bg-gray-50 border-b border-gray-200">
+                          <HiCpuChip className="w-3 h-3 text-gray-400" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500">Control Systems</span>
+                        </div>
+                        <div className={ctrlCats.length === 2 ? "grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-100" : ""}>
+                          {ctrlCats.map((catKey) => {
+                            const meta = SPEC_META[catKey];
+                            const SIcon = meta.Icon;
+                            const rows = specRows(machine, catKey);
+                            return (
+                              <div key={catKey} className="px-5 sm:px-6 py-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-5 h-5 rounded flex items-center justify-center shrink-0"
+                                    style={{ background: meta.bg, color: meta.accent }}>
+                                    <SIcon className="w-3 h-3" />
+                                  </div>
+                                  <span className="text-xs font-black uppercase tracking-widest" style={{ color: meta.text }}>{meta.label}</span>
+                                  <div className="flex-1 h-px bg-gray-100" />
+                                </div>
+                                <div className="space-y-1.5">
+                                  {rows.map((r) => (
+                                    <div key={r.label} className="flex items-start gap-4">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 w-16 sm:w-20 shrink-0 leading-5">{r.label}</span>
+                                      <span className="text-sm font-bold text-gray-900 font-mono leading-tight">{r.value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Drive systems */}
+                    {driveCats.length > 0 && (
+                      <>
+                        <div className="flex items-center gap-2 px-5 sm:px-6 py-2 bg-gray-50 border-y border-gray-200">
+                          <HiBolt className="w-3 h-3 text-gray-400" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500">Drive Systems</span>
+                        </div>
+                        <div className={driveCats.length === 2 ? "grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-100" : ""}>
+                          {driveCats.map((catKey) => {
+                            const meta = SPEC_META[catKey];
+                            const SIcon = meta.Icon;
+                            const rows = specRows(machine, catKey);
+                            return (
+                              <div key={catKey} className="px-5 sm:px-6 py-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-5 h-5 rounded flex items-center justify-center shrink-0"
+                                    style={{ background: meta.bg, color: meta.accent }}>
+                                    <SIcon className="w-3 h-3" />
+                                  </div>
+                                  <span className="text-xs font-black uppercase tracking-widest" style={{ color: meta.text }}>{meta.label}</span>
+                                  <div className="flex-1 h-px bg-gray-100" />
+                                </div>
+                                <div className="space-y-1.5">
+                                  {rows.map((r) => (
+                                    <div key={r.label} className="flex items-start gap-4">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 w-16 sm:w-20 shrink-0 leading-5">{r.label}</span>
+                                      <span className="text-sm font-bold text-gray-900 font-mono leading-tight">{r.value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Photo documentation ── */}
                 {allPhotos.length > 0 && (
-                  <div className="flex items-center gap-1.5 shrink-0 font-semibold text-sm"
-                    style={{ color: "rgba(187,247,208,0.9)" }}>
-                    <HiPhoto className="w-4 h-4" />
-                    {allPhotos.length} photo{allPhotos.length !== 1 ? "s" : ""}
+                  <>
+                    <div className="flex items-center justify-between px-5 sm:px-6 py-2 bg-gray-50 border-b border-gray-200">
+                      <div className="flex items-center gap-2">
+                        <HiPhoto className="w-3 h-3 text-gray-400" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500">Field Documentation</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-gray-400">{allPhotos.length} photos</span>
+                    </div>
+                    <div className="px-4 sm:px-6 py-4 space-y-4">
+                      {groups.map((group) => {
+                        const cat = PHOTO_CATEGORIES.find((c) => c.key === group.catKey);
+                        const GIcon = cat?.Icon ?? HiCamera;
+                        return (
+                          <div key={group.key}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${cat?.color ?? "bg-gray-100 text-gray-500"}`}>
+                                <GIcon className="w-3 h-3" />
+                                {group.label}
+                              </div>
+                              <span className="text-[10px] font-mono text-gray-300">{group.photos.length}</span>
+                              <div className="flex-1 h-px bg-gray-100" />
+                            </div>
+                            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1.5">
+                              {group.photos.map((photo) => (
+                                <PhotoTile key={photo.id} photo={photo}
+                                  onClick={() => openLightbox(allPhotos, allPhotos.indexOf(photo))} />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {!hasSpecs && allPhotos.length === 0 && (
+                  <div className="flex items-center gap-2 px-6 py-6 text-gray-300">
+                    <HiCamera className="w-4 h-4" />
+                    <span className="text-sm">No data recorded yet</span>
                   </div>
                 )}
               </div>
-            </div>
+            );
+          })}
+        </div>
+      </div>
 
-            {/* ── Specs grid ── */}
-            {activeSpecs.length > 0 && (
-              <div className="px-5 pt-5 pb-4 border-b border-gray-100">
-                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                  {activeSpecs.map((catKey) => {
-                    const meta = VIEW_CATS[catKey];
-                    const CIcon = meta.Icon;
-                    const fields = specFields(machine, catKey);
-                    return (
-                      <div key={catKey} className={`rounded-xl border overflow-hidden ${meta.border}`}>
-                        {/* Spec card header */}
-                        <div className={`flex items-center gap-2 px-3.5 py-2.5 ${meta.bg}`}>
-                          <CIcon className={`w-3.5 h-3.5 ${meta.heading}`} />
-                          <span className={`text-[11px] font-extrabold uppercase tracking-widest ${meta.heading}`}>
-                            {meta.label}
-                          </span>
-                        </div>
-                        {/* Spec card body */}
-                        <div className="px-3.5 py-3 space-y-3 bg-white">
-                          {fields.map((f) => (
-                            <div key={f.label}>
-                              <div className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">{f.label}</div>
-                              <div className="text-sm font-bold text-gray-900 leading-tight mt-0.5">{f.value}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ── Photo gallery ── */}
-            {allPhotos.length > 0 && (
-              <div className="px-5 py-5 space-y-5">
-                {orderedGroups.map((group) => {
-                  const cat = PHOTO_CATEGORIES.find((c) => c.key === group.catKey);
-                  const GIcon = cat?.Icon ?? HiCamera;
-                  return (
-                    <div key={group.key}>
-                      {/* Category label */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${cat?.color ?? "bg-gray-100 text-gray-600"}`}>
-                          <GIcon className="w-3.5 h-3.5" />
-                          {group.label}
-                        </div>
-                        <span className="text-xs text-gray-400 font-medium">{group.photos.length} photo{group.photos.length !== 1 ? "s" : ""}</span>
-                        <div className="flex-1 h-px bg-gray-100" />
-                      </div>
-                      {/* Photo grid */}
-                      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5">
-                        {group.photos.map((photo) => (
-                          <PhotoTile key={photo.id} photo={photo}
-                            onClick={() => openLightbox(allPhotos, allPhotos.indexOf(photo))} />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {activeSpecs.length === 0 && allPhotos.length === 0 && (
-              <div className="flex flex-col items-center gap-2 py-10 text-gray-300">
-                <HiCamera className="w-10 h-10" />
-                <p className="text-sm">Nothing recorded yet</p>
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {/* ── Lightbox ────────────────────────────────────────────────────── */}
-      {lightbox && (
-        <div className="fixed inset-0 z-50 bg-black/96 flex flex-col" onClick={() => setLightbox(null)}>
+      {/* ── Lightbox — rendered via portal so it's always on top ── */}
+      {lightbox && createPortal(
+        <div className="fixed inset-0 flex flex-col" style={{ background: "rgba(0,0,0,0.97)", zIndex: 99999 }}
+          onClick={() => setLightbox(null)}>
           {/* Top bar */}
-          <div className="flex items-center justify-between px-5 py-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-            <span className="text-sm text-gray-500 font-medium tabular-nums">
-              {lightbox.idx + 1} / {lightbox.list.length}
+          <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0"
+            style={{ borderColor: "rgba(255,255,255,0.08)" }} onClick={(e) => e.stopPropagation()}>
+            <span className="font-mono text-xs text-gray-600 tabular-nums">
+              {String(lightbox.idx + 1).padStart(2, "0")} / {String(lightbox.list.length).padStart(2, "0")}
             </span>
-            <p className="text-sm text-gray-300 font-medium truncate max-w-xs mx-4">{lightbox.photo.original_name}</p>
-            <button onClick={() => setLightbox(null)} className="p-2 hover:bg-white/10 rounded-xl text-white transition-colors">
-              <HiXMark className="w-5 h-5" />
+            <p className="flex-1 text-sm text-gray-300 font-medium truncate">{lightbox.photo.original_name}</p>
+            <button onClick={() => setLightbox(null)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 transition-colors border border-white/10">
+              <HiXMark className="w-4 h-4" /> ESC
             </button>
           </div>
-          {/* Main image */}
-          <div className="flex-1 flex items-center justify-center px-20 overflow-hidden min-h-0" onClick={(e) => e.stopPropagation()}>
+          {/* Image area */}
+          <div className="flex-1 flex items-center justify-center p-4 sm:p-10 min-h-0"
+            onClick={(e) => e.stopPropagation()}>
             <img src={photoUrl(lightbox.photo.machine_id, lightbox.photo.filename)}
               alt={lightbox.photo.original_name}
-              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" />
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
           </div>
-          {/* Prev button */}
+          {/* Prev */}
           {lightbox.idx > 0 && (
             <button onClick={(e) => { e.stopPropagation(); lbNav(-1); }}
-              className="absolute left-3 top-1/2 -translate-y-1/2 p-3 rounded-full text-white transition-colors"
-              style={{ background: "rgba(255,255,255,0.1)" }}>
+              className="absolute left-3 top-1/2 -translate-y-1/2 p-3 rounded-full text-white hover:bg-white/15 transition-colors"
+              style={{ background: "rgba(255,255,255,0.08)" }}>
               <HiChevronDown className="w-6 h-6 rotate-90" />
             </button>
           )}
-          {/* Next button */}
+          {/* Next */}
           {lightbox.idx < lightbox.list.length - 1 && (
             <button onClick={(e) => { e.stopPropagation(); lbNav(1); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-full text-white transition-colors"
-              style={{ background: "rgba(255,255,255,0.1)" }}>
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-full text-white hover:bg-white/15 transition-colors"
+              style={{ background: "rgba(255,255,255,0.08)" }}>
               <HiChevronDown className="w-6 h-6 -rotate-90" />
             </button>
           )}
           {/* Thumbnail strip */}
-          <div className="flex gap-2 px-5 py-3 overflow-x-auto shrink-0 border-t border-white/5"
-            onClick={(e) => e.stopPropagation()}>
+          <div className="flex gap-1.5 px-4 py-3 overflow-x-auto shrink-0 border-t"
+            style={{ borderColor: "rgba(255,255,255,0.08)" }} onClick={(e) => e.stopPropagation()}>
             {lightbox.list.map((p, i) => (
               <button key={p.id}
                 onClick={() => setLightbox({ photo: p, list: lightbox.list, idx: i })}
-                className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 ring-2 transition-all duration-200 ${
-                  i === lightbox.idx ? "ring-white scale-105" : "ring-transparent opacity-40 hover:opacity-70"
+                className={`w-12 h-12 shrink-0 overflow-hidden rounded transition-all ${
+                  i === lightbox.idx
+                    ? "ring-2 ring-green-400 ring-offset-1 ring-offset-black opacity-100"
+                    : "opacity-35 hover:opacity-60"
                 }`}>
                 <img src={photoUrl(p.machine_id, p.filename)} alt="" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
 
