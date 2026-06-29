@@ -9,7 +9,6 @@ import CommissioningsPage from "./pages/CommissioningsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import FollowUpsPage from "./pages/FollowUpsPage";
 import ContactsPage from "./pages/ContactsPage";
-import ScriptsPage from "./pages/ScriptsPage";
 import MappingsPage from "./pages/MappingsPage";
 import MappingEditorPage from "./pages/MappingEditorPage";
 import LoginPage from "./pages/LoginPage";
@@ -66,7 +65,6 @@ function AppShell() {
               <NavLink to="/reports" className={navLinkClass}>Reports</NavLink>
               <NavLink to="/projects" className={navLinkClass}>Projects</NavLink>
               <NavLink to="/contacts" className={navLinkClass}>Contacts</NavLink>
-              <NavLink to="/scripts" className={navLinkClass}>Scripts</NavLink>
               <NavLink to="/commissionings" className={navLinkClass}>Commissionings</NavLink>
               <NavLink to="/mappings" className={navLinkClass}>Mappings</NavLink>
             </div>
@@ -119,7 +117,6 @@ function AppShell() {
                 <NavLink to="/reports" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Reports</NavLink>
                 <NavLink to="/projects" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Projects</NavLink>
                 <NavLink to="/contacts" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Contacts</NavLink>
-                <NavLink to="/scripts" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Scripts</NavLink>
                 <NavLink to="/commissionings" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Commissionings</NavLink>
                 <NavLink to="/mappings" className={navLinkClassMobile} onClick={() => setMobileMenuOpen(false)}>Mappings</NavLink>
                 <div className="border-t border-gray-100 pt-2 mt-2 px-4">
@@ -148,7 +145,6 @@ function AppShell() {
           <Route path="/projects/:id" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />
           <Route path="/follow-ups" element={<RequireAuth><FollowUpsPage /></RequireAuth>} />
           <Route path="/contacts" element={<RequireAuth><ContactsPage /></RequireAuth>} />
-          <Route path="/scripts" element={<RequireAuth><ScriptsPage /></RequireAuth>} />
           <Route path="/commissionings" element={<RequireAuth><CommissioningsPage /></RequireAuth>} />
           <Route path="/mappings" element={<RequireAuth><MappingsPage /></RequireAuth>} />
           <Route path="/mappings/:id" element={<RequireAuth><MappingEditorPage /></RequireAuth>} />

@@ -4,7 +4,8 @@ import {
   HiArrowLeft, HiPrinter, HiPlus, HiTrash, HiPencil,
   HiChevronDown, HiCheckCircle, HiClock, HiCamera,
   HiCpuChip, HiComputerDesktop, HiBolt, HiPhoto,
-  HiBuildingOffice2, HiDocumentText, HiXMark,
+  HiBuildingOffice2, HiDocumentText, HiXMark, HiCog8Tooth,
+  HiEye, HiPencilSquare,
 } from "react-icons/hi2";
 import {
   getMapping, updateMapping, createMachine, updateMachine,
@@ -15,11 +16,12 @@ import {
 
 // ─── Photo category config ────────────────────────────────────────────────────
 const PHOTO_CATEGORIES = [
-  { key: "machine" as const, label: "Overview",  Icon: HiBuildingOffice2, color: "bg-gray-100 text-gray-600",   printLabel: "Machine" },
-  { key: "plc"     as const, label: "PLC",        Icon: HiCpuChip,         color: "bg-blue-100 text-blue-700",   printLabel: "PLC" },
-  { key: "hmi"     as const, label: "HMI",        Icon: HiComputerDesktop, color: "bg-purple-100 text-purple-700", printLabel: "HMI" },
-  { key: "vfd"     as const, label: "VFD",        Icon: HiBolt,            color: "bg-amber-100 text-amber-700", printLabel: "VFD" },
-  { key: "other"   as const, label: "Other",      Icon: HiCamera,          color: "bg-gray-100 text-gray-500",   printLabel: "Other" },
+  { key: "machine" as const, label: "Overview",  Icon: HiBuildingOffice2, color: "bg-gray-100 text-gray-600",    printLabel: "Machine" },
+  { key: "plc"     as const, label: "PLC",        Icon: HiCpuChip,         color: "bg-blue-100 text-blue-700",    printLabel: "PLC" },
+  { key: "hmi"     as const, label: "HMI",        Icon: HiComputerDesktop, color: "bg-purple-100 text-purple-700",printLabel: "HMI" },
+  { key: "vfd"     as const, label: "VFD",        Icon: HiBolt,            color: "bg-amber-100 text-amber-700",  printLabel: "VFD" },
+  { key: "servo"   as const, label: "Servo",      Icon: HiCog8Tooth,       color: "bg-green-100 text-green-700",  printLabel: "Servo" },
+  { key: "other"   as const, label: "Other",      Icon: HiCamera,          color: "bg-gray-100 text-gray-500",    printLabel: "Other" },
 ];
 type PhotoCategory = (typeof PHOTO_CATEGORIES)[number]["key"];
 
@@ -252,8 +254,8 @@ function PhotoSection({
       <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment"
         className="hidden" onChange={handleFileChange} />
 
-      {/* Category buttons — 4 standard + Other */}
-      <div className="grid grid-cols-5 gap-1.5">
+      {/* Category buttons — 5 standard + Other */}
+      <div className="grid grid-cols-6 gap-1.5">
         {PHOTO_CATEGORIES.filter((c) => c.key !== "other").map((cat) => {
           const count = (photosByCategory[cat.key] ?? []).length;
           const isUploading = uploading === cat.key;
@@ -535,6 +537,19 @@ function MachineCard({
               { key: "vfd_voltage", label: "Voltage", placeholder: "e.g. 480V" },
             ]}
             machine={machine} onSave={saveFields} />
+          <FieldGroup title="Servo Drive" Icon={HiCog8Tooth}
+            fields={[
+              { key: "servo_drive_make",  label: "Drive Make",  placeholder: "e.g. Allen-Bradley, Yaskawa" },
+              { key: "servo_drive_model", label: "Drive Model", placeholder: "e.g. Kinetix 5500, SGDV" },
+            ]}
+            machine={machine} onSave={saveFields} />
+          <FieldGroup title="Servo Motor" Icon={HiCog8Tooth}
+            fields={[
+              { key: "servo_motor_make",    label: "Motor Make",    placeholder: "e.g. Allen-Bradley, Fanuc" },
+              { key: "servo_motor_model",   label: "Motor Model",   placeholder: "e.g. MP-Series, αiS" },
+              { key: "servo_motor_part_no", label: "Motor Part No", placeholder: "e.g. MPL-B430P-MJ72AA" },
+            ]}
+            machine={machine} onSave={saveFields} />
           <NotesField
             value={machine.notes ?? ""}
             onSave={async (notes) => {
@@ -558,6 +573,7 @@ function PrintView({ mapping }: { mapping: Mapping }) {
     plc:     { label: "PLC",              borderColor: "#3b82f6", bgColor: "#eff6ff", textColor: "#1d4ed8" },
     hmi:     { label: "HMI",              borderColor: "#8b5cf6", bgColor: "#f5f3ff", textColor: "#6d28d9" },
     vfd:     { label: "VFD",              borderColor: "#f59e0b", bgColor: "#fffbeb", textColor: "#b45309" },
+    servo:   { label: "Servo",            borderColor: "#16a34a", bgColor: "#f0fdf4", textColor: "#15803d" },
     other:   { label: "Other",            borderColor: "#9ca3af", bgColor: "#f9fafb", textColor: "#6b7280" },
   } as const;
 
@@ -581,6 +597,13 @@ function PrintView({ mapping }: { mapping: Mapping }) {
       { label: "Model",   value: machine.vfd_model ?? "" },
       { label: "HP",      value: machine.vfd_hp ?? "" },
       { label: "Voltage", value: machine.vfd_voltage ?? "" },
+    ].filter((s) => s.value);
+    if (cat === "servo") return [
+      { label: "Drive Make",  value: machine.servo_drive_make ?? "" },
+      { label: "Drive Model", value: machine.servo_drive_model ?? "" },
+      { label: "Motor Make",  value: machine.servo_motor_make ?? "" },
+      { label: "Motor Model", value: machine.servo_motor_model ?? "" },
+      { label: "Motor P/N",   value: machine.servo_motor_part_no ?? "" },
     ].filter((s) => s.value);
     return [];
   }
@@ -652,7 +675,7 @@ function PrintView({ mapping }: { mapping: Mapping }) {
             if (!photosByCat[k]) photosByCat[k] = [];
             photosByCat[k]!.push(p);
           }
-          const orderedCats = (["machine", "plc", "hmi", "vfd", "other"] as CatKey[])
+          const orderedCats = (["machine", "plc", "hmi", "vfd", "servo", "other"] as CatKey[])
             .filter((k) => k !== "other" && (photosByCat[k] ?? []).length > 0);
           // "other" photos grouped by their label — each label = its own section
           const otherPhotos = (machine.photos ?? []).filter((p) => p.category === "other");
@@ -669,7 +692,7 @@ function PrintView({ mapping }: { mapping: Mapping }) {
             machine.vfd_make || machine.vfd_model
           );
           // If no photos at all, still show spec-only sections
-          const specOnlyCats = (["plc", "hmi", "vfd"] as CatKey[]).filter((k) => {
+          const specOnlyCats = (["plc", "hmi", "vfd", "servo"] as CatKey[]).filter((k) => {
             const specs = getCatSpecs(machine, k);
             return specs.length > 0 && !(photosByCat[k] ?? []).length;
           });
@@ -690,7 +713,7 @@ function PrintView({ mapping }: { mapping: Mapping }) {
                 const specs = getCatSpecs(machine, catKey);
                 const hasSpecsForCat = specs.length > 0;
                 // Machine/other: full-width photos, no specs column
-                const isSpecCat = catKey === "plc" || catKey === "hmi" || catKey === "vfd";
+                const isSpecCat = catKey === "plc" || catKey === "hmi" || catKey === "vfd" || catKey === "servo";
 
                 return (
                   <div key={catKey} style={s.catSection}>
@@ -784,6 +807,301 @@ function PrintView({ mapping }: { mapping: Mapping }) {
   );
 }
 
+// ─── In-app view mode ─────────────────────────────────────────────────────────
+
+function PhotoTile({ photo, onClick }: { photo: MappingPhoto; onClick: () => void }) {
+  const [err, setErr] = useState(false);
+  return (
+    <button type="button" onClick={onClick}
+      className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 hover:ring-2 hover:ring-green-500 hover:ring-offset-2 transition-all duration-200 group shadow-sm">
+      {err ? (
+        <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gray-50 gap-1">
+          <HiCamera className="w-7 h-7" />
+          <span className="text-[9px] text-gray-300">No image</span>
+        </div>
+      ) : (
+        <>
+          <img src={photoUrl(photo.machine_id, photo.filename)} alt={photo.original_name}
+            onError={() => setErr(true)}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+        </>
+      )}
+    </button>
+  );
+}
+
+// Per-category display config for the view
+const VIEW_CATS = {
+  plc:   { label: "PLC",   Icon: HiCpuChip,         border: "border-blue-300",   bg: "bg-blue-50",   badge: "bg-blue-100 text-blue-700",   heading: "text-blue-700" },
+  hmi:   { label: "HMI",   Icon: HiComputerDesktop, border: "border-purple-300", bg: "bg-purple-50", badge: "bg-purple-100 text-purple-700",heading: "text-purple-700" },
+  vfd:   { label: "VFD",   Icon: HiBolt,            border: "border-amber-300",  bg: "bg-amber-50",  badge: "bg-amber-100 text-amber-700",  heading: "text-amber-700" },
+  servo: { label: "Servo", Icon: HiCog8Tooth,       border: "border-green-300",  bg: "bg-green-50",  badge: "bg-green-100 text-green-700",  heading: "text-green-700" },
+} as const;
+
+type SpecCatKey = keyof typeof VIEW_CATS;
+
+function specFields(m: MappingMachine, cat: SpecCatKey): { label: string; value: string }[] {
+  if (cat === "plc") return [
+    { label: "Make",   value: m.plc_make ?? "" },
+    { label: "Model",  value: m.plc_model ?? "" },
+    { label: "Series", value: m.plc_series ?? "" },
+    { label: "P/N",    value: m.plc_part_no ?? "" },
+  ].filter((f) => f.value);
+  if (cat === "hmi") return [
+    { label: "Make",  value: m.hmi_make ?? "" },
+    { label: "Model", value: m.hmi_model ?? "" },
+    { label: "P/N",   value: m.hmi_part_no ?? "" },
+  ].filter((f) => f.value);
+  if (cat === "vfd") return [
+    { label: "Make",    value: m.vfd_make ?? "" },
+    { label: "Model",   value: m.vfd_model ?? "" },
+    { label: "HP",      value: m.vfd_hp ?? "" },
+    { label: "Voltage", value: m.vfd_voltage ?? "" },
+  ].filter((f) => f.value);
+  if (cat === "servo") return [
+    { label: "Drive Make",  value: m.servo_drive_make ?? "" },
+    { label: "Drive Model", value: m.servo_drive_model ?? "" },
+    { label: "Motor Make",  value: m.servo_motor_make ?? "" },
+    { label: "Motor Model", value: m.servo_motor_model ?? "" },
+    { label: "Motor P/N",   value: m.servo_motor_part_no ?? "" },
+  ].filter((f) => f.value);
+  return [];
+}
+
+function MappingView({ mapping }: { mapping: Mapping }) {
+  const machines = mapping.machines ?? [];
+  const [lightbox, setLightbox] = useState<{ photo: MappingPhoto; list: MappingPhoto[]; idx: number } | null>(null);
+
+  function openLightbox(list: MappingPhoto[], idx: number) {
+    setLightbox({ photo: list[idx], list, idx });
+  }
+  function lbNav(dir: 1 | -1) {
+    if (!lightbox) return;
+    const next = lightbox.idx + dir;
+    if (next < 0 || next >= lightbox.list.length) return;
+    setLightbox({ photo: lightbox.list[next], list: lightbox.list, idx: next });
+  }
+
+  const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
+  const totalPLCs   = machines.filter((m) => m.plc_make || m.plc_model).length;
+  const totalDrives = machines.filter((m) => m.vfd_make || m.vfd_model || m.servo_drive_make).length;
+
+  return (
+    <div className="space-y-6">
+
+      {/* ── Hero summary banner ─────────────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl shadow-lg"
+        style={{ background: "linear-gradient(135deg, #14532d 0%, #166534 55%, #15803d 100%)" }}>
+        {/* dot-grid overlay */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.10) 1.5px, transparent 1.5px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex flex-wrap gap-x-10 gap-y-5 px-7 py-6">
+          {[
+            { label: "Machines",        value: machines.length, Icon: HiCog8Tooth,       glow: "#4ade80" },
+            { label: "Photos",          value: totalPhotos,     Icon: HiPhoto,           glow: "#86efac" },
+            { label: "Control Systems", value: totalPLCs,       Icon: HiCpuChip,         glow: "#93c5fd" },
+            { label: "Drive Systems",   value: totalDrives,     Icon: HiBolt,            glow: "#fcd34d" },
+          ].map(({ label, value, Icon, glow }) => (
+            <div key={label} className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: "rgba(255,255,255,0.08)", boxShadow: `0 0 0 1px rgba(255,255,255,0.12)` }}>
+                <Icon className="w-5 h-5" style={{ color: glow }} />
+              </div>
+              <div>
+                <div className="text-4xl font-black text-white leading-none tracking-tight">{value}</div>
+                <div className="text-xs mt-1 font-semibold" style={{ color: "rgba(187,247,208,0.85)" }}>{label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Machine cards ───────────────────────────────────────────────── */}
+      {machines.map((machine, idx) => {
+        const byKey: Record<string, MappingPhoto[]> = {};
+        for (const p of machine.photos ?? []) {
+          const key = p.category === "other" ? `other§${p.label?.trim() || "Other"}` : p.category;
+          if (!byKey[key]) byKey[key] = [];
+          byKey[key].push(p);
+        }
+        const activeSpecs = (["plc", "hmi", "vfd", "servo"] as SpecCatKey[])
+          .filter((k) => specFields(machine, k).length > 0);
+
+        const orderedGroups: { key: string; label: string; catKey: string; photos: MappingPhoto[] }[] = [];
+        for (const ck of ["machine", "plc", "hmi", "vfd", "servo"]) {
+          if (byKey[ck]?.length) {
+            const cat = PHOTO_CATEGORIES.find((c) => c.key === ck);
+            orderedGroups.push({ key: ck, label: cat?.label ?? ck, catKey: ck, photos: byKey[ck] });
+          }
+        }
+        for (const [k, photos] of Object.entries(byKey)) {
+          if (k.startsWith("other§")) {
+            orderedGroups.push({ key: k, label: k.replace("other§", ""), catKey: "other", photos });
+          }
+        }
+        const allPhotos = orderedGroups.flatMap((g) => g.photos);
+
+        return (
+          <div key={machine.id} className="overflow-hidden rounded-2xl shadow-md border border-gray-100 bg-white">
+
+            {/* Machine header */}
+            <div className="relative overflow-hidden"
+              style={{ background: "linear-gradient(135deg, #14532d 0%, #166534 100%)" }}>
+              {/* Hatch texture */}
+              <div className="absolute inset-0 pointer-events-none opacity-[0.07]"
+                style={{ backgroundImage: "repeating-linear-gradient(45deg, white, white 1px, transparent 1px, transparent 8px)" }} />
+              {/* Big watermark number */}
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-white select-none pointer-events-none"
+                style={{ fontSize: "6rem", lineHeight: 1, opacity: 0.06 }}>
+                {String(idx + 1).padStart(2, "0")}
+              </div>
+              <div className="relative flex items-center gap-4 px-6 py-5">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 font-black text-lg text-white"
+                  style={{ background: "rgba(255,255,255,0.12)", border: "2px solid rgba(255,255,255,0.25)" }}>
+                  {String(idx + 1).padStart(2, "0")}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-white font-black text-xl tracking-tight leading-tight">{machine.name}</h2>
+                  {machine.notes && <p className="text-green-200 text-sm mt-0.5 truncate">{machine.notes}</p>}
+                </div>
+                {allPhotos.length > 0 && (
+                  <div className="flex items-center gap-1.5 shrink-0 font-semibold text-sm"
+                    style={{ color: "rgba(187,247,208,0.9)" }}>
+                    <HiPhoto className="w-4 h-4" />
+                    {allPhotos.length} photo{allPhotos.length !== 1 ? "s" : ""}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Specs grid ── */}
+            {activeSpecs.length > 0 && (
+              <div className="px-5 pt-5 pb-4 border-b border-gray-100">
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                  {activeSpecs.map((catKey) => {
+                    const meta = VIEW_CATS[catKey];
+                    const CIcon = meta.Icon;
+                    const fields = specFields(machine, catKey);
+                    return (
+                      <div key={catKey} className={`rounded-xl border overflow-hidden ${meta.border}`}>
+                        {/* Spec card header */}
+                        <div className={`flex items-center gap-2 px-3.5 py-2.5 ${meta.bg}`}>
+                          <CIcon className={`w-3.5 h-3.5 ${meta.heading}`} />
+                          <span className={`text-[11px] font-extrabold uppercase tracking-widest ${meta.heading}`}>
+                            {meta.label}
+                          </span>
+                        </div>
+                        {/* Spec card body */}
+                        <div className="px-3.5 py-3 space-y-3 bg-white">
+                          {fields.map((f) => (
+                            <div key={f.label}>
+                              <div className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">{f.label}</div>
+                              <div className="text-sm font-bold text-gray-900 leading-tight mt-0.5">{f.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── Photo gallery ── */}
+            {allPhotos.length > 0 && (
+              <div className="px-5 py-5 space-y-5">
+                {orderedGroups.map((group) => {
+                  const cat = PHOTO_CATEGORIES.find((c) => c.key === group.catKey);
+                  const GIcon = cat?.Icon ?? HiCamera;
+                  return (
+                    <div key={group.key}>
+                      {/* Category label */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${cat?.color ?? "bg-gray-100 text-gray-600"}`}>
+                          <GIcon className="w-3.5 h-3.5" />
+                          {group.label}
+                        </div>
+                        <span className="text-xs text-gray-400 font-medium">{group.photos.length} photo{group.photos.length !== 1 ? "s" : ""}</span>
+                        <div className="flex-1 h-px bg-gray-100" />
+                      </div>
+                      {/* Photo grid */}
+                      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5">
+                        {group.photos.map((photo) => (
+                          <PhotoTile key={photo.id} photo={photo}
+                            onClick={() => openLightbox(allPhotos, allPhotos.indexOf(photo))} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {activeSpecs.length === 0 && allPhotos.length === 0 && (
+              <div className="flex flex-col items-center gap-2 py-10 text-gray-300">
+                <HiCamera className="w-10 h-10" />
+                <p className="text-sm">Nothing recorded yet</p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* ── Lightbox ────────────────────────────────────────────────────── */}
+      {lightbox && (
+        <div className="fixed inset-0 z-50 bg-black/96 flex flex-col" onClick={() => setLightbox(null)}>
+          {/* Top bar */}
+          <div className="flex items-center justify-between px-5 py-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <span className="text-sm text-gray-500 font-medium tabular-nums">
+              {lightbox.idx + 1} / {lightbox.list.length}
+            </span>
+            <p className="text-sm text-gray-300 font-medium truncate max-w-xs mx-4">{lightbox.photo.original_name}</p>
+            <button onClick={() => setLightbox(null)} className="p-2 hover:bg-white/10 rounded-xl text-white transition-colors">
+              <HiXMark className="w-5 h-5" />
+            </button>
+          </div>
+          {/* Main image */}
+          <div className="flex-1 flex items-center justify-center px-20 overflow-hidden min-h-0" onClick={(e) => e.stopPropagation()}>
+            <img src={photoUrl(lightbox.photo.machine_id, lightbox.photo.filename)}
+              alt={lightbox.photo.original_name}
+              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" />
+          </div>
+          {/* Prev button */}
+          {lightbox.idx > 0 && (
+            <button onClick={(e) => { e.stopPropagation(); lbNav(-1); }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 p-3 rounded-full text-white transition-colors"
+              style={{ background: "rgba(255,255,255,0.1)" }}>
+              <HiChevronDown className="w-6 h-6 rotate-90" />
+            </button>
+          )}
+          {/* Next button */}
+          {lightbox.idx < lightbox.list.length - 1 && (
+            <button onClick={(e) => { e.stopPropagation(); lbNav(1); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-full text-white transition-colors"
+              style={{ background: "rgba(255,255,255,0.1)" }}>
+              <HiChevronDown className="w-6 h-6 -rotate-90" />
+            </button>
+          )}
+          {/* Thumbnail strip */}
+          <div className="flex gap-2 px-5 py-3 overflow-x-auto shrink-0 border-t border-white/5"
+            onClick={(e) => e.stopPropagation()}>
+            {lightbox.list.map((p, i) => (
+              <button key={p.id}
+                onClick={() => setLightbox({ photo: p, list: lightbox.list, idx: i })}
+                className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 ring-2 transition-all duration-200 ${
+                  i === lightbox.idx ? "ring-white scale-105" : "ring-transparent opacity-40 hover:opacity-70"
+                }`}>
+                <img src={photoUrl(p.machine_id, p.filename)} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main editor ──────────────────────────────────────────────────────────────
 export default function MappingEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -795,6 +1113,7 @@ export default function MappingEditorPage() {
   const [showAddMachine, setShowAddMachine] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleVal, setTitleVal] = useState("");
+  const [viewMode, setViewMode] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (silent = false) => {
@@ -914,6 +1233,19 @@ export default function MappingEditorPage() {
           </div>
 
           <div className="flex gap-2 shrink-0">
+            {/* View / Edit toggle */}
+            <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+              <button onClick={() => setViewMode(false)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${!viewMode ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
+                <HiPencilSquare className="w-3.5 h-3.5" />
+                Edit
+              </button>
+              <button onClick={() => setViewMode(true)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${viewMode ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
+                <HiEye className="w-3.5 h-3.5" />
+                View
+              </button>
+            </div>
             <button onClick={toggleStatus}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
                 isComplete
@@ -921,7 +1253,7 @@ export default function MappingEditorPage() {
                   : "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100"
               }`}>
               {isComplete ? <HiCheckCircle className="w-4 h-4" /> : <HiClock className="w-4 h-4" />}
-              {isComplete ? "Complete" : "In progress"}
+              <span className="hidden sm:inline">{isComplete ? "Complete" : "In progress"}</span>
             </button>
             <button onClick={() => window.print()}
               className="p-2 rounded-xl hover:bg-gray-100 text-gray-400" title="Print / Export PDF">
@@ -930,14 +1262,17 @@ export default function MappingEditorPage() {
           </div>
         </div>
 
-        {/* Machines */}
-        {machines.length === 0 ? (
+        {/* View mode */}
+        {viewMode && <MappingView mapping={mapping} />}
+
+        {/* Edit mode — machines */}
+        {!viewMode && machines.length === 0 ? (
           <div className="text-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl">
             <HiBuildingOffice2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
             <p className="text-sm font-medium">No machines yet</p>
             <p className="text-xs mt-1">Add your first machine to start mapping</p>
           </div>
-        ) : (
+        ) : !viewMode && (
           <div className="space-y-4">
             {machines.map((machine, idx) => (
               <MachineCard key={machine.id} machine={machine} index={idx}
@@ -946,8 +1281,8 @@ export default function MappingEditorPage() {
           </div>
         )}
 
-        {/* Add machine */}
-        {showAddMachine ? (
+        {/* Add machine — only in edit mode */}
+        {!viewMode && showAddMachine ? (
           <form onSubmit={handleAddMachine} className="bg-white border-2 border-dashed border-blue-300 rounded-2xl p-4 space-y-3">
             <label className="block text-sm font-medium text-gray-700">Machine name</label>
             <input autoFocus type="text"
@@ -965,7 +1300,7 @@ export default function MappingEditorPage() {
               </button>
             </div>
           </form>
-        ) : (
+        ) : !viewMode && (
           <button onClick={() => setShowAddMachine(true)}
             className="w-full py-4 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/30 transition-all text-sm font-medium flex items-center justify-center gap-2">
             <HiPlus className="w-5 h-5" />
@@ -973,8 +1308,8 @@ export default function MappingEditorPage() {
           </button>
         )}
 
-        {/* Summary */}
-        {machines.length > 0 && (
+        {/* Summary — only in edit mode */}
+        {!viewMode && machines.length > 0 && (
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Summary</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

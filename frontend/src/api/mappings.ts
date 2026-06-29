@@ -5,7 +5,7 @@ const BASE = "/api";
 export interface MappingPhoto {
   id: string;
   machine_id: string;
-  category: "plc" | "hmi" | "vfd" | "machine" | "other";
+  category: "plc" | "hmi" | "vfd" | "servo" | "machine" | "other";
   label: string | null;
   filename: string;
   original_name: string;
@@ -30,6 +30,11 @@ export interface MappingMachine {
   vfd_model: string | null;
   vfd_hp: string | null;
   vfd_voltage: string | null;
+  servo_drive_make: string | null;
+  servo_drive_model: string | null;
+  servo_motor_make: string | null;
+  servo_motor_model: string | null;
+  servo_motor_part_no: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

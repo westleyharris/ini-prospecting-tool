@@ -37,6 +37,17 @@ Respond in this exact JSON format (no markdown, no explanation):
 {"make":"","model":"","hp":"","voltage":""}
 If a field is not visible, leave it as empty string.`,
 
+  servo: `This is a photo of an industrial servo system component — either a servo drive/amplifier or a servo motor.
+Extract the following from any visible labels, nameplates, or data plates:
+- Make / Manufacturer (e.g. Allen-Bradley, Siemens, Fanuc, Yaskawa, Bosch Rexroth, SEW-Eurodrive, Kollmorgen, Beckhoff)
+- Model name/number
+- Part number / catalog number if visible
+- Component type: "drive" if it looks like a drive/amplifier/controller, "motor" if it is a motor
+
+Respond in this exact JSON format (no markdown, no explanation):
+{"make":"","model":"","part_no":"","component":""}
+If a field is not visible, leave it as empty string.`,
+
   machine: `This is a photo of industrial machinery or equipment at a manufacturing plant.
 Describe what you see briefly and note any visible equipment tags, model plates, or serial number plates.
 Respond in this exact JSON format (no markdown, no explanation):
@@ -59,6 +70,8 @@ export interface OcrResult {
   // VFD fields
   hp?: string;
   voltage?: string;
+  // Servo fields
+  component?: string; // "drive" | "motor"
   // Fallback
   description?: string;
   notes?: string;

@@ -239,6 +239,22 @@ if (!existingMappingPhotoCols.has("label")) {
   db.exec("ALTER TABLE mapping_photos ADD COLUMN label TEXT");
 }
 
+// Migrations: mapping_machines table — add servo fields
+const mappingMachinesInfo = db.prepare("PRAGMA table_info(mapping_machines)").all() as { name: string }[];
+const existingMachineColsSet = new Set(mappingMachinesInfo.map((c) => c.name));
+const newMachineColumns = [
+  { name: "servo_drive_make",     type: "TEXT" },
+  { name: "servo_drive_model",    type: "TEXT" },
+  { name: "servo_motor_make",     type: "TEXT" },
+  { name: "servo_motor_model",    type: "TEXT" },
+  { name: "servo_motor_part_no",  type: "TEXT" },
+];
+for (const col of newMachineColumns) {
+  if (!existingMachineColsSet.has(col.name)) {
+    db.exec(`ALTER TABLE mapping_machines ADD COLUMN ${col.name} ${col.type}`);
+  }
+}
+
 export interface Plant {
   id: string;
   place_id: string;

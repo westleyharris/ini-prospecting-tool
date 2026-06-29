@@ -208,6 +208,8 @@ mappingsRouter.post("/:id/machines", (req, res) => {
     plc_make, plc_model, plc_series, plc_part_no,
     hmi_make, hmi_model, hmi_part_no,
     vfd_make, vfd_model, vfd_hp, vfd_voltage,
+    servo_drive_make, servo_drive_model,
+    servo_motor_make, servo_motor_model, servo_motor_part_no,
     notes,
   } = req.body;
 
@@ -217,13 +219,17 @@ mappingsRouter.post("/:id/machines", (req, res) => {
        plc_make, plc_model, plc_series, plc_part_no,
        hmi_make, hmi_model, hmi_part_no,
        vfd_make, vfd_model, vfd_hp, vfd_voltage,
+       servo_drive_make, servo_drive_model,
+       servo_motor_make, servo_motor_model, servo_motor_part_no,
        notes, created_at, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   ).run(
     id, req.params.id, name, sort_order,
     plc_make ?? null, plc_model ?? null, plc_series ?? null, plc_part_no ?? null,
     hmi_make ?? null, hmi_model ?? null, hmi_part_no ?? null,
     vfd_make ?? null, vfd_model ?? null, vfd_hp ?? null, vfd_voltage ?? null,
+    servo_drive_make ?? null, servo_drive_model ?? null,
+    servo_motor_make ?? null, servo_motor_model ?? null, servo_motor_part_no ?? null,
     notes ?? null, ts, ts
   );
 
@@ -243,6 +249,8 @@ mappingsRouter.patch("/machines/:machineId", (req, res) => {
     "plc_make", "plc_model", "plc_series", "plc_part_no",
     "hmi_make", "hmi_model", "hmi_part_no",
     "vfd_make", "vfd_model", "vfd_hp", "vfd_voltage",
+    "servo_drive_make", "servo_drive_model",
+    "servo_motor_make", "servo_motor_model", "servo_motor_part_no",
     "notes",
   ] as const;
 
@@ -357,10 +365,28 @@ mappingsRouter.post(
           const updates: string[] = [];
           const vals: unknown[] = [];
           const m = db.prepare("SELECT * FROM mapping_machines WHERE id = ?").get(machine.id) as Record<string, unknown>;
-          if (!m.vfd_make && result.make)     { updates.push("vfd_make = ?");    vals.push(result.make); }
-          if (!m.vfd_model && result.model)   { updates.push("vfd_model = ?");   vals.push(result.model); }
-          if (!m.vfd_hp && result.hp)         { updates.push("vfd_hp = ?");      vals.push(result.hp); }
+          if (!m.vfd_make && result.make)       { updates.push("vfd_make = ?");    vals.push(result.make); }
+          if (!m.vfd_model && result.model)     { updates.push("vfd_model = ?");   vals.push(result.model); }
+          if (!m.vfd_hp && result.hp)           { updates.push("vfd_hp = ?");      vals.push(result.hp); }
           if (!m.vfd_voltage && result.voltage) { updates.push("vfd_voltage = ?"); vals.push(result.voltage); }
+          if (updates.length) {
+            updates.push("updated_at = ?"); vals.push(now()); vals.push(machine.id);
+            db.prepare(`UPDATE mapping_machines SET ${updates.join(", ")} WHERE id = ?`).run(...vals);
+          }
+        } else if (category === "servo") {
+          const updates: string[] = [];
+          const vals: unknown[] = [];
+          const m = db.prepare("SELECT * FROM mapping_machines WHERE id = ?").get(machine.id) as Record<string, unknown>;
+          // Route to drive or motor fields based on OCR component hint
+          const isDrive = !result.component || result.component === "drive";
+          if (isDrive) {
+            if (!m.servo_drive_make  && result.make)    { updates.push("servo_drive_make = ?");  vals.push(result.make); }
+            if (!m.servo_drive_model && result.model)   { updates.push("servo_drive_model = ?"); vals.push(result.model); }
+          } else {
+            if (!m.servo_motor_make     && result.make)     { updates.push("servo_motor_make = ?");     vals.push(result.make); }
+            if (!m.servo_motor_model    && result.model)    { updates.push("servo_motor_model = ?");    vals.push(result.model); }
+            if (!m.servo_motor_part_no  && result.part_no)  { updates.push("servo_motor_part_no = ?");  vals.push(result.part_no); }
+          }
           if (updates.length) {
             updates.push("updated_at = ?"); vals.push(now()); vals.push(machine.id);
             db.prepare(`UPDATE mapping_machines SET ${updates.join(", ")} WHERE id = ?`).run(...vals);
