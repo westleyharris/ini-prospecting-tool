@@ -934,9 +934,64 @@ function MappingView({ mapping }: { mapping: Mapping }) {
     return () => window.removeEventListener("keydown", h);
   }, [lightbox]);
 
-  const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
+  // Track which machine is visible as user scrolls → highlight sidebar
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+    for (const m of machines) {
+      const el = document.getElementById(`mv-${m.id}`);
+      if (!el) continue;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveTab(m.id); },
+        { threshold: 0, rootMargin: "-5% 0px -60% 0px" }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    }
+    return () => observers.forEach((o) => o.disconnect());
+  }, [machines]);
 
-  // Build photo groups for a machine
+  const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
+  const eolCount    = machines.filter((m) => checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series).obsolete).length;
+  const reportDate  = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+
+  // Spec table rendered as bordered engineering data cells
+  function SpecTable({ rows, catKey, plcEol }: {
+    rows: { label: string; value: string }[];
+    catKey: SpecCatKey;
+    plcEol?: ReturnType<typeof checkPLCObsolete>;
+  }) {
+    const meta = SPEC_META[catKey];
+    const SIcon = meta.Icon;
+    return (
+      <div>
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className="w-4 h-4 flex items-center justify-center shrink-0"
+            style={{ background: meta.bg, color: meta.accent, borderRadius: 2 }}>
+            <SIcon className="w-2.5 h-2.5" />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: meta.text }}>{meta.label}</span>
+          {catKey === "plc" && plcEol?.obsolete && (
+            <EOLBadge note={plcEol.note!} successor={plcEol.successor} eolYear={plcEol.eolYear} />
+          )}
+        </div>
+        <div style={{ border: "1px solid #e5e7eb" }}>
+          {rows.map((r, i) => (
+            <div key={r.label} className="flex items-stretch"
+              style={{ borderTop: i > 0 ? "1px solid #e5e7eb" : undefined }}>
+              <div className="flex items-center px-2.5 shrink-0"
+                style={{ width: 88, background: "#f9fafb", borderRight: "1px solid #e5e7eb", minHeight: 30 }}>
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 leading-tight">{r.label}</span>
+              </div>
+              <div className="flex items-center px-3 py-1.5 flex-1 bg-white">
+                <span className="text-sm font-bold text-gray-900 font-mono leading-snug">{r.value}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   function buildGroups(machine: MappingMachine) {
     const byKey: Record<string, MappingPhoto[]> = {};
     for (const p of machine.photos ?? []) {
@@ -959,15 +1014,15 @@ function MappingView({ mapping }: { mapping: Mapping }) {
 
   return (
     <>
-      {/* ── Break out of page container padding ── */}
-      <div className="-mx-3 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-8">
+      {/* True viewport-width breakout */}
+      <div style={{ width: "100vw", marginLeft: "calc(-50vw + 50%)", position: "relative" }}
+        className="-mt-4 sm:-mt-8">
 
         {/* ── Report header ── */}
         <div className="relative overflow-hidden" style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 100%)" }}>
           <div className="absolute inset-0 pointer-events-none"
             style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
           <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 px-5 sm:px-8 py-5">
-            {/* Title block */}
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 mb-1">Equipment Mapping Report</p>
               <h1 className="text-white font-black text-xl sm:text-2xl leading-tight truncate">{mapping.name}</h1>
@@ -977,11 +1032,10 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                 </p>
               )}
             </div>
-            {/* Stats row */}
             <div className="flex gap-5 sm:gap-8 shrink-0">
               {[
-                { n: machines.length, l: "Machines",      Icon: HiCog8Tooth, c: "#4ade80" },
-                { n: totalPhotos,     l: "Photos",        Icon: HiPhoto,     c: "#86efac" },
+                { n: machines.length, l: "Machines", Icon: HiCog8Tooth, c: "#4ade80" },
+                { n: totalPhotos,     l: "Photos",   Icon: HiPhoto,     c: "#86efac" },
                 { n: machines.filter(m => m.plc_make || m.plc_model).length, l: "PLCs", Icon: HiCpuChip, c: "#93c5fd" },
                 { n: machines.filter(m => m.vfd_make || m.servo_drive_make).length, l: "Drives", Icon: HiBolt, c: "#fcd34d" },
               ].map(({ n, l, Icon, c }) => (
@@ -996,191 +1050,234 @@ function MappingView({ mapping }: { mapping: Mapping }) {
             </div>
           </div>
 
-          {/* ── Machine tab bar ── */}
-          <div className="border-t border-white/10 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            <div className="flex min-w-max px-5 sm:px-8">
-              {machines.map((m, i) => (
-                <button key={m.id}
-                  onClick={() => {
-                    setActiveTab(m.id);
-                    document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
-                    activeTab === m.id
-                      ? "border-green-400 text-green-300"
-                      : "border-transparent text-white/40 hover:text-white/70 hover:border-white/20"
-                  }`}>
-                  <span className="font-mono opacity-60">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="uppercase tracking-wide">{m.name}</span>
-                </button>
-              ))}
+          {/* Drawing title-block footer row */}
+          <div className="relative border-t border-white/10 px-5 sm:px-8 py-2 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-6">
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-widest text-green-700">Prepared by</p>
+                <p className="text-[11px] font-bold text-green-400">I&amp;I Automation</p>
+              </div>
+              {eolCount > 0 && (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded"
+                  style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.3)" }}>
+                  <span className="text-[10px] font-black text-amber-400">⚠</span>
+                  <span className="text-[10px] font-bold text-amber-400">{eolCount} EOL PLC{eolCount > 1 ? "s" : ""} detected</span>
+                </div>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-[8px] font-black uppercase tracking-widest text-green-700">Date</p>
+              <p className="text-[11px] font-mono font-bold text-green-400">{reportDate}</p>
+            </div>
+          </div>
+
+          {/* Mobile tab strip */}
+          <div className="lg:hidden border-t border-white/10 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            <div className="flex min-w-max px-4">
+              {machines.map((m, i) => {
+                const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
+                return (
+                  <button key={m.id}
+                    onClick={() => { setActiveTab(m.id); document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold border-b-2 transition-all whitespace-nowrap ${
+                      activeTab === m.id ? "border-green-400 text-green-300" : "border-transparent text-white/40 hover:text-white/70"
+                    }`}>
+                    <span className="font-mono opacity-60">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="uppercase tracking-wide">{m.name}</span>
+                    {mEol.obsolete && <span className="text-amber-400 text-[9px] font-black">EOL</span>}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* ── Machine list ── */}
-        <div className="bg-gray-100 divide-y-4 divide-gray-200">
-          {machines.map((machine, idx) => {
-            const groups   = buildGroups(machine);
-            const allPhotos = groups.flatMap((g) => g.photos);
-            const ctrlCats  = (["plc", "hmi"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
-            const driveCats = (["vfd", "servo"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
-            const hasSpecs  = ctrlCats.length > 0 || driveCats.length > 0;
-            const plcEol    = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
+        {/* ── Two-panel layout: sidebar + content ── */}
+        <div className="flex">
 
-            return (
-              <div id={`mv-${machine.id}`} key={machine.id} className="bg-white scroll-mt-0">
-
-                {/* ── Machine header bar ── */}
-                <div className="flex items-center gap-3 px-5 sm:px-6 py-3"
-                  style={{ background: "linear-gradient(90deg, #14532d, #166534)" }}
-                  onClick={() => setActiveTab(machine.id)}>
-                  <span className="font-mono text-[11px] font-black text-green-400 shrink-0 tracking-widest">
-                    M-{String(idx + 1).padStart(2, "0")}
-                  </span>
-                  <div className="w-px h-4 bg-green-600 shrink-0" />
-                  <h2 className="text-white font-black text-sm sm:text-base uppercase tracking-widest flex-1 min-w-0 truncate">
-                    {machine.name}
-                  </h2>
-                  {machine.notes && (
-                    <span className="hidden sm:block text-green-300 text-xs italic shrink-0 max-w-[200px] truncate">{machine.notes}</span>
-                  )}
-                  {allPhotos.length > 0 && (
-                    <span className="flex items-center gap-1 text-green-300 text-xs font-bold shrink-0">
-                      <HiPhoto className="w-3.5 h-3.5" />{allPhotos.length}
+          {/* Dark sticky sidebar — desktop only */}
+          <aside className="hidden lg:flex flex-col shrink-0 bg-gray-950 border-r border-gray-800"
+            style={{ width: 210, position: "sticky", top: 0, height: "100vh", overflowY: "auto" }}>
+            <div className="px-3 py-3 border-b border-gray-800">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-600">Equipment Index</p>
+              <p className="text-[10px] text-gray-600 mt-0.5 font-mono">{machines.length} machines · {totalPhotos} photos</p>
+            </div>
+            <nav className="flex-1 py-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+              {machines.map((m, i) => {
+                const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
+                const isActive = activeTab === m.id;
+                return (
+                  <button key={m.id}
+                    onClick={() => { setActiveTab(m.id); document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                    className="w-full text-left flex items-center gap-2 px-3 py-2.5 transition-all border-l-2"
+                    style={{
+                      borderLeftColor: isActive ? "#4ade80" : "transparent",
+                      background: isActive ? "rgba(20,83,45,0.35)" : undefined,
+                    }}>
+                    <span className="font-mono text-[10px] shrink-0 tabular-nums"
+                      style={{ color: isActive ? "#4ade80" : "#374151" }}>
+                      {String(i + 1).padStart(2, "0")}
                     </span>
+                    <span className={`text-xs font-bold uppercase tracking-wide flex-1 min-w-0 truncate leading-tight ${isActive ? "text-green-300" : "text-gray-500"}`}>
+                      {m.name}
+                    </span>
+                    {mEol.obsolete && (
+                      <span className="text-[9px] font-black text-amber-500 shrink-0">EOL</span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+            {/* Legend */}
+            <div className="px-3 py-3 border-t border-gray-800">
+              <p className="text-[8px] font-black uppercase tracking-[0.18em] text-gray-700 mb-2">Legend</p>
+              {[
+                { dot: "#3b82f6", label: "PLC / Control System" },
+                { dot: "#8b5cf6", label: "HMI / Operator Panel" },
+                { dot: "#f59e0b", label: "VFD / Variable Drive" },
+                { dot: "#22c55e", label: "Servo System" },
+              ].map((l) => (
+                <div key={l.label} className="flex items-center gap-2 mb-1.5">
+                  <div className="w-2 h-2 shrink-0" style={{ background: l.dot, borderRadius: 1 }} />
+                  <span className="text-[9px] text-gray-600 font-medium leading-tight">{l.label}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-800">
+                <div className="w-2 h-2 shrink-0 bg-amber-500" style={{ borderRadius: 1 }} />
+                <span className="text-[9px] text-amber-600 font-black">EOL = Vendor discontinued</span>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main content — graph-paper background */}
+          <div className="flex-1 min-w-0 divide-y-2 divide-gray-300"
+            style={{ background: "#f1f5f1", backgroundImage: "radial-gradient(rgba(0,0,0,0.055) 1px, transparent 1px)", backgroundSize: "18px 18px" }}>
+            {machines.map((machine, idx) => {
+              const groups    = buildGroups(machine);
+              const allPhotos = groups.flatMap((g) => g.photos);
+              const ctrlCats  = (["plc", "hmi"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
+              const driveCats = (["vfd", "servo"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
+              const hasSpecs  = ctrlCats.length > 0 || driveCats.length > 0;
+              const plcEol    = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
+
+              return (
+                <div id={`mv-${machine.id}`} key={machine.id} className="bg-white"
+                  style={{ borderLeft: `4px solid ${plcEol.obsolete ? "#f59e0b" : "#166534"}` }}
+                  onClick={() => setActiveTab(machine.id)}>
+
+                  {/* Machine header */}
+                  <div className="flex items-center gap-3 px-4 sm:px-5 py-2.5"
+                    style={{ background: "linear-gradient(90deg, #14532d 0%, #166534 100%)" }}>
+                    {/* ISA-style equipment tag */}
+                    <div className="flex items-stretch shrink-0 overflow-hidden" style={{ borderRadius: 2 }}>
+                      <div className="flex items-center justify-center px-1.5 bg-green-400 text-gray-950 font-black text-[10px] font-mono">M</div>
+                      <div className="flex items-center justify-center px-2 bg-white text-gray-900 font-black text-[11px] font-mono">
+                        {String(idx + 1).padStart(2, "0")}
+                      </div>
+                    </div>
+                    <div className="w-px h-4 bg-green-600 shrink-0" />
+                    <h2 className="text-white font-black text-sm uppercase tracking-widest flex-1 min-w-0 truncate">{machine.name}</h2>
+                    {machine.notes && (
+                      <span className="hidden sm:block text-green-300 text-[11px] italic shrink-0 max-w-[200px] truncate">{machine.notes}</span>
+                    )}
+                    {plcEol.obsolete && (
+                      <span className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 shrink-0 text-[9px] font-black text-amber-900 bg-amber-400" style={{ borderRadius: 2 }}>
+                        ⚠ EOL PLC
+                      </span>
+                    )}
+                    {allPhotos.length > 0 && (
+                      <span className="flex items-center gap-1 text-green-300 text-[11px] font-bold shrink-0">
+                        <HiPhoto className="w-3 h-3" />{allPhotos.length}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Spec sections */}
+                  {hasSpecs && (
+                    <div className="border-b border-gray-200">
+                      {ctrlCats.length > 0 && (
+                        <>
+                          <div className="flex items-center gap-2 px-4 sm:px-5 py-1.5 border-b border-gray-200"
+                            style={{ background: "#f8fafc" }}>
+                            <HiCpuChip className="w-3 h-3 text-gray-400" />
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Control Systems</span>
+                          </div>
+                          <div className={ctrlCats.length === 2 ? "grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-200" : ""}>
+                            {ctrlCats.map((catKey) => (
+                              <div key={catKey} className="px-4 sm:px-5 py-3.5">
+                                <SpecTable rows={specRows(machine, catKey)} catKey={catKey} plcEol={plcEol} />
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      {driveCats.length > 0 && (
+                        <>
+                          <div className="flex items-center gap-2 px-4 sm:px-5 py-1.5 border-y border-gray-200"
+                            style={{ background: "#f8fafc" }}>
+                            <HiBolt className="w-3 h-3 text-gray-400" />
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Drive Systems</span>
+                          </div>
+                          <div className={driveCats.length === 2 ? "grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-200" : ""}>
+                            {driveCats.map((catKey) => (
+                              <div key={catKey} className="px-4 sm:px-5 py-3.5">
+                                <SpecTable rows={specRows(machine, catKey)} catKey={catKey} />
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Photo documentation */}
+                  {allPhotos.length > 0 && (
+                    <>
+                      <div className="flex items-center justify-between px-4 sm:px-5 py-1.5 border-b border-gray-200"
+                        style={{ background: "#f8fafc" }}>
+                        <div className="flex items-center gap-2">
+                          <HiPhoto className="w-3 h-3 text-gray-400" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Field Documentation</span>
+                        </div>
+                        <span className="text-[9px] font-mono text-gray-400">{allPhotos.length} photos</span>
+                      </div>
+                      <div className="px-4 sm:px-5 py-4 space-y-4">
+                        {groups.map((group) => {
+                          const cat = PHOTO_CATEGORIES.find((c) => c.key === group.catKey);
+                          const GIcon = cat?.Icon ?? HiCamera;
+                          return (
+                            <div key={group.key}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className={`flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${cat?.color ?? "bg-gray-100 text-gray-500"}`}
+                                  style={{ borderRadius: 2 }}>
+                                  <GIcon className="w-3 h-3" />{group.label}
+                                </div>
+                                <span className="text-[9px] font-mono text-gray-400">{group.photos.length}</span>
+                                <div className="flex-1 h-px bg-gray-200" />
+                              </div>
+                              <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1">
+                                {group.photos.map((photo) => (
+                                  <PhotoTile key={photo.id} photo={photo}
+                                    onClick={() => openLightbox(allPhotos, allPhotos.indexOf(photo))} />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+
+                  {!hasSpecs && allPhotos.length === 0 && (
+                    <div className="flex items-center gap-2 px-5 py-5 text-gray-300">
+                      <HiCamera className="w-4 h-4" />
+                      <span className="text-sm">No data recorded yet</span>
+                    </div>
                   )}
                 </div>
-
-                {/* ── Spec sections ── */}
-                {hasSpecs && (
-                  <div className="border-b border-gray-200">
-
-                    {/* Control systems */}
-                    {ctrlCats.length > 0 && (
-                      <>
-                        <div className="flex items-center gap-2 px-5 sm:px-6 py-2 bg-gray-50 border-b border-gray-200">
-                          <HiCpuChip className="w-3 h-3 text-gray-400" />
-                          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500">Control Systems</span>
-                        </div>
-                        <div className={ctrlCats.length === 2 ? "grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-100" : ""}>
-                          {ctrlCats.map((catKey) => {
-                            const meta = SPEC_META[catKey];
-                            const SIcon = meta.Icon;
-                            const rows = specRows(machine, catKey);
-                            return (
-                              <div key={catKey} className="px-5 sm:px-6 py-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="w-5 h-5 rounded flex items-center justify-center shrink-0"
-                                    style={{ background: meta.bg, color: meta.accent }}>
-                                    <SIcon className="w-3 h-3" />
-                                  </div>
-                                  <span className="text-xs font-black uppercase tracking-widest" style={{ color: meta.text }}>{meta.label}</span>
-                                  {catKey === "plc" && plcEol.obsolete && (
-                                    <EOLBadge note={plcEol.note!} successor={plcEol.successor} eolYear={plcEol.eolYear} />
-                                  )}
-                                  <div className="flex-1 h-px bg-gray-100" />
-                                </div>
-                                <div className="space-y-1.5">
-                                  {rows.map((r) => (
-                                    <div key={r.label} className="flex items-start gap-4">
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 w-16 sm:w-20 shrink-0 leading-5">{r.label}</span>
-                                      <span className="text-sm font-bold text-gray-900 font-mono leading-tight">{r.value}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </>
-                    )}
-
-                    {/* Drive systems */}
-                    {driveCats.length > 0 && (
-                      <>
-                        <div className="flex items-center gap-2 px-5 sm:px-6 py-2 bg-gray-50 border-y border-gray-200">
-                          <HiBolt className="w-3 h-3 text-gray-400" />
-                          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500">Drive Systems</span>
-                        </div>
-                        <div className={driveCats.length === 2 ? "grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-100" : ""}>
-                          {driveCats.map((catKey) => {
-                            const meta = SPEC_META[catKey];
-                            const SIcon = meta.Icon;
-                            const rows = specRows(machine, catKey);
-                            return (
-                              <div key={catKey} className="px-5 sm:px-6 py-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="w-5 h-5 rounded flex items-center justify-center shrink-0"
-                                    style={{ background: meta.bg, color: meta.accent }}>
-                                    <SIcon className="w-3 h-3" />
-                                  </div>
-                                  <span className="text-xs font-black uppercase tracking-widest" style={{ color: meta.text }}>{meta.label}</span>
-                                  <div className="flex-1 h-px bg-gray-100" />
-                                </div>
-                                <div className="space-y-1.5">
-                                  {rows.map((r) => (
-                                    <div key={r.label} className="flex items-start gap-4">
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 w-16 sm:w-20 shrink-0 leading-5">{r.label}</span>
-                                      <span className="text-sm font-bold text-gray-900 font-mono leading-tight">{r.value}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Photo documentation ── */}
-                {allPhotos.length > 0 && (
-                  <>
-                    <div className="flex items-center justify-between px-5 sm:px-6 py-2 bg-gray-50 border-b border-gray-200">
-                      <div className="flex items-center gap-2">
-                        <HiPhoto className="w-3 h-3 text-gray-400" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500">Field Documentation</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-gray-400">{allPhotos.length} photos</span>
-                    </div>
-                    <div className="px-4 sm:px-6 py-4 space-y-4">
-                      {groups.map((group) => {
-                        const cat = PHOTO_CATEGORIES.find((c) => c.key === group.catKey);
-                        const GIcon = cat?.Icon ?? HiCamera;
-                        return (
-                          <div key={group.key}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${cat?.color ?? "bg-gray-100 text-gray-500"}`}>
-                                <GIcon className="w-3 h-3" />
-                                {group.label}
-                              </div>
-                              <span className="text-[10px] font-mono text-gray-300">{group.photos.length}</span>
-                              <div className="flex-1 h-px bg-gray-100" />
-                            </div>
-                            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1.5">
-                              {group.photos.map((photo) => (
-                                <PhotoTile key={photo.id} photo={photo}
-                                  onClick={() => openLightbox(allPhotos, allPhotos.indexOf(photo))} />
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-
-                {!hasSpecs && allPhotos.length === 0 && (
-                  <div className="flex items-center gap-2 px-6 py-6 text-gray-300">
-                    <HiCamera className="w-4 h-4" />
-                    <span className="text-sm">No data recorded yet</span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
