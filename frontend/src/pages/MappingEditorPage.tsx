@@ -14,6 +14,30 @@ import {
   photoUrl,
   type Mapping, type MappingMachine, type MappingPhoto,
 } from "../api/mappings";
+import { checkPLCObsolete } from "../data/obsoletePlcs";
+
+// ─── EOL badge ────────────────────────────────────────────────────────────────
+function EOLBadge({ note, successor, eolYear }: { note: string; successor?: string; eolYear?: number }) {
+  return (
+    <div className="relative group/eol inline-flex shrink-0">
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded border border-amber-300 cursor-help">
+        ⚠ EOL
+      </span>
+      {/* Tooltip */}
+      <div className="absolute bottom-full left-0 mb-2 z-20 w-60 bg-gray-950 text-white rounded-xl p-3 text-xs shadow-xl opacity-0 pointer-events-none group-hover/eol:opacity-100 transition-opacity duration-150"
+        style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+        <p className="font-semibold text-amber-400 mb-1 leading-snug">{note}</p>
+        {eolYear && <p className="text-gray-400 text-[10px]">Discontinued: {eolYear}</p>}
+        {successor && (
+          <div className="mt-1.5 pt-1.5 border-t border-white/10">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Recommended replacement</p>
+            <p className="text-green-400 font-bold mt-0.5">{successor}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Photo category config ────────────────────────────────────────────────────
 const PHOTO_CATEGORIES = [
@@ -34,13 +58,14 @@ function parseOcr(raw: string | null): Record<string, string> {
 
 // ─── Field group ──────────────────────────────────────────────────────────────
 function FieldGroup({
-  title, Icon, fields, machine, onSave,
+  title, Icon, fields, machine, onSave, eolResult,
 }: {
   title: string;
   Icon: React.ElementType;
   fields: { key: keyof MappingMachine; label: string; placeholder: string }[];
   machine: MappingMachine;
   onSave: (data: Partial<MappingMachine>) => Promise<void>;
+  eolResult?: ReturnType<typeof checkPLCObsolete>;
 }) {
   const [editing, setEditing] = useState(false);
   const [vals, setVals] = useState<Record<string, string>>({});
@@ -110,7 +135,12 @@ function FieldGroup({
       <div className="flex items-center gap-2">
         <Icon className={`w-5 h-5 shrink-0 ${hasAny ? "text-gray-500" : "text-gray-300"}`} />
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-medium text-gray-700">{title}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">{title}</span>
+            {eolResult?.obsolete && (
+              <EOLBadge note={eolResult.note!} successor={eolResult.successor} eolYear={eolResult.eolYear} />
+            )}
+          </div>
           {hasAny ? (
             <p className="text-xs text-gray-500 truncate mt-0.5">
               {fields.filter((f) => machine[f.key]).map((f) => machine[f.key]).join(" · ")}
@@ -522,7 +552,8 @@ function MachineCard({
               { key: "plc_series",  label: "Series",      placeholder: "e.g. 1769" },
               { key: "plc_part_no", label: "Part number", placeholder: "e.g. 1769-L33ER/B" },
             ]}
-            machine={machine} onSave={saveFields} />
+            machine={machine} onSave={saveFields}
+            eolResult={checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series)} />
           <FieldGroup title="HMI" Icon={HiComputerDesktop}
             fields={[
               { key: "hmi_make",    label: "Make",        placeholder: "e.g. Allen-Bradley" },
@@ -747,6 +778,20 @@ function PrintView({ mapping }: { mapping: Mapping }) {
                           ) : (
                             <div style={s.noSpec}>No specs recorded</div>
                           )}
+                          {catKey === "plc" && (() => {
+                            const eol = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
+                            return eol.obsolete ? (
+                              <div style={{ marginTop: 8, padding: "6px 8px", background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 4 }}>
+                                <div style={{ fontSize: 9, fontWeight: 800, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                                  ⚠ End of Life
+                                </div>
+                                <div style={{ fontSize: 9, color: "#78350f", marginTop: 2 }}>{eol.note}</div>
+                                {eol.successor && (
+                                  <div style={{ fontSize: 9, color: "#065f46", marginTop: 2 }}>Successor: {eol.successor}</div>
+                                )}
+                              </div>
+                            ) : null;
+                          })()}
                         </div>
                       )}
                     </div>
@@ -981,6 +1026,7 @@ function MappingView({ mapping }: { mapping: Mapping }) {
             const ctrlCats  = (["plc", "hmi"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
             const driveCats = (["vfd", "servo"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
             const hasSpecs  = ctrlCats.length > 0 || driveCats.length > 0;
+            const plcEol    = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
 
             return (
               <div id={`mv-${machine.id}`} key={machine.id} className="bg-white scroll-mt-0">
@@ -1030,6 +1076,9 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                                     <SIcon className="w-3 h-3" />
                                   </div>
                                   <span className="text-xs font-black uppercase tracking-widest" style={{ color: meta.text }}>{meta.label}</span>
+                                  {catKey === "plc" && plcEol.obsolete && (
+                                    <EOLBadge note={plcEol.note!} successor={plcEol.successor} eolYear={plcEol.eolYear} />
+                                  )}
                                   <div className="flex-1 h-px bg-gray-100" />
                                 </div>
                                 <div className="space-y-1.5">
