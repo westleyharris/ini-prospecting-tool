@@ -65,7 +65,11 @@ app.use("/api/mappings", requireAuth, mappingsRouter);
 // Files are stored under UUID-based paths (128-bit random), making them
 // unguessable. This is the same pattern used by S3, Dropbox, Slack, etc.
 // Auth-gating this route breaks browser print/PDF generation.
-app.use("/uploads", express.static(getUploadsPath()));
+// 7-day cache: uploaded files are immutable (UUID filenames; deletes replace the row).
+app.use("/uploads", express.static(getUploadsPath(), {
+  maxAge: "7d",
+  immutable: true,
+}));
 
 app.get("/api/health", (_, res) => {
   res.json({ status: "ok" });

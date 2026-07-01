@@ -405,6 +405,7 @@ function PhotoSection({
             return (
               <div key={photo.id} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
                 <img src={photoUrl(photo.machine_id, photo.filename)} alt={photo.original_name}
+                  loading="lazy" decoding="async"
                   className="w-full h-full object-cover cursor-pointer" onClick={() => setLightbox(photo)} />
                 <div className={`absolute bottom-0 left-0 right-0 flex items-center gap-1 px-1.5 py-1 ${cat?.color ?? "bg-gray-100 text-gray-500"} bg-opacity-90`}>
                   {cat && <cat.Icon className="w-3 h-3 shrink-0" />}
@@ -868,6 +869,7 @@ function PhotoTile({ photo, onClick }: { photo: MappingPhoto; onClick: () => voi
       ) : (
         <>
           <img src={photoUrl(photo.machine_id, photo.filename)} alt={photo.original_name}
+            loading="lazy" decoding="async"
             onError={() => setErr(true)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
@@ -1331,7 +1333,7 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                     ? "ring-2 ring-green-400 ring-offset-1 ring-offset-black opacity-100"
                     : "opacity-35 hover:opacity-60"
                 }`}>
-                <img src={photoUrl(p.machine_id, p.filename)} alt="" className="w-full h-full object-cover" />
+                <img src={photoUrl(p.machine_id, p.filename)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
