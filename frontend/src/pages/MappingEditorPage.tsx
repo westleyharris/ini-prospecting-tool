@@ -599,119 +599,269 @@ function MachineCard({
 // Renders outside the screen wrapper; @media print reveals it and hides the UI.
 function PrintView({ mapping }: { mapping: Mapping }) {
   const machines = mapping.machines ?? [];
+  const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
+  const eolCount    = machines.filter((m) => checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series).obsolete).length;
+  const plcCount    = machines.filter((m) => m.plc_make || m.plc_model).length;
+  const driveCount  = machines.filter((m) => m.vfd_make || m.vfd_model || m.servo_drive_make).length;
+  const reportDate  = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const printUrl    = typeof window !== "undefined" ? window.location.href : "";
 
-  // Category display config for print
   const CAT_PRINT = {
-    machine: { label: "Machine Overview", borderColor: "#9ca3af", bgColor: "#f9fafb", textColor: "#374151" },
-    plc:     { label: "PLC",              borderColor: "#3b82f6", bgColor: "#eff6ff", textColor: "#1d4ed8" },
-    hmi:     { label: "HMI",              borderColor: "#8b5cf6", bgColor: "#f5f3ff", textColor: "#6d28d9" },
-    vfd:     { label: "VFD",              borderColor: "#f59e0b", bgColor: "#fffbeb", textColor: "#b45309" },
-    servo:   { label: "Servo",            borderColor: "#16a34a", bgColor: "#f0fdf4", textColor: "#15803d" },
-    other:   { label: "Other",            borderColor: "#9ca3af", bgColor: "#f9fafb", textColor: "#6b7280" },
+    machine: { label: "Machine Overview",  borderColor: "#6b7280", bgColor: "#f9fafb", textColor: "#374151" },
+    plc:     { label: "PLC",               borderColor: "#3b82f6", bgColor: "#eff6ff", textColor: "#1d4ed8" },
+    hmi:     { label: "HMI",               borderColor: "#8b5cf6", bgColor: "#f5f3ff", textColor: "#6d28d9" },
+    vfd:     { label: "VFD",               borderColor: "#f59e0b", bgColor: "#fffbeb", textColor: "#b45309" },
+    servo:   { label: "Servo",             borderColor: "#16a34a", bgColor: "#f0fdf4", textColor: "#15803d" },
+    other:   { label: "Other",             borderColor: "#9ca3af", bgColor: "#f9fafb", textColor: "#6b7280" },
   } as const;
-
   type CatKey = keyof typeof CAT_PRINT;
 
-  // Specs associated with each category
-  function getCatSpecs(machine: MappingMachine, cat: CatKey): { label: string; value: string }[] {
+  function getCatSpecs(machine: MappingMachine, cat: CatKey): { label: string; value: string; mono?: boolean }[] {
     if (cat === "plc") return [
-      { label: "Make",   value: machine.plc_make ?? "" },
-      { label: "Model",  value: machine.plc_model ?? "" },
+      { label: "Make",   value: machine.plc_make   ?? "" },
+      { label: "Model",  value: machine.plc_model  ?? "" },
       { label: "Series", value: machine.plc_series ?? "" },
-      { label: "P/N",    value: machine.plc_part_no ?? "" },
+      { label: "P/N",    value: machine.plc_part_no ?? "", mono: true },
     ].filter((s) => s.value);
     if (cat === "hmi") return [
-      { label: "Make",  value: machine.hmi_make ?? "" },
-      { label: "Model", value: machine.hmi_model ?? "" },
-      { label: "P/N",   value: machine.hmi_part_no ?? "" },
+      { label: "Make",  value: machine.hmi_make   ?? "" },
+      { label: "Model", value: machine.hmi_model  ?? "" },
+      { label: "P/N",   value: machine.hmi_part_no ?? "", mono: true },
     ].filter((s) => s.value);
     if (cat === "vfd") return [
-      { label: "Make",    value: machine.vfd_make ?? "" },
-      { label: "Model",   value: machine.vfd_model ?? "" },
-      { label: "HP",      value: machine.vfd_hp ?? "" },
+      { label: "Make",    value: machine.vfd_make    ?? "" },
+      { label: "Model",   value: machine.vfd_model   ?? "" },
+      { label: "HP",      value: machine.vfd_hp      ?? "" },
       { label: "Voltage", value: machine.vfd_voltage ?? "" },
     ].filter((s) => s.value);
     if (cat === "servo") return [
-      { label: "Drive Make",  value: machine.servo_drive_make ?? "" },
+      { label: "Drive Make",  value: machine.servo_drive_make  ?? "" },
       { label: "Drive Model", value: machine.servo_drive_model ?? "" },
-      { label: "Motor Make",  value: machine.servo_motor_make ?? "" },
+      { label: "Motor Make",  value: machine.servo_motor_make  ?? "" },
       { label: "Motor Model", value: machine.servo_motor_model ?? "" },
-      { label: "Motor P/N",   value: machine.servo_motor_part_no ?? "" },
+      { label: "Motor P/N",   value: machine.servo_motor_part_no ?? "", mono: true },
     ].filter((s) => s.value);
     return [];
   }
 
-  const s = {
-    // Page shell
-    root:     { fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#111", lineHeight: "1.4" } as React.CSSProperties,
-    header:   { marginBottom: "20px", paddingBottom: "14px", borderBottom: "2px solid #e5e7eb" } as React.CSSProperties,
-    title:    { fontSize: "22px", fontWeight: "bold", color: "#111827", marginBottom: "4px" } as React.CSSProperties,
-    subtitle: { fontSize: "13px", color: "#6b7280" } as React.CSSProperties,
-    summary:  { fontSize: "11px", color: "#9ca3af", marginTop: "2px" } as React.CSSProperties,
+  // Bordered engineering spec table — same visual language as the screen view
+  function SpecDataTable({ specs, eolResult }: {
+    specs: { label: string; value: string; mono?: boolean }[];
+    eolResult?: ReturnType<typeof checkPLCObsolete>;
+  }) {
+    return (
+      <div>
+        <div style={{ border: "1px solid #e5e7eb" }}>
+          {specs.map((spec, i) => (
+            <div key={spec.label} style={{ display: "flex", borderTop: i > 0 ? "1px solid #e5e7eb" : "none" }}>
+              <div style={{
+                width: 80, flexShrink: 0, background: "#f9fafb",
+                borderRight: "1px solid #e5e7eb",
+                padding: "7px 10px", display: "flex", alignItems: "center",
+              }}>
+                <span style={{ fontSize: 7, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.12em", color: "#9ca3af" }}>{spec.label}</span>
+              </div>
+              <div style={{ padding: "7px 10px", flex: 1, background: "#fff", display: "flex", alignItems: "center" }}>
+                <span style={{
+                  fontSize: 12, fontWeight: 700, color: "#111827",
+                  fontFamily: spec.mono ? "'Courier New', monospace" : "inherit",
+                }}>{spec.value}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        {eolResult?.obsolete && (
+          <div style={{ marginTop: 7, background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 3, padding: "7px 10px" }}>
+            <div style={{ fontSize: 8, fontWeight: 900, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 2 }}>⚠ End of Life</div>
+            <div style={{ fontSize: 9, color: "#78350f", lineHeight: 1.5 }}>{eolResult.note}</div>
+            {eolResult.successor && (
+              <div style={{ marginTop: 3, fontSize: 9, color: "#065f46" }}>
+                <span style={{ fontWeight: 700 }}>Successor: </span>{eolResult.successor}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
-    // Machine card
-    machine:      { border: "2px solid #16a34a", borderRadius: "8px", marginBottom: "20px", overflow: "hidden", pageBreakInside: "avoid" } as React.CSSProperties,
-    machineHead:  { background: "#166534", color: "#fff", padding: "8px 14px", fontSize: "15px", fontWeight: "bold" } as React.CSSProperties,
-    machineBody:  { padding: "0" } as React.CSSProperties,
-    machineNotes: { padding: "8px 14px", fontSize: "11px", color: "#374151", fontStyle: "italic", borderBottom: "1px solid #dcfce7", background: "#f0fdf4" } as React.CSSProperties,
-
-    // Category section
-    catSection:   { borderBottom: "1px solid #e5e7eb" } as React.CSSProperties,
-    catHeader:    (borderColor: string, bgColor: string, textColor: string): React.CSSProperties => ({
-      display: "flex", alignItems: "center", gap: "8px",
-      padding: "5px 14px",
-      background: bgColor,
-      borderLeft: `4px solid ${borderColor}`,
-      fontSize: "10px", fontWeight: "bold", textTransform: "uppercase",
-      letterSpacing: "0.08em", color: textColor,
-    }),
-    catBody:      { display: "flex", gap: "0", minHeight: "100px" } as React.CSSProperties,
-    photosCol:    { flex: "1 1 60%", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", padding: "10px 14px", alignContent: "start" } as React.CSSProperties,
-    photosColWide:{ flex: "1 1 100%", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px", padding: "10px 14px", alignContent: "start" } as React.CSSProperties,
-    photoImg:     { width: "100%", borderRadius: "4px", border: "1px solid #e5e7eb", display: "block", aspectRatio: "4/3", objectFit: "cover" } as React.CSSProperties,
-    specsCol:     { flex: "0 0 38%", padding: "10px 14px", borderLeft: "1px solid #e5e7eb", display: "flex", flexDirection: "column", justifyContent: "center" } as React.CSSProperties,
-    specRow:      { marginBottom: "5px" } as React.CSSProperties,
-    specLabel:    { fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: "1px" } as React.CSSProperties,
-    specValue:    { fontSize: "13px", fontWeight: "700", color: "#111827" } as React.CSSProperties,
-    noSpec:       { fontSize: "11px", color: "#d1d5db", fontStyle: "italic" } as React.CSSProperties,
-  };
+  // Photo grid — 2 columns with filename captions below each image
+  function PhotoGrid({ photos, wide }: { photos: MappingPhoto[]; wide?: boolean }) {
+    return (
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: wide ? "repeat(3, 1fr)" : "repeat(2, 1fr)",
+        gap: 10,
+        padding: 12,
+      }}>
+        {photos.map((photo) => (
+          <div key={photo.id} style={{ breakInside: "avoid" }}>
+            <img
+              src={photoUrl(photo.machine_id, photo.filename)}
+              alt={photo.original_name}
+              style={{
+                width: "100%", display: "block",
+                aspectRatio: "4/3", objectFit: "cover",
+                border: "1px solid #d1d5db", borderRadius: 3,
+              }}
+            />
+            <div style={{
+              fontSize: 7, color: "#9ca3af", marginTop: 3,
+              textAlign: "center", overflow: "hidden",
+              textOverflow: "ellipsis", whiteSpace: "nowrap",
+              fontFamily: "'Courier New', monospace",
+            }}>
+              {photo.original_name}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <>
       <style>{`
         @media screen { .mapping-print-root { display: none; } }
-        @media print  { .mapping-print-root { display: block; } .mapping-screen-only { display: none !important; } body { margin: 0.5in; } }
-        @media print  { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        @media print  {
+          .mapping-print-root { display: block; }
+          .mapping-screen-only { display: none !important; }
+          body { margin: 0; }
+          @page { margin: 0.5in 0.55in 0.6in; size: letter portrait; }
+        }
+        @media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        .print-page-break { break-before: page; }
       `}</style>
 
-      <div className="mapping-print-root" style={s.root}>
+      <div className="mapping-print-root" style={{ fontFamily: "Arial, 'Helvetica Neue', sans-serif", fontSize: 11, color: "#111827", lineHeight: 1.4 }}>
 
-        {/* Report header */}
-        <div style={s.header}>
-          <div style={s.title}>{mapping.plant_name ?? "Plant"} — Equipment Mapping</div>
-          <div style={s.subtitle}>
-            {mapping.name}{mapping.city && mapping.state ? ` · ${mapping.city}, ${mapping.state}` : ""}
+        {/* ══════════ TITLE BLOCK ══════════ */}
+        <div style={{ marginBottom: 24, border: "2px solid #166534" }}>
+
+          {/* Branding strip */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "6px 16px", background: "#021a0d", borderBottom: "1px solid #14532d",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.12em", color: "#4ade80", textTransform: "uppercase" }}>I&amp;I Automation</span>
+              <span style={{ color: "#166534", fontSize: 14 }}>·</span>
+              <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.22em", color: "#86efac", textTransform: "uppercase" }}>Equipment Mapping Report</span>
+            </div>
+            <span style={{ fontSize: 8, color: "#4ade80", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>Confidential</span>
           </div>
-          <div style={s.summary}>
-            {machines.length} machine{machines.length !== 1 ? "s" : ""} &nbsp;·&nbsp;
-            {machines.reduce((n, m) => n + (m.photos ?? []).length, 0)} photos &nbsp;·&nbsp;
-            Printed {new Date().toLocaleDateString()}
+
+          {/* Title + stats row */}
+          <div style={{ display: "flex", alignItems: "flex-start", padding: "16px 16px 0", background: "#052e16", gap: 20 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 26, fontWeight: 900, color: "#ffffff", lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+                {mapping.plant_name || mapping.name}
+              </div>
+              {mapping.plant_name && (
+                <div style={{ fontSize: 13, color: "#86efac", marginTop: 5, fontWeight: 600 }}>{mapping.name}</div>
+              )}
+              {(mapping.city || mapping.state) && (
+                <div style={{ fontSize: 11, color: "#4ade80", marginTop: 3 }}>
+                  {[mapping.city, mapping.state].filter(Boolean).join(", ")}
+                </div>
+              )}
+            </div>
+            {/* Stats boxes */}
+            <div style={{ display: "flex", border: "1px solid #166534", background: "rgba(0,0,0,0.25)", flexShrink: 0, alignSelf: "flex-start", marginTop: 4 }}>
+              {[
+                { n: machines.length, l: "Machines" },
+                { n: totalPhotos,     l: "Photos"   },
+                { n: plcCount,        l: "PLCs"     },
+                { n: driveCount,      l: "Drives"   },
+              ].map(({ n, l }, i) => (
+                <div key={l} style={{ padding: "10px 18px", textAlign: "center", borderLeft: i > 0 ? "1px solid #166534" : "none", minWidth: 56 }}>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#ffffff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{n}</div>
+                  <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: "#4ade80", marginTop: 3 }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Engineering title-block footer row */}
+          <div style={{ display: "flex", borderTop: "1px solid #14532d", marginTop: 14, background: "#052e16" }}>
+            <div style={{ flex: 1, padding: "7px 16px", borderRight: "1px solid #14532d" }}>
+              <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#166534", marginBottom: 1 }}>Prepared By</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#4ade80" }}>I&amp;I Automation</div>
+            </div>
+            {eolCount > 0 ? (
+              <div style={{ flex: 2, padding: "7px 16px", background: "rgba(217,119,6,0.15)", borderRight: "1px solid #14532d" }}>
+                <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#92400e", marginBottom: 1 }}>EOL Alert</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24" }}>
+                  ⚠ {eolCount} End-of-Life PLC{eolCount !== 1 ? "s" : ""} Detected — Replacement Recommended
+                </div>
+              </div>
+            ) : (
+              <div style={{ flex: 2, padding: "7px 16px", borderRight: "1px solid #14532d" }}>
+                <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#166534", marginBottom: 1 }}>Status</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#4ade80" }}>No EOL equipment detected</div>
+              </div>
+            )}
+            <div style={{ padding: "7px 16px", minWidth: 130 }}>
+              <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#166534", marginBottom: 1 }}>Date</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#4ade80", fontFamily: "'Courier New', monospace" }}>{reportDate}</div>
+            </div>
           </div>
         </div>
 
-        {/* Machines */}
+        {/* ══════════ EQUIPMENT INDEX ══════════ */}
+        <div style={{ marginBottom: 24, border: "1px solid #e5e7eb" }}>
+          <div style={{
+            padding: "5px 12px", background: "#f9fafb", borderBottom: "1px solid #e5e7eb",
+            fontSize: 8, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.2em", color: "#6b7280",
+          }}>
+            Equipment Index — {machines.length} Machine{machines.length !== 1 ? "s" : ""} · {totalPhotos} Photos
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
+            {machines.map((m, i) => {
+              const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
+              const col = i % 3;
+              const row = Math.floor(i / 3);
+              const totalRows = Math.ceil(machines.length / 3);
+              return (
+                <div key={m.id} style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "6px 12px",
+                  borderRight: col < 2 ? "1px solid #e5e7eb" : "none",
+                  borderBottom: row < totalRows - 1 ? "1px solid #e5e7eb" : "none",
+                }}>
+                  <span style={{ fontSize: 10, fontWeight: 900, color: "#166534", fontFamily: "'Courier New', monospace", minWidth: 22 }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#111827", flex: 1 }}>{m.name}</span>
+                  {mEol.obsolete && (
+                    <span style={{
+                      fontSize: 7, fontWeight: 900, color: "#92400e",
+                      background: "#fef3c7", padding: "1px 4px", borderRadius: 2,
+                      textTransform: "uppercase", letterSpacing: "0.08em", border: "1px solid #fbbf24",
+                    }}>EOL</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ══════════ MACHINE SECTIONS ══════════ */}
         {machines.map((machine, idx) => {
-          // Group photos by category in display order
+          const photos = machine.photos ?? [];
+
+          // Group photos by category
           const photosByCat: Partial<Record<CatKey, MappingPhoto[]>> = {};
-          for (const p of machine.photos ?? []) {
+          for (const p of photos) {
             const k = p.category as CatKey;
             if (!photosByCat[k]) photosByCat[k] = [];
             photosByCat[k]!.push(p);
           }
-          const orderedCats = (["machine", "plc", "hmi", "vfd", "servo", "other"] as CatKey[])
-            .filter((k) => k !== "other" && (photosByCat[k] ?? []).length > 0);
-          // "other" photos grouped by their label — each label = its own section
-          const otherPhotos = (machine.photos ?? []).filter((p) => p.category === "other");
+          const orderedCats = (["machine", "plc", "hmi", "vfd", "servo"] as CatKey[])
+            .filter((k) => (photosByCat[k] ?? []).length > 0);
+
+          // "other" photos grouped by custom label
+          const otherPhotos = photos.filter((p) => p.category === "other");
           const otherGroups: { label: string; photos: MappingPhoto[] }[] = [];
           for (const p of otherPhotos) {
             const lbl = p.label?.trim() || "Other";
@@ -719,136 +869,178 @@ function PrintView({ mapping }: { mapping: Mapping }) {
             if (existing) existing.photos.push(p);
             else otherGroups.push({ label: lbl, photos: [p] });
           }
-          const hasSpecs = !!(
-            machine.plc_make || machine.plc_model ||
-            machine.hmi_make || machine.hmi_model ||
-            machine.vfd_make || machine.vfd_model
-          );
-          // If no photos at all, still show spec-only sections
+
+          const hasSpecs = !!(machine.plc_make || machine.plc_model || machine.hmi_make || machine.hmi_model || machine.vfd_make || machine.vfd_model || machine.servo_drive_make);
           const specOnlyCats = (["plc", "hmi", "vfd", "servo"] as CatKey[]).filter((k) => {
-            const specs = getCatSpecs(machine, k);
-            return specs.length > 0 && !(photosByCat[k] ?? []).length;
+            return getCatSpecs(machine, k).length > 0 && !(photosByCat[k] ?? []).length;
           });
+          const machineEol = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
 
           return (
-            <div key={machine.id} style={s.machine}>
-              {/* Machine title bar */}
-              <div style={s.machineHead}>{idx + 1}. {machine.name}</div>
+            <div key={machine.id} className={idx > 0 ? "print-page-break" : ""} style={{ marginBottom: 32 }}>
 
-              {machine.notes && (
-                <div style={s.machineNotes}>{machine.notes}</div>
-              )}
+              {/* ── Machine header bar ── */}
+              <div style={{ display: "flex", alignItems: "stretch", background: "#052e16", border: "2px solid #166534" }}>
+                {/* ISA-style equipment tag */}
+                <div style={{
+                  display: "flex", alignItems: "stretch", flexShrink: 0,
+                  borderRight: "2px solid #4ade80",
+                }}>
+                  <div style={{
+                    background: "#4ade80", color: "#052e16",
+                    padding: "0 8px", fontSize: 9, fontWeight: 900,
+                    fontFamily: "'Courier New', monospace",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>M</div>
+                  <div style={{
+                    background: "#fff", color: "#111827",
+                    padding: "0 12px", fontSize: 16, fontWeight: 900,
+                    fontFamily: "'Courier New', monospace",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    minWidth: 44,
+                  }}>
+                    {String(idx + 1).padStart(2, "0")}
+                  </div>
+                </div>
 
-              {/* Category sections — photos + specs together */}
-              {orderedCats.map((catKey) => {
-                const meta = CAT_PRINT[catKey];
-                const photos = photosByCat[catKey] ?? [];
-                const specs = getCatSpecs(machine, catKey);
-                const hasSpecsForCat = specs.length > 0;
-                // Machine/other: full-width photos, no specs column
-                const isSpecCat = catKey === "plc" || catKey === "hmi" || catKey === "vfd" || catKey === "servo";
+                <div style={{ flex: 1, padding: "10px 16px" }}>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1.1 }}>
+                    {machine.name}
+                  </div>
+                  {machine.notes && (
+                    <div style={{ fontSize: 9, color: "#86efac", marginTop: 3, fontStyle: "italic" }}>{machine.notes}</div>
+                  )}
+                </div>
 
-                return (
-                  <div key={catKey} style={s.catSection}>
-                    {/* Category label row */}
-                    <div style={s.catHeader(meta.borderColor, meta.bgColor, meta.textColor)}>
-                      {meta.label}
+                <div style={{ padding: "10px 16px", display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: 4 }}>
+                  {photos.length > 0 && (
+                    <div style={{ fontSize: 9, color: "#4ade80", fontWeight: 700 }}>
+                      {photos.length} Photo{photos.length !== 1 ? "s" : ""}
                     </div>
-                    <div style={s.catBody}>
-                      {/* Photos */}
-                      <div style={isSpecCat ? s.photosCol : s.photosColWide}>
-                        {photos.map((photo) => (
-                          <img
-                            key={photo.id}
-                            src={photoUrl(photo.machine_id, photo.filename)}
-                            alt={photo.original_name}
-                            style={s.photoImg}
-                          />
-                        ))}
+                  )}
+                  {machineEol.obsolete && (
+                    <div style={{
+                      fontSize: 8, fontWeight: 900, color: "#fbbf24",
+                      background: "rgba(217,119,6,0.2)", padding: "2px 7px",
+                      borderRadius: 2, textTransform: "uppercase", letterSpacing: "0.08em",
+                    }}>⚠ EOL PLC</div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Category sections ── */}
+              <div style={{ border: "1px solid #e5e7eb", borderTop: "2px solid #166534" }}>
+
+                {orderedCats.map((catKey) => {
+                  const meta = CAT_PRINT[catKey];
+                  const catPhotos = photosByCat[catKey] ?? [];
+                  const specs = getCatSpecs(machine, catKey);
+                  const isSpecCat = catKey === "plc" || catKey === "hmi" || catKey === "vfd" || catKey === "servo";
+
+                  return (
+                    <div key={catKey} style={{ borderBottom: "1px solid #e5e7eb", breakInside: "avoid" }}>
+                      {/* Section header */}
+                      <div style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "5px 12px", background: meta.bgColor,
+                        borderLeft: `4px solid ${meta.borderColor}`, borderBottom: "1px solid #e5e7eb",
+                      }}>
+                        <span style={{ fontSize: 8, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.2em", color: meta.textColor }}>
+                          {meta.label}
+                        </span>
+                        <span style={{ fontSize: 8, color: "#9ca3af", fontFamily: "'Courier New', monospace" }}>
+                          {catPhotos.length} photo{catPhotos.length !== 1 ? "s" : ""}
+                          {isSpecCat && specs.length > 0 ? ` · ${specs.length} field${specs.length !== 1 ? "s" : ""}` : ""}
+                        </span>
                       </div>
-                      {/* Specs (only for PLC / HMI / VFD) */}
-                      {isSpecCat && (
-                        <div style={s.specsCol}>
-                          {hasSpecsForCat ? (
-                            specs.map((spec) => (
-                              <div key={spec.label} style={s.specRow}>
-                                <div style={s.specLabel}>{spec.label}</div>
-                                <div style={s.specValue}>{spec.value}</div>
-                              </div>
-                            ))
-                          ) : (
-                            <div style={s.noSpec}>No specs recorded</div>
-                          )}
-                          {catKey === "plc" && (() => {
-                            const eol = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
-                            return eol.obsolete ? (
-                              <div style={{ marginTop: 8, padding: "6px 8px", background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 4 }}>
-                                <div style={{ fontSize: 9, fontWeight: 800, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                                  ⚠ End of Life
-                                </div>
-                                <div style={{ fontSize: 9, color: "#78350f", marginTop: 2 }}>{eol.note}</div>
-                                {eol.successor && (
-                                  <div style={{ fontSize: 9, color: "#065f46", marginTop: 2 }}>Successor: {eol.successor}</div>
-                                )}
-                              </div>
-                            ) : null;
-                          })()}
+
+                      {/* Section body: photos left, specs right for spec categories */}
+                      <div style={{ display: "flex", alignItems: "flex-start" }}>
+                        {/* Photos */}
+                        <div style={{ flex: isSpecCat ? "1 1 55%" : "1 1 100%", borderRight: isSpecCat && specs.length > 0 ? "1px solid #e5e7eb" : "none" }}>
+                          <PhotoGrid photos={catPhotos} wide={!isSpecCat && catPhotos.length >= 3} />
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
 
-              {/* Spec-only sections (have specs but no photos) */}
-              {specOnlyCats.map((catKey) => {
-                const meta = CAT_PRINT[catKey];
-                const specs = getCatSpecs(machine, catKey);
-                return (
-                  <div key={`spec-${catKey}`} style={s.catSection}>
-                    <div style={s.catHeader(meta.borderColor, meta.bgColor, meta.textColor)}>
-                      {meta.label}
+                        {/* Spec data table */}
+                        {isSpecCat && (
+                          <div style={{ flex: "0 0 45%", padding: 12 }}>
+                            {specs.length > 0 ? (
+                              <SpecDataTable
+                                specs={specs}
+                                eolResult={catKey === "plc" ? machineEol : undefined}
+                              />
+                            ) : (
+                              <div style={{ fontSize: 10, color: "#d1d5db", fontStyle: "italic", padding: "8px 0" }}>No specs recorded</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ padding: "10px 14px", display: "flex", flexWrap: "wrap", gap: "24px" }}>
-                      {specs.map((spec) => (
-                        <div key={spec.label} style={s.specRow}>
-                          <div style={s.specLabel}>{spec.label}</div>
-                          <div style={s.specValue}>{spec.value}</div>
-                        </div>
-                      ))}
+                  );
+                })}
+
+                {/* Spec-only sections (specs exist but no photos for that category) */}
+                {specOnlyCats.map((catKey) => {
+                  const meta = CAT_PRINT[catKey];
+                  const specs = getCatSpecs(machine, catKey);
+                  return (
+                    <div key={`spec-${catKey}`} style={{ borderBottom: "1px solid #e5e7eb", breakInside: "avoid" }}>
+                      <div style={{
+                        padding: "5px 12px", background: meta.bgColor,
+                        borderLeft: `4px solid ${meta.borderColor}`, borderBottom: "1px solid #e5e7eb",
+                      }}>
+                        <span style={{ fontSize: 8, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.2em", color: meta.textColor }}>{meta.label}</span>
+                      </div>
+                      <div style={{ padding: 12 }}>
+                        <SpecDataTable
+                          specs={specs}
+                          eolResult={catKey === "plc" ? machineEol : undefined}
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
 
-              {/* "Other" sections — one per unique label */}
-              {otherGroups.map((group) => (
-                <div key={group.label} style={s.catSection}>
-                  <div style={s.catHeader("#9ca3af", "#f9fafb", "#6b7280")}>
-                    {group.label}
+                {/* "Other" photo groups */}
+                {otherGroups.map((group) => (
+                  <div key={group.label} style={{ borderBottom: "1px solid #e5e7eb", breakInside: "avoid" }}>
+                    <div style={{
+                      padding: "5px 12px", background: "#f9fafb",
+                      borderLeft: "4px solid #9ca3af", borderBottom: "1px solid #e5e7eb",
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}>
+                      <span style={{ fontSize: 8, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.2em", color: "#6b7280" }}>{group.label}</span>
+                      <span style={{ fontSize: 8, color: "#9ca3af", fontFamily: "'Courier New', monospace" }}>{group.photos.length} photo{group.photos.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <PhotoGrid photos={group.photos} wide={group.photos.length >= 3} />
                   </div>
-                  <div style={s.photosColWide}>
-                    {group.photos.map((photo) => (
-                      <img
-                        key={photo.id}
-                        src={photoUrl(photo.machine_id, photo.filename)}
-                        alt={photo.original_name}
-                        style={s.photoImg}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+                ))}
 
-              {/* If machine has no photos and no specs */}
-              {orderedCats.length === 0 && otherGroups.length === 0 && !hasSpecs && (
-                <div style={{ padding: "12px 14px", color: "#9ca3af", fontSize: "11px", fontStyle: "italic" }}>
-                  No photos or specs recorded for this machine.
-                </div>
-              )}
+                {orderedCats.length === 0 && otherGroups.length === 0 && !hasSpecs && (
+                  <div style={{ padding: "14px 16px", color: "#9ca3af", fontSize: 11, fontStyle: "italic" }}>
+                    No photos or specs recorded for this machine.
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
+
+        {/* ══════════ DOCUMENT FOOTER ══════════ */}
+        <div style={{
+          marginTop: 24, paddingTop: 10,
+          borderTop: "2px solid #e5e7eb",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          fontSize: 8, color: "#9ca3af",
+        }}>
+          <div>
+            <span style={{ fontWeight: 900, color: "#166534" }}>I&amp;I Automation</span>
+            {" "}· Equipment Mapping Report · {mapping.plant_name || mapping.name}
+          </div>
+          <div style={{ fontFamily: "'Courier New', monospace", fontSize: 7 }}>{printUrl}</div>
+          <div>Printed {new Date().toLocaleDateString()}</div>
+        </div>
+
       </div>
     </>
   );
