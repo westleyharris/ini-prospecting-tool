@@ -41,6 +41,7 @@ import { requireAuth } from "./middleware/requireAuth.js";
 import "./db.js";
 import "./services/uploads.js";
 import { getUploadsPath } from "./services/uploads.js";
+import { getOrCreateThumb, type ThumbSize } from "./services/imageResize.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -60,6 +61,26 @@ app.use("/api/visits", requireAuth, visitsRouter);
 app.use("/api/projects", requireAuth, projectsRouter);
 app.use("/api/commissionings", requireAuth, commissioningsRouter);
 app.use("/api/mappings", requireAuth, mappingsRouter);
+
+// On-demand thumbnail endpoint — generates a WebP thumbnail and caches it to disk.
+// /thumb/mappings/:machineId/:filename?s=sm|md
+// sm = 480px wide (grids, filmstrip)   md = 1200px wide (print report)
+app.get("/thumb/mappings/:machineId/:filename", async (req, res) => {
+  const { machineId, filename } = req.params;
+  const size: ThumbSize = req.query.s === "md" ? "md" : "sm";
+  try {
+    const thumb = await getOrCreateThumb(machineId, filename, size);
+    res.setHeader("Content-Type", thumb.contentType);
+    res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+    res.sendFile(thumb.path);
+  } catch {
+    // Fall back to serving the original so the page never shows a broken image
+    const originalPath = join(getUploadsPath(), "mappings", machineId, filename);
+    res.sendFile(originalPath, (err) => {
+      if (err) res.status(404).json({ error: "Not found" });
+    });
+  }
+});
 
 // Serve uploaded files — no auth required on the route itself.
 // Files are stored under UUID-based paths (128-bit random), making them

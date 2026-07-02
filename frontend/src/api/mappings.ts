@@ -159,7 +159,18 @@ export function rerunOcr(photoId: string): Promise<MappingPhoto> {
   });
 }
 
-/** Resolve a mapping photo filename → full URL served via /uploads */
-export function photoUrl(machineId: string, filename: string): string {
+/**
+ * Resolve a mapping photo URL.
+ *   "thumb" → 480px WebP  (thumbnail grids, filmstrip)
+ *   "print" → 1200px WebP (print report — readable at 2-col A4/letter)
+ *   undefined → original  (lightbox main view)
+ */
+export function photoUrl(
+  machineId: string,
+  filename: string,
+  size?: "thumb" | "print"
+): string {
+  if (size === "thumb") return `/thumb/mappings/${machineId}/${filename}?s=sm`;
+  if (size === "print") return `/thumb/mappings/${machineId}/${filename}?s=md`;
   return `/uploads/mappings/${machineId}/${filename}`;
 }
