@@ -237,7 +237,10 @@ export default function Dashboard() {
     <div className="space-y-5 sm:space-y-8">
       {/* Page header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
+        <div className="flex items-center gap-2.5">
+          <span className="w-1.5 h-6 rounded-sm bg-brand-lime shrink-0" />
+          <h1 className="text-xl sm:text-2xl font-bold text-brand-navy tracking-tight">Dashboard</h1>
+        </div>
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:w-auto">
           <button
             onClick={() => setShowAddPlant(true)}
@@ -258,7 +261,7 @@ export default function Dashboard() {
             <button
               onClick={handleRunPipeline}
               disabled={pipelineRunning}
-              className="text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              className="text-sm font-medium text-brand-navy-600 hover:text-brand-navy disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
             >
               {pipelineRunning ? "Running..." : "Run pipeline"}
             </button>
@@ -343,7 +346,7 @@ export default function Dashboard() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Name, address, phone, type..."
-                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0"
+                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0"
                   />
                 </div>
                 <div className="w-full sm:w-52 min-w-0">
@@ -356,7 +359,7 @@ export default function Dashboard() {
                     value={locationFilter}
                     onChange={(e) => setLocationFilter(e.target.value)}
                     placeholder="City, state, or zip"
-                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0"
+                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0"
                   />
                 </div>
               </div>
@@ -370,7 +373,7 @@ export default function Dashboard() {
                     id="contacted-filter"
                     value={contactedFilter}
                     onChange={(e) => setContactedFilter(e.target.value as "all" | "yes" | "no")}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0 sm:min-w-[100px]"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0 sm:min-w-[100px]"
                   >
                     <option value="all">All</option>
                     <option value="yes">Yes</option>
@@ -385,7 +388,7 @@ export default function Dashboard() {
                     id="customer-filter"
                     value={customerFilter}
                     onChange={(e) => setCustomerFilter(e.target.value as "all" | "yes" | "no")}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0 sm:min-w-[100px]"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0 sm:min-w-[100px]"
                   >
                     <option value="all">All</option>
                     <option value="yes">Yes</option>
@@ -400,7 +403,7 @@ export default function Dashboard() {
                     id="relevance-filter"
                     value={relevanceFilter}
                     onChange={(e) => setRelevanceFilter(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0 sm:min-w-[100px]"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0 sm:min-w-[100px]"
                   >
                     <option value="all">All</option>
                     <option value="high">High</option>
@@ -416,7 +419,7 @@ export default function Dashboard() {
                     id="followup-filter"
                     value={followUpFilter}
                     onChange={(e) => setFollowUpFilter(e.target.value as "all" | "due" | "none")}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0 sm:min-w-[120px]"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0 sm:min-w-[120px]"
                   >
                     <option value="all">All</option>
                     <option value="due">Due & overdue</option>
@@ -431,7 +434,7 @@ export default function Dashboard() {
                     id="icp-filter"
                     value={icpFilter}
                     onChange={(e) => setIcpFilter(e.target.value as "all" | "icp" | "not_icp")}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-w-0 sm:min-w-[120px]"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0 sm:min-w-[120px]"
                   >
                     <option value="all">All</option>
                     <option value="icp">ICP only</option>
@@ -450,7 +453,7 @@ export default function Dashboard() {
                       setFollowUpFilter("all");
                       setIcpFilter("all");
                     }}
-                    className="px-3 py-2 text-sm font-medium text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded-lg col-span-2 sm:col-span-1"
+                    className="px-3 py-2 text-sm font-medium text-brand-navy-600 hover:text-brand-navy hover:bg-gray-100 rounded-lg col-span-2 sm:col-span-1"
                   >
                     Clear filters
                   </button>
@@ -479,7 +482,7 @@ export default function Dashboard() {
                     setPageSize(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="rounded-lg border border-gray-300 bg-white px-2 py-2 sm:py-1.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-h-[36px] sm:min-h-0"
+                  className="rounded-lg border border-gray-300 bg-white px-2 py-2 sm:py-1.5 text-sm focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-h-[36px] sm:min-h-0"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>
@@ -544,7 +547,7 @@ export default function Dashboard() {
                     setPageSize(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="rounded-lg border border-gray-300 bg-white px-2 py-2 sm:py-1.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-h-[36px] sm:min-h-0"
+                  className="rounded-lg border border-gray-300 bg-white px-2 py-2 sm:py-1.5 text-sm focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-h-[36px] sm:min-h-0"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>

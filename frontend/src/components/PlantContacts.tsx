@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { HiPhone } from "react-icons/hi2";
 import type { Plant } from "../api/plants";
 import {
   fetchContacts,
@@ -159,7 +160,7 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
               {showAddForm ? "Cancel" : "+ Add contact"}
             </button>
             <button onClick={handleFindContacts} disabled={finding}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm flex items-center gap-2">
+              className="px-3 py-1.5 bg-brand-navy text-white rounded-md hover:bg-brand-navy-700 disabled:opacity-50 text-sm flex items-center gap-2">
               {finding ? (
                 <><svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Searching…</>
               ) : "Search with AI"}
@@ -203,13 +204,13 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
                         </div>
                         {contact.title && <p className="text-sm text-gray-600">{contact.title}</p>}
                         {contact.email && (
-                          <a href={`mailto:${contact.email}`} className="text-sm text-blue-600 hover:underline block truncate">{contact.email}</a>
+                          <a href={`mailto:${contact.email}`} className="text-sm text-brand-navy-600 hover:underline block truncate">{contact.email}</a>
                         )}
                         {contact.phone && (
-                          <a href={`tel:${contact.phone}`} className="text-sm text-blue-600 hover:underline block">{contact.phone}</a>
+                          <a href={`tel:${contact.phone}`} className="text-sm text-brand-navy-600 hover:underline block">{contact.phone}</a>
                         )}
                         {contact.linkedin_url && (
-                          <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline block">LinkedIn ↗</a>
+                          <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-navy-600 hover:underline block">LinkedIn ↗</a>
                         )}
                         {contact.source_url && (
                           <a href={contact.source_url} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-400 hover:text-gray-600 block truncate" title={contact.source_url}>🔗 Source ↗</a>
@@ -225,7 +226,7 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
                               placeholder="Notes, objections, context…"
                               className="w-full text-xs rounded border border-gray-300 px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400" />
                             <div className="flex gap-2">
-                              <button onClick={() => handleSaveNote(contact.id)} className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded">Save</button>
+                              <button onClick={() => handleSaveNote(contact.id)} className="text-xs px-2 py-0.5 bg-brand-navy text-white rounded">Save</button>
                               <button onClick={() => setEditingNoteId(null)} className="text-xs text-gray-500">Cancel</button>
                             </div>
                           </div>
@@ -247,7 +248,7 @@ export default function PlantContacts({ plant, onClose }: PlantContactsProps) {
                         <button onClick={() => handleMarkContacted(contact)}
                           className="px-2.5 py-1 text-xs rounded bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
                           title="Log contact today">
-                          📞
+                          <HiPhone className="w-3.5 h-3.5" />
                         </button>
                         {contact.apollo_id && !contact.email && (
                           <button onClick={() => handleEnrich(contact)} disabled={enrichingId === contact.id}

@@ -1,13 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
+import { HiDocumentText, HiDocument } from "react-icons/hi2";
 import { fetchVisits, deleteVisit, getVisitFileUrl, type Visit, type VisitFile } from "../api/visits";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
 
 type VisitWithFiles = Visit & { files?: VisitFile[] };
 
-function fileIcon(filename: string): string {
+function FileIcon({ filename }: { filename: string }) {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "pdf") return "📕";
-  if (ext === "doc" || ext === "docx") return "📘";
-  return "📄";
+  if (ext === "pdf") return <HiDocumentText className="w-4 h-4 shrink-0 text-red-500" />;
+  if (ext === "doc" || ext === "docx") return <HiDocumentText className="w-4 h-4 shrink-0 text-brand-navy-600" />;
+  return <HiDocument className="w-4 h-4 shrink-0 text-gray-400" />;
 }
 
 function formatDate(dateStr: string): string {
@@ -36,7 +39,7 @@ function NotesCell({ notes }: NotesCellProps) {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="ml-1 text-blue-600 hover:underline font-medium whitespace-nowrap"
+        className="ml-1 text-brand-navy-600 hover:underline font-medium whitespace-nowrap"
       >
         {expanded ? "less" : "more"}
       </button>
@@ -95,12 +98,10 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Reports</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          All visits and uploaded reports. Add visits from the Dashboard via plant → Visits.
-        </p>
-      </div>
+      <PageHeader
+        title="Reports"
+        subtitle="All visits and uploaded reports. Add visits from the Dashboard via plant → Visits."
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
@@ -118,7 +119,7 @@ export default function ReportsPage() {
             placeholder="Search plants or notes…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="block w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="block w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:border-brand-lime focus:ring-1 focus:ring-brand-lime"
           />
         </div>
         <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -126,7 +127,7 @@ export default function ReportsPage() {
             type="checkbox"
             checked={filesOnly}
             onChange={(e) => setFilesOnly(e.target.checked)}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="rounded border-gray-300 text-brand-navy-600 focus:ring-brand-lime"
           />
           <span className="text-sm text-gray-700">With reports only</span>
         </label>
@@ -148,11 +149,15 @@ export default function ReportsPage() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <p className="p-8 text-gray-500 text-center text-sm">
-            {visits.length === 0
-              ? "No visits yet. Add visits from the Dashboard via a plant's Visits button."
-              : "No results — try adjusting your search or filters."}
-          </p>
+          <EmptyState
+            Icon={HiDocumentText}
+            title={visits.length === 0 ? "No visits yet" : "No results"}
+            hint={
+              visits.length === 0
+                ? "Add visits from the Dashboard via a plant's Visits button."
+                : "Try adjusting your search or filters."
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -190,9 +195,9 @@ export default function ReportsPage() {
                               key={f.id}
                               href={getVisitFileUrl(visit.id, f.filename)}
                               download={f.original_name}
-                              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                              className="inline-flex items-center gap-1 text-sm text-brand-navy-600 hover:underline"
                             >
-                              <span>{fileIcon(f.original_name)}</span>
+                              <FileIcon filename={f.original_name} />
                               <span className="truncate max-w-[200px]">{f.original_name}</span>
                             </a>
                           ))}

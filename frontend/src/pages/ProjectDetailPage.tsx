@@ -40,7 +40,7 @@ export default function ProjectDetailPage() {
         <p className="text-red-600">{error ?? "Project not found"}</p>
         <button
           onClick={() => navigate("/projects")}
-          className="text-blue-600 hover:underline"
+          className="text-brand-navy-600 hover:underline"
         >
           Back to projects
         </button>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { HiClipboardDocumentList } from "react-icons/hi2";
 import { createPortal } from "react-dom";
 import type { Plant } from "../api/plants";
 import { updatePlant, deletePlant, deletePlantsBulk } from "../api/plants";
@@ -399,7 +400,7 @@ export default function PlantTable({
           <>
             <span className="text-sm text-gray-600">{selectedIds.size} selected</span>
             {totalFilteredCount > 0 && selectedIds.size < totalFilteredCount && (
-              <button type="button" onClick={selectAllFiltered} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+              <button type="button" onClick={selectAllFiltered} className="text-sm text-brand-navy-600 hover:text-blue-800 font-medium">
                 Select all {totalFilteredCount} plants
               </button>
             )}
@@ -447,7 +448,7 @@ export default function PlantTable({
                       type="checkbox"
                       checked={vis(col.key)}
                       onChange={() => toggleCol(col.key)}
-                      className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                      className="rounded border-gray-300 text-brand-navy-600 focus:ring-brand-lime"
                     />
                     <span className="text-sm text-gray-700">{col.label}</span>
                   </label>
@@ -559,7 +560,7 @@ export default function PlantTable({
                           href={plant.google_maps_uri}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-gray-400 hover:text-blue-600"
+                          className="text-gray-400 hover:text-brand-navy-600"
                           title="Open in Google Maps"
                         >
                           ↗
@@ -588,7 +589,7 @@ export default function PlantTable({
                   {vis("website") && (
                     <td className="px-4 py-3 text-sm">
                       {plant.website ? (
-                        <a href={plant.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate block max-w-[120px]">
+                        <a href={plant.website} target="_blank" rel="noopener noreferrer" className="text-brand-navy-600 hover:underline truncate block max-w-[120px]">
                           {plant.website.replace(/^https?:\/\//, "").slice(0, 25)}…
                         </a>
                       ) : "—"}
@@ -657,8 +658,8 @@ export default function PlantTable({
                   {vis("visits") && (
                     <td className="px-4 py-3">
                       <button type="button" onClick={() => setVisitsPlant(plant)} title="View and add visits for this plant"
-                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200/60">
-                        <span aria-hidden>📋</span>{plant.visit_count ?? 0}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-brand-navy/5 text-brand-navy-600 hover:bg-brand-navy/10 border border-brand-navy/10">
+                        <HiClipboardDocumentList className="w-3.5 h-3.5" aria-hidden />{plant.visit_count ?? 0}
                       </button>
                     </td>
                   )}
@@ -829,7 +830,7 @@ export default function PlantTable({
                   type="checkbox"
                   checked={contacted}
                   onChange={(e) => setContacted(e.target.checked)}
-                  className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                  className="rounded border-gray-300 text-brand-navy-600 focus:ring-brand-lime"
                 />
                 <span className="text-sm font-medium text-gray-700">Contacted</span>
               </label>
@@ -838,7 +839,7 @@ export default function PlantTable({
                   type="checkbox"
                   checked={currentCustomer}
                   onChange={(e) => setCurrentCustomer(e.target.checked)}
-                  className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                  className="rounded border-gray-300 text-brand-navy-600 focus:ring-brand-lime"
                 />
                 <span className="text-sm font-medium text-gray-700">Current customer</span>
               </label>
@@ -849,7 +850,7 @@ export default function PlantTable({
                     type="date"
                     value={followUpDate}
                     onChange={(e) => setFollowUpDate(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-300 shadow-sm text-sm focus:border-sky-500 focus:ring-sky-500 px-3 py-2"
+                    className="block w-full rounded-lg border border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime px-3 py-2"
                   />
                 </div>
                 <div>
@@ -857,7 +858,7 @@ export default function PlantTable({
                   <select
                     value={followUpType}
                     onChange={(e) => setFollowUpType(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-300 bg-white shadow-sm text-sm focus:border-sky-500 focus:ring-sky-500 px-3 py-2"
+                    className="block w-full rounded-lg border border-gray-300 bg-white shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime px-3 py-2"
                   >
                     <option value="">— none —</option>
                     <option value="call">Call</option>
@@ -874,7 +875,7 @@ export default function PlantTable({
                   value={followUpNotes}
                   onChange={(e) => setFollowUpNotes(e.target.value)}
                   placeholder="What to discuss, context…"
-                  className="block w-full rounded-lg border border-gray-300 shadow-sm text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-sky-500 px-3 py-2"
+                  className="block w-full rounded-lg border border-gray-300 shadow-sm text-sm placeholder-gray-400 focus:border-brand-lime focus:ring-brand-lime px-3 py-2"
                 />
               </div>
               <div>
@@ -884,7 +885,7 @@ export default function PlantTable({
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add notes about this plant…"
                   rows={6}
-                  className="block w-full min-h-[140px] rounded-lg border border-gray-300 shadow-sm text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-sky-500 resize-y"
+                  className="block w-full min-h-[140px] rounded-lg border border-gray-300 shadow-sm text-sm placeholder-gray-400 focus:border-brand-lime focus:ring-brand-lime resize-y"
                 />
               </div>
             </div>
@@ -900,7 +901,7 @@ export default function PlantTable({
                 type="button"
                 onClick={saveEdit}
                 disabled={saving}
-                className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-lg hover:bg-sky-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-navy rounded-lg hover:bg-brand-navy-700 disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
               </button>

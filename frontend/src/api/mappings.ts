@@ -162,7 +162,7 @@ export function rerunOcr(photoId: string): Promise<MappingPhoto> {
 /**
  * Resolve a mapping photo URL.
  *   "thumb" → 480px WebP  (thumbnail grids, filmstrip)
- *   "print" → 1200px WebP (print report — readable at 2-col A4/letter)
+ *   "print" → original file (full-bleed print sheets need max detail)
  *   undefined → original  (lightbox main view)
  */
 export function photoUrl(
@@ -171,6 +171,7 @@ export function photoUrl(
   size?: "thumb" | "print"
 ): string {
   if (size === "thumb") return `/thumb/mappings/${machineId}/${filename}?s=sm`;
-  if (size === "print") return `/thumb/mappings/${machineId}/${filename}?s=md`;
+  // Print uses the original so large 1–2-up sheets stay sharp on letter/PDF
+  if (size === "print") return `/uploads/mappings/${machineId}/${filename}`;
   return `/uploads/mappings/${machineId}/${filename}`;
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { fetchPlants, updatePlant, type Plant } from "../api/plants";
 import CompleteFollowUpModal from "../components/CompleteFollowUpModal";
 import FollowUpHistoryModal from "../components/FollowUpHistoryModal";
+import PageHeader from "../components/PageHeader";
 
 function getTodayMidnight(): Date {
   const d = new Date();
@@ -93,7 +94,7 @@ function EditFollowUpModal({ plant, onClose, onSaved }: EditFollowUpModalProps) 
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                className="block w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime"
               />
             </div>
             <div>
@@ -101,7 +102,7 @@ function EditFollowUpModal({ plant, onClose, onSaved }: EditFollowUpModalProps) 
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 bg-white text-sm px-3 py-2 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                className="block w-full rounded-lg border border-gray-300 bg-white text-sm px-3 py-2 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime"
               >
                 <option value="">— none —</option>
                 <option value="call">Call</option>
@@ -118,12 +119,12 @@ function EditFollowUpModal({ plant, onClose, onSaved }: EditFollowUpModalProps) 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="What to discuss, context…"
-              className="block w-full rounded-lg border border-gray-300 text-sm px-3 py-2 placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+              className="block w-full rounded-lg border border-gray-300 text-sm px-3 py-2 placeholder-gray-400 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime"
             />
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-lg hover:bg-sky-700 disabled:opacity-50">
+            <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-brand-navy rounded-lg hover:bg-brand-navy-700 disabled:opacity-50">
               {saving ? "Saving…" : "Save"}
             </button>
           </div>
@@ -151,7 +152,7 @@ interface SectionConfig {
 
 const SECTIONS: SectionConfig[] = [
   { key: "overdue", label: "Overdue", dotClass: "bg-red-500", badgeClass: "text-red-700 bg-red-50" },
-  { key: "today", label: "Due today", dotClass: "bg-sky-500", badgeClass: "text-sky-700 bg-sky-50" },
+  { key: "today", label: "Due today", dotClass: "bg-brand-navy-600", badgeClass: "text-brand-navy-600 bg-brand-navy/5" },
   { key: "week", label: "Due this week", dotClass: "bg-amber-400", badgeClass: "text-amber-700 bg-amber-50" },
   { key: "scheduled", label: "Upcoming", dotClass: "bg-gray-300", badgeClass: "text-gray-600 bg-gray-50" },
 ];
@@ -160,7 +161,7 @@ const SECTIONS: SectionConfig[] = [
 
 const DOT_COLORS: Record<Section, string> = {
   overdue: "bg-red-500",
-  today: "bg-sky-500",
+  today: "bg-brand-navy-600",
   week: "bg-amber-400",
   scheduled: "bg-gray-300",
 };
@@ -241,7 +242,7 @@ function MiniCalendar({ plants }: MiniCalendarProps) {
           return (
             <div key={i} className="flex flex-col items-center justify-center h-7">
               <span className={`text-[11px] w-5 h-5 flex items-center justify-center rounded-full leading-none font-medium ${
-                isToday ? "bg-sky-600 text-white" : "text-gray-600"
+                isToday ? "bg-brand-navy text-white" : "text-gray-600"
               }`}>
                 {day}
               </span>
@@ -319,21 +320,23 @@ export default function FollowUpsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Follow-ups</h1>
-        {!loading && (
-          <p className="text-sm text-gray-500 mt-1">
-            {totalCount === 0
-              ? "No follow-ups scheduled"
-              : `${totalCount} follow-up${totalCount === 1 ? "" : "s"} scheduled`}
-            {sections.overdue.length > 0 && (
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                {sections.overdue.length} overdue
-              </span>
-            )}
-          </p>
-        )}
-      </div>
+      <PageHeader
+        title="Follow-ups"
+        subtitle={
+          !loading ? (
+            <>
+              {totalCount === 0
+                ? "No follow-ups scheduled"
+                : `${totalCount} follow-up${totalCount === 1 ? "" : "s"} scheduled`}
+              {sections.overdue.length > 0 && (
+                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                  {sections.overdue.length} overdue
+                </span>
+              )}
+            </>
+          ) : undefined
+        }
+      />
 
       {loading ? (
         <div className="space-y-2">

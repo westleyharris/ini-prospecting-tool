@@ -1,3 +1,37 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Engineering drawing sheet — used by mapping report view */
+@layer utilities {
+  .eng-grid {
+    background-color: #f4f6f2;
+    background-image:
+      linear-gradient(rgba(0, 24, 46, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 24, 46, 0.05) 1px, transparent 1px),
+      linear-gradient(rgba(0, 24, 46, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 24, 46, 0.1) 1px, transparent 1px);
+    background-size: 12px 12px, 12px 12px, 60px 60px, 60px 60px;
+  }
+}
+
+/* Hide app chrome when printing a mapping report */
+@media print {
+  aside,
+  header,
+  .mapping-screen-only {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  main > div {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body {
+    background: #fff !important;
+    margin: 0 !important;
+  }
+}

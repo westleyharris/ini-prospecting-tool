@@ -109,7 +109,7 @@ export default function PlantProjects({ plant, onClose, onUpdate }: PlantProject
                 <button
                   type="submit"
                   disabled={creating}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-brand-navy text-white rounded-md hover:bg-brand-navy-700 disabled:opacity-50"
                 >
                   {creating ? "Creating..." : "Create project"}
                 </button>

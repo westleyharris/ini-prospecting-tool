@@ -98,7 +98,7 @@ export default function CompleteFollowUpModal({ plant, onClose, onCompleted }: C
             <select
               value={outcome}
               onChange={(e) => setOutcome(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+              className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-brand-lime focus:ring-1 focus:ring-brand-lime"
             >
               {OUTCOME_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -115,7 +115,7 @@ export default function CompleteFollowUpModal({ plant, onClose, onCompleted }: C
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Who you spoke with, what was discussed, next steps…"
-              className="block w-full rounded-lg border border-gray-300 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 resize-none px-3 py-2"
+              className="block w-full rounded-lg border border-gray-300 text-sm placeholder-gray-400 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime resize-none px-3 py-2"
             />
           </div>
 
@@ -125,7 +125,7 @@ export default function CompleteFollowUpModal({ plant, onClose, onCompleted }: C
                 type="checkbox"
                 checked={scheduleNext}
                 onChange={(e) => setScheduleNext(e.target.checked)}
-                className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                className="rounded border-gray-300 text-brand-navy-600 focus:ring-brand-lime"
               />
               <span className="text-sm font-medium text-gray-700">Schedule next follow-up</span>
             </label>
@@ -137,7 +137,7 @@ export default function CompleteFollowUpModal({ plant, onClose, onCompleted }: C
                     type="date"
                     value={nextDate}
                     onChange={(e) => setNextDate(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-300 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2"
+                    className="block w-full rounded-lg border border-gray-300 text-sm focus:border-brand-lime focus:ring-1 focus:ring-brand-lime px-3 py-2"
                   />
                 </div>
                 <div>
@@ -145,7 +145,7 @@ export default function CompleteFollowUpModal({ plant, onClose, onCompleted }: C
                   <select
                     value={nextType}
                     onChange={(e) => setNextType(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-300 bg-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2"
+                    className="block w-full rounded-lg border border-gray-300 bg-white text-sm focus:border-brand-lime focus:ring-1 focus:ring-brand-lime px-3 py-2"
                   >
                     {TYPE_OPTIONS.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>

@@ -77,7 +77,7 @@ export default function AddPlantModal({ onClose, onAdded }: AddPlantModalProps) 
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Company or plant name"
-              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime"
               required
             />
           </div>
@@ -88,7 +88,7 @@ export default function AddPlantModal({ onClose, onAdded }: AddPlantModalProps) 
               value={formattedAddress}
               onChange={(e) => setFormattedAddress(e.target.value)}
               placeholder="Street address"
-              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -99,7 +99,7 @@ export default function AddPlantModal({ onClose, onAdded }: AddPlantModalProps) 
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="City"
-                className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+                className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime"
               />
             </div>
             <div>
@@ -109,7 +109,7 @@ export default function AddPlantModal({ onClose, onAdded }: AddPlantModalProps) 
                 value={state}
                 onChange={(e) => setState(e.target.value)}
                 placeholder="State"
-                className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+                className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime"
               />
             </div>
           </div>
@@ -120,7 +120,7 @@ export default function AddPlantModal({ onClose, onAdded }: AddPlantModalProps) 
               value={postalCode}
               onChange={(e) => setPostalCode(e.target.value)}
               placeholder="ZIP / postal code"
-              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime"
             />
           </div>
           <div>
@@ -130,7 +130,7 @@ export default function AddPlantModal({ onClose, onAdded }: AddPlantModalProps) 
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone number"
-              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime"
             />
           </div>
           <div>
@@ -140,7 +140,7 @@ export default function AddPlantModal({ onClose, onAdded }: AddPlantModalProps) 
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               placeholder="https://..."
-              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime"
             />
           </div>
           <div>
@@ -150,7 +150,7 @@ export default function AddPlantModal({ onClose, onAdded }: AddPlantModalProps) 
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder="Optional notes..."
-              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">
@@ -164,7 +164,7 @@ export default function AddPlantModal({ onClose, onAdded }: AddPlantModalProps) 
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-brand-navy text-white rounded-md hover:bg-brand-navy-700 disabled:opacity-50"
             >
               {saving ? "Adding..." : "Add plant"}
             </button>

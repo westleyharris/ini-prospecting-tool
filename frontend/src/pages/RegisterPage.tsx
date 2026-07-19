@@ -19,7 +19,7 @@ export default function RegisterPage() {
 
     const domain = email.trim().toLowerCase().split("@")[1];
     if (!ALLOWED_DOMAINS.includes(domain)) {
-      setError("Not valid email domain");
+      setError("Registration is limited to company email addresses.");
       return;
     }
     if (password.length < 8) {
@@ -43,22 +43,34 @@ export default function RegisterPage() {
   };
 
   if (authLoading) {
-    return <div className="min-h-screen bg-gray-50" />;
+    return <div className="min-h-screen bg-brand-navy" />;
   }
   if (user) {
     return <Navigate to="/" replace />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        {/* Logo / title */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">I&amp;I Prospecting</h1>
-          <p className="text-sm text-gray-500 mt-1">Create your account</p>
+    <div className="relative min-h-screen bg-brand-navy flex items-center justify-center px-4 py-10">
+      {/* Dot-grid backdrop */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: "radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)",
+          backgroundSize: "22px 22px",
+        }}
+      />
+
+      <div className="relative w-full max-w-sm">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <img src="/brand/logo-horizontal-white.svg" alt="I&I Automation" className="h-12 w-auto" />
+          <p className="mt-3 text-[10px] font-black uppercase tracking-[0.25em] text-brand-lime">
+            Internal Platform
+          </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-8 py-8">
+        <div className="bg-white rounded-2xl shadow-2xl px-8 py-8">
+          <h1 className="text-lg font-bold text-brand-navy mb-5">Create your account</h1>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -70,11 +82,11 @@ export default function RegisterPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="you@ini-automation.com"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-transparent"
               />
               <p className="mt-1.5 text-xs text-gray-500">
-                not allowed domain
+                Company email addresses only.
               </p>
             </div>
 
@@ -89,7 +101,7 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 8 characters"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-transparent"
               />
             </div>
 
@@ -104,7 +116,7 @@ export default function RegisterPage() {
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-transparent"
               />
             </div>
 
@@ -117,7 +129,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-brand-lime text-brand-navy rounded-lg py-2.5 text-sm font-bold hover:bg-brand-lime-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {submitting ? "Creating account..." : "Create account"}
             </button>
@@ -125,11 +137,15 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Already have an account?{" "}
-            <Link to="/login" className="text-blue-600 hover:underline font-medium">
+            <Link to="/login" className="text-brand-navy font-semibold hover:underline">
               Sign in
             </Link>
           </p>
         </div>
+
+        <p className="text-center text-[11px] text-white/30 mt-6">
+          I&amp;I Automation · Control Engineering
+        </p>
       </div>
     </div>
   );

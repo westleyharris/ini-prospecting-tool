@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { fetchProjects, type Project } from "../api/projects";
 import { fetchPlants, type Plant } from "../api/plants";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import { HiBriefcase } from "react-icons/hi2";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -38,10 +41,10 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
-      <p className="text-gray-600">
-        Quotations with PR numbers. Create projects from the Dashboard via plant → Projects.
-      </p>
+      <PageHeader
+        title="Projects"
+        subtitle="Quotations with PR numbers. Create projects from the Dashboard via plant → Projects."
+      />
 
       <div className="flex flex-wrap gap-4 items-end">
         <div>
@@ -52,7 +55,7 @@ export default function ProjectsPage() {
             id="plant-filter"
             value={plantFilter}
             onChange={(e) => setPlantFilter(e.target.value)}
-            className="rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500 min-w-[200px]"
+            className="rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime min-w-[200px]"
           >
             <option value="">All plants</option>
             {plants.map((p) => (
@@ -72,7 +75,11 @@ export default function ProjectsPage() {
             <div className="h-4 bg-gray-200 rounded w-1/2" />
           </div>
         ) : projects.length === 0 ? (
-          <p className="p-8 text-gray-500 text-center">No projects yet.</p>
+          <EmptyState
+            Icon={HiBriefcase}
+            title="No projects yet"
+            hint="Create a project from the Dashboard via a plant's Projects button."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -125,7 +132,7 @@ export default function ProjectsPage() {
                     <td className="px-4 py-3 text-right">
                       <Link
                         to={`/projects/${p.id}`}
-                        className="text-blue-600 hover:underline text-sm"
+                        className="text-brand-navy-600 hover:underline text-sm"
                       >
                         Open
                       </Link>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Solid navy tile — readable on light browser chrome -->
+  <rect width="32" height="32" rx="6" fill="#00182e"/>
+  <!-- Simplified robot mark, oversized to fill the tile at 16–32px -->
+  <g fill="#acec00">
+    <!-- Side ears -->
+    <rect x="3" y="12" width="3" height="7" rx="0.5"/>
+    <rect x="26" y="12" width="3" height="7" rx="0.5"/>
+    <!-- Head -->
+    <rect x="6.5" y="7" width="19" height="16" rx="3.5"/>
+    <!-- Eyes (navy cutouts) -->
+    <rect x="10.5" y="12.5" width="4" height="4" fill="#00182e"/>
+    <rect x="17.5" y="12.5" width="4" height="4" fill="#00182e"/>
+  </g>
+</svg>

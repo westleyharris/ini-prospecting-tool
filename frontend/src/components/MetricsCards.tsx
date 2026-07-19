@@ -22,7 +22,7 @@ export default function MetricsCards({ metrics, loading }: MetricsCardsProps) {
   if (!metrics) return null;
 
   const cards: { label: string; value: number; color: string }[] = [
-    { label: "Total Plants", value: metrics.total, color: "text-blue-600" },
+    { label: "Total Plants", value: metrics.total, color: "text-brand-navy-600" },
     { label: "Contacted", value: metrics.contacted, color: "text-green-600" },
     {
       label: "Current Customers",
@@ -35,7 +35,7 @@ export default function MetricsCards({ metrics, loading }: MetricsCardsProps) {
       color: "text-amber-600",
     },
     { label: "New This Week", value: metrics.newThisWeek, color: "text-purple-600" },
-    { label: "Visits", value: metrics.totalVisits ?? 0, color: "text-sky-600" },
+    { label: "Visits", value: metrics.totalVisits ?? 0, color: "text-brand-navy-600" },
     { label: "Projects", value: metrics.totalProjects ?? 0, color: "text-indigo-600" },
     { label: "Commissionings", value: metrics.totalCommissionings ?? 0, color: "text-teal-600" },
   ];

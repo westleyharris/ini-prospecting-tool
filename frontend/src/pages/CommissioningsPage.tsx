@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { fetchCommissionings, type Commissioning } from "../api/commissionings";
 import { fetchPlants, type Plant } from "../api/plants";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import { HiWrenchScrewdriver } from "react-icons/hi2";
 
 export default function CommissioningsPage() {
   const [commissionings, setCommissionings] = useState<Commissioning[]>([]);
@@ -38,10 +41,10 @@ export default function CommissioningsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Commissionings</h1>
-      <p className="text-gray-600">
-        Projects converted to commissionings after PO received (COMM numbers).
-      </p>
+      <PageHeader
+        title="Commissionings"
+        subtitle="Projects converted to commissionings after PO received (COMM numbers)."
+      />
 
       <div className="flex flex-wrap gap-4 items-end">
         <div>
@@ -52,7 +55,7 @@ export default function CommissioningsPage() {
             id="plant-filter"
             value={plantFilter}
             onChange={(e) => setPlantFilter(e.target.value)}
-            className="rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500 min-w-[200px]"
+            className="rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-lime focus:ring-brand-lime min-w-[200px]"
           >
             <option value="">All plants</option>
             {plants.map((p) => (
@@ -72,7 +75,11 @@ export default function CommissioningsPage() {
             <div className="h-4 bg-gray-200 rounded w-1/2" />
           </div>
         ) : commissionings.length === 0 ? (
-          <p className="p-8 text-gray-500 text-center">No commissionings yet.</p>
+          <EmptyState
+            Icon={HiWrenchScrewdriver}
+            title="No commissionings yet"
+            hint="Convert a won project to a commissioning to see it here."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">

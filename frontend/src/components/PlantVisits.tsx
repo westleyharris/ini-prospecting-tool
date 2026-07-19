@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { HiDocument } from "react-icons/hi2";
 import type { Plant } from "../api/plants";
 import {
   fetchVisits,
@@ -188,7 +189,7 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
           <button
             type="button"
             onClick={() => setShowAddForm((v) => !v)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-brand-navy text-white rounded-md hover:bg-brand-navy-700"
           >
             {showAddForm ? "Cancel" : "Add visit"}
           </button>
@@ -238,7 +239,7 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-150"
+                      className="bg-brand-navy h-2 rounded-full transition-all duration-150"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
@@ -247,7 +248,7 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
               <button
                 type="submit"
                 disabled={adding}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-brand-navy text-white rounded-md hover:bg-brand-navy-700 disabled:opacity-50"
               >
                 {adding ? (uploadProgress !== null ? `Uploading ${uploadProgress}%…` : "Saving…") : "Save visit"}
               </button>
@@ -276,9 +277,9 @@ export default function PlantVisits({ plant, onClose, onUpdate }: PlantVisitsPro
                               key={f.id}
                               href={getVisitFileUrl(visit.id, f.filename)}
                               download={f.original_name}
-                              className="block text-sm text-blue-600 hover:underline"
+                              className="inline-flex items-center gap-1.5 text-sm text-brand-navy-600 hover:underline"
                             >
-                              📄 {f.original_name}
+                              <HiDocument className="w-4 h-4 shrink-0" /> {f.original_name}
                             </a>
                           ))}
                         </div>

@@ -188,19 +188,19 @@ function PlantPopup({
       <p className="text-sm text-gray-600 mt-1">{plant.formatted_address ?? ""}</p>
       {plant.phone && (
         <p className="text-sm mt-1">
-          <a href={`tel:${plant.phone}`} className="text-blue-600 hover:underline">
+          <a href={`tel:${plant.phone}`} className="text-brand-navy-600 hover:underline">
             {plant.phone}
           </a>
         </p>
       )}
       <div className="mt-2 flex flex-wrap gap-1">
         {plant.website && (
-          <a href={plant.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+          <a href={plant.website} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-navy-600 hover:underline">
             Website
           </a>
         )}
         {plant.google_maps_uri && (
-          <a href={plant.google_maps_uri} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+          <a href={plant.google_maps_uri} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-navy-600 hover:underline">
             Maps
           </a>
         )}
@@ -238,7 +238,7 @@ function PlantPopup({
           className={`mt-2 w-full py-1.5 text-xs font-medium rounded transition-colors ${
             inRoute
               ? "border border-red-300 text-red-600 hover:bg-red-50"
-              : "bg-blue-600 text-white hover:bg-blue-700"
+              : "bg-brand-navy text-white hover:bg-brand-navy-700"
           }`}
         >
           {inRoute ? "Remove from Route" : "Add to Route"}

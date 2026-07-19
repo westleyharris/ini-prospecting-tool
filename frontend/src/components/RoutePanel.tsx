@@ -67,7 +67,7 @@ export default function RoutePanel({
           routePlants.map((plant, idx) => (
             <div key={plant.id} className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50">
               {/* Number badge */}
-              <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+              <div className="w-5 h-5 rounded-full bg-brand-navy text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                 {idx + 1}
               </div>
 
@@ -133,7 +133,7 @@ export default function RoutePanel({
             href={mapsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 w-full py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center justify-center gap-1.5 w-full py-2 text-sm font-medium text-white bg-brand-navy rounded-lg hover:bg-brand-navy-700 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />

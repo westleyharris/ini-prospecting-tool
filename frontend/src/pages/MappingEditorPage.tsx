@@ -31,7 +31,7 @@ function EOLBadge({ note, successor, eolYear }: { note: string; successor?: stri
         {successor && (
           <div className="mt-1.5 pt-1.5 border-t border-white/10">
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">Recommended replacement</p>
-            <p className="text-green-400 font-bold mt-0.5">{successor}</p>
+            <p className="text-brand-lime font-bold mt-0.5">{successor}</p>
           </div>
         )}
       </div>
@@ -115,7 +115,7 @@ function FieldGroup({
         ))}
         <div className="flex gap-2 pt-1">
           <button onClick={save} disabled={saving}
-            className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+            className="flex-1 py-2 bg-brand-navy text-white rounded-lg text-sm font-medium hover:bg-brand-navy-700 disabled:opacity-50">
             {saving ? "Saving…" : "Save"}
           </button>
           <button onClick={() => setEditing(false)}
@@ -176,7 +176,7 @@ function NotesField({ value, onSave }: { value: string; onSave: (v: string) => P
           className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400" />
         <div className="flex gap-2">
           <button onClick={save} disabled={saving}
-            className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+            className="px-4 py-1.5 bg-brand-navy text-white rounded-lg text-sm hover:bg-brand-navy-700 disabled:opacity-50">
             {saving ? "Saving…" : "Save"}
           </button>
           <button onClick={() => setEditing(false)} className="px-4 py-1.5 text-gray-500 text-sm">Cancel</button>
@@ -304,7 +304,7 @@ function PhotoSection({
               }
               <span className="leading-tight text-center text-[11px]">{cat.label}</span>
               {count > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blue-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-brand-navy text-white rounded-full text-[10px] flex items-center justify-center font-bold">
                   {count}
                 </span>
               )}
@@ -330,7 +330,7 @@ function PhotoSection({
               }
               <span className="leading-tight text-center text-[11px]">Other</span>
               {count > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blue-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-brand-navy text-white rounded-full text-[10px] flex items-center justify-center font-bold">
                   {count}
                 </span>
               )}
@@ -384,7 +384,7 @@ function PhotoSection({
             className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
           />
           <button onClick={handleOtherCapture}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 shrink-0">
+            className="px-3 py-1.5 bg-brand-navy text-white rounded-lg text-xs font-medium hover:bg-brand-navy-700 shrink-0">
             Capture
           </button>
           <button onClick={() => setShowOtherInput(false)} className="p-1 text-gray-400 hover:text-gray-600">
@@ -505,38 +505,41 @@ function MachineCard({
   const photoCount = (machine.photos ?? []).length;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-100">
-        <span className="w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
-          {index + 1}
-        </span>
+    <div className="bg-white border-2 border-brand-navy overflow-hidden">
+      {/* Header — equipment tag strip */}
+      <div className="flex items-center gap-2.5 px-3 py-2.5 bg-[#f4f6f2] border-b-2 border-brand-navy">
+        <div className="flex items-stretch shrink-0 border border-brand-navy">
+          <div className="flex items-center justify-center px-1.5 bg-brand-lime font-mono text-[10px] font-bold text-brand-navy">M</div>
+          <div className="flex items-center justify-center px-2 bg-white font-mono text-[11px] font-bold text-brand-navy border-l border-brand-navy">
+            {String(index + 1).padStart(2, "0")}
+          </div>
+        </div>
 
         {editingName ? (
           <input autoFocus value={nameVal} onChange={(e) => setNameVal(e.target.value)}
             onBlur={saveName}
             onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }}
-            className="flex-1 bg-white border border-blue-300 rounded-lg px-3 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            className="flex-1 bg-white border border-brand-navy px-2 py-1 font-mono text-sm font-bold uppercase focus:outline-none focus:ring-2 focus:ring-brand-lime" />
         ) : (
           <button onClick={() => { setNameVal(machine.name); setEditingName(true); }}
-            className="flex-1 text-left font-semibold text-gray-900 text-sm hover:text-blue-600 flex items-center gap-1.5">
+            className="flex-1 text-left font-mono font-bold text-brand-navy text-sm uppercase tracking-wide hover:text-brand-navy-600 flex items-center gap-1.5">
             {machine.name}
-            <HiPencil className="w-3.5 h-3.5 text-gray-300" />
+            <HiPencil className="w-3.5 h-3.5 text-brand-navy/25" />
           </button>
         )}
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           {photoCount > 0 && (
-            <span className="flex items-center gap-1 text-xs text-gray-400">
+            <span className="flex items-center gap-1 font-mono text-[10px] font-bold text-brand-navy/40">
               <HiPhoto className="w-3.5 h-3.5" />{photoCount}
             </span>
           )}
           <button onClick={() => setExpanded((v) => !v)}
-            className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400" title={expanded ? "Collapse" : "Expand"}>
+            className="p-1.5 hover:bg-brand-navy/5 text-brand-navy/40" title={expanded ? "Collapse" : "Expand"}>
             <HiChevronDown className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
           </button>
           <button onClick={() => { if (confirm(`Remove machine "${machine.name}"?`)) onDelete(); }}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-500" title="Delete machine">
+            className="p-1.5 hover:bg-red-50 text-brand-navy/25 hover:text-red-500" title="Delete machine">
             <HiTrash className="w-4 h-4" />
           </button>
         </div>
@@ -596,37 +599,41 @@ function MachineCard({
 }
 
 // ─── Print view ───────────────────────────────────────────────────────────────
-// Renders outside the screen wrapper; @media print reveals it and hides the UI.
+// Full-bleed engineering drawing sheet. Hidden on screen; revealed by @media print.
 function PrintView({ mapping }: { mapping: Mapping }) {
   const machines = mapping.machines ?? [];
   const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
   const eolCount    = machines.filter((m) => checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series).obsolete).length;
   const plcCount    = machines.filter((m) => m.plc_make || m.plc_model).length;
   const driveCount  = machines.filter((m) => m.vfd_make || m.vfd_model || m.servo_drive_make).length;
-  const reportDate  = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-  const printUrl    = typeof window !== "undefined" ? window.location.href : "";
+  const reportDate  = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  const dwgNo       = `MAP-${mapping.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+
+  const INK  = "#00182e";
+  const LIME = "#acec00";
+  const HAIR = "rgba(0,24,46,0.22)";
 
   const CAT_PRINT = {
-    machine: { label: "Machine Overview",  borderColor: "#6b7280", bgColor: "#f9fafb", textColor: "#374151" },
-    plc:     { label: "PLC",               borderColor: "#3b82f6", bgColor: "#eff6ff", textColor: "#1d4ed8" },
-    hmi:     { label: "HMI",               borderColor: "#8b5cf6", bgColor: "#f5f3ff", textColor: "#6d28d9" },
-    vfd:     { label: "VFD",               borderColor: "#f59e0b", bgColor: "#fffbeb", textColor: "#b45309" },
-    servo:   { label: "Servo",             borderColor: "#16a34a", bgColor: "#f0fdf4", textColor: "#15803d" },
-    other:   { label: "Other",             borderColor: "#9ca3af", bgColor: "#f9fafb", textColor: "#6b7280" },
+    machine: { label: "Machine Overview", accent: "#374151" },
+    plc:     { label: "PLC",              accent: "#1d4ed8" },
+    hmi:     { label: "HMI",              accent: "#6d28d9" },
+    vfd:     { label: "VFD",              accent: "#b45309" },
+    servo:   { label: "Servo",            accent: "#15803d" },
+    other:   { label: "Other",            accent: "#6b7280" },
   } as const;
   type CatKey = keyof typeof CAT_PRINT;
 
-  function getCatSpecs(machine: MappingMachine, cat: CatKey): { label: string; value: string; mono?: boolean }[] {
+  function getCatSpecs(machine: MappingMachine, cat: CatKey): { label: string; value: string }[] {
     if (cat === "plc") return [
       { label: "Make",   value: machine.plc_make   ?? "" },
       { label: "Model",  value: machine.plc_model  ?? "" },
       { label: "Series", value: machine.plc_series ?? "" },
-      { label: "P/N",    value: machine.plc_part_no ?? "", mono: true },
+      { label: "P/N",    value: machine.plc_part_no ?? "" },
     ].filter((s) => s.value);
     if (cat === "hmi") return [
       { label: "Make",  value: machine.hmi_make   ?? "" },
       { label: "Model", value: machine.hmi_model  ?? "" },
-      { label: "P/N",   value: machine.hmi_part_no ?? "", mono: true },
+      { label: "P/N",   value: machine.hmi_part_no ?? "" },
     ].filter((s) => s.value);
     if (cat === "vfd") return [
       { label: "Make",    value: machine.vfd_make    ?? "" },
@@ -639,44 +646,50 @@ function PrintView({ mapping }: { mapping: Mapping }) {
       { label: "Drive Model", value: machine.servo_drive_model ?? "" },
       { label: "Motor Make",  value: machine.servo_motor_make  ?? "" },
       { label: "Motor Model", value: machine.servo_motor_model ?? "" },
-      { label: "Motor P/N",   value: machine.servo_motor_part_no ?? "", mono: true },
+      { label: "Motor P/N",   value: machine.servo_motor_part_no ?? "" },
     ].filter((s) => s.value);
     return [];
   }
 
-  // Bordered engineering spec table — same visual language as the screen view
   function SpecDataTable({ specs, eolResult }: {
-    specs: { label: string; value: string; mono?: boolean }[];
+    specs: { label: string; value: string }[];
     eolResult?: ReturnType<typeof checkPLCObsolete>;
   }) {
     return (
       <div>
-        <div style={{ border: "1px solid #e5e7eb" }}>
-          {specs.map((spec, i) => (
-            <div key={spec.label} style={{ display: "flex", borderTop: i > 0 ? "1px solid #e5e7eb" : "none" }}>
-              <div style={{
-                width: 80, flexShrink: 0, background: "#f9fafb",
-                borderRight: "1px solid #e5e7eb",
-                padding: "7px 10px", display: "flex", alignItems: "center",
-              }}>
-                <span style={{ fontSize: 7, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.12em", color: "#9ca3af" }}>{spec.label}</span>
-              </div>
-              <div style={{ padding: "7px 10px", flex: 1, background: "#fff", display: "flex", alignItems: "center" }}>
-                <span style={{
-                  fontSize: 12, fontWeight: 700, color: "#111827",
-                  fontFamily: spec.mono ? "'Courier New', monospace" : "inherit",
-                }}>{spec.value}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", border: `1.5px solid ${INK}` }}>
+          <tbody>
+            {specs.map((spec) => (
+              <tr key={spec.label}>
+                <td style={{
+                  width: 88, padding: "6px 10px", background: "rgba(0,24,46,0.04)",
+                  borderRight: `1px solid ${HAIR}`, borderTop: `1px solid ${HAIR}`,
+                  fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
+                  fontSize: 8, fontWeight: 700, textTransform: "uppercase",
+                  letterSpacing: "0.12em", color: INK, opacity: 0.5,
+                }}>{spec.label}</td>
+                <td style={{
+                  padding: "6px 10px", borderTop: `1px solid ${HAIR}`,
+                  fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
+                  fontSize: 13, fontWeight: 700, color: INK,
+                }}>{spec.value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
         {eolResult?.obsolete && (
-          <div style={{ marginTop: 7, background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 3, padding: "7px 10px" }}>
-            <div style={{ fontSize: 8, fontWeight: 900, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 2 }}>⚠ End of Life</div>
-            <div style={{ fontSize: 9, color: "#78350f", lineHeight: 1.5 }}>{eolResult.note}</div>
+          <div style={{
+            marginTop: 8, background: "#fef3c7", border: "1.5px solid #d97706",
+            padding: "8px 10px",
+          }}>
+            <div style={{
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 900,
+              color: "#92400e", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 3,
+            }}>⚠ End of Life — Replacement Recommended</div>
+            <div style={{ fontSize: 10, color: "#78350f", lineHeight: 1.45 }}>{eolResult.note}</div>
             {eolResult.successor && (
-              <div style={{ marginTop: 3, fontSize: 9, color: "#065f46" }}>
-                <span style={{ fontWeight: 700 }}>Successor: </span>{eolResult.successor}
+              <div style={{ marginTop: 4, fontSize: 10, color: "#065f46", fontWeight: 700 }}>
+                Successor: {eolResult.successor}
               </div>
             )}
           </div>
@@ -685,14 +698,17 @@ function PrintView({ mapping }: { mapping: Mapping }) {
     );
   }
 
-  // Photo grid — 2 columns with filename captions below each image
-  function PhotoGrid({ photos, wide }: { photos: MappingPhoto[]; wide?: boolean }) {
+  /** Large print photos — 1-up when alone, 2-up otherwise. Tall enough to read details. */
+  function PhotoGrid({ photos, size = "lg" }: { photos: MappingPhoto[]; size?: "lg" | "xl" }) {
+    const n = photos.length;
+    const cols = n === 1 ? 1 : 2;
+    const minH = size === "xl" ? (n === 1 ? "4.2in" : "3.1in") : (n === 1 ? "3.4in" : "2.6in");
     return (
       <div style={{
         display: "grid",
-        gridTemplateColumns: wide ? "repeat(3, 1fr)" : "repeat(2, 1fr)",
-        gap: 10,
-        padding: 12,
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gap: 8,
+        padding: 8,
       }}>
         {photos.map((photo) => (
           <div key={photo.id} style={{ breakInside: "avoid" }}>
@@ -701,15 +717,16 @@ function PrintView({ mapping }: { mapping: Mapping }) {
               alt={photo.original_name}
               style={{
                 width: "100%", display: "block",
-                aspectRatio: "4/3", objectFit: "cover",
-                border: "1px solid #d1d5db", borderRadius: 3,
+                minHeight: minH, maxHeight: n === 1 ? "5.5in" : "3.8in",
+                objectFit: "contain", objectPosition: "center",
+                background: "#f0f2ef",
+                border: `1.5px solid ${INK}`,
               }}
             />
             <div style={{
-              fontSize: 7, color: "#9ca3af", marginTop: 3,
-              textAlign: "center", overflow: "hidden",
-              textOverflow: "ellipsis", whiteSpace: "nowrap",
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 8, color: INK, opacity: 0.45, marginTop: 3,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
               {photo.original_name}
             </div>
@@ -719,138 +736,230 @@ function PrintView({ mapping }: { mapping: Mapping }) {
     );
   }
 
+  function SectionBar({ label, accent, right }: { label: string; accent: string; right?: string }) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "5px 10px",
+        background: "rgba(0,24,46,0.04)",
+        borderTop: `1px solid ${HAIR}`,
+        borderBottom: `1px solid ${HAIR}`,
+      }}>
+        <span style={{ width: 8, height: 8, background: accent, flexShrink: 0 }} />
+        <span style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700,
+          textTransform: "uppercase", letterSpacing: "0.16em", color: INK,
+        }}>{label}</span>
+        <div style={{ flex: 1, height: 1, background: HAIR }} />
+        {right && (
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, fontWeight: 700,
+            color: INK, opacity: 0.4,
+          }}>{right}</span>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <style>{`
-        @media screen { .mapping-print-root { display: none; } }
-        @media print  {
-          .mapping-print-root { display: block; }
-          .mapping-screen-only { display: none !important; }
-          body { margin: 0; }
-          @page { margin: 0.5in 0.55in 0.6in; size: letter portrait; }
+        @media screen {
+          .mapping-print-root { display: none !important; }
         }
-        @media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
-        .print-page-break { break-before: page; }
+        @media print {
+          .mapping-print-root { display: block !important; }
+          .mapping-screen-only { display: none !important; }
+          html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+          /* Near-zero margins — content fills the letter page. User should also set Margins: None/Minimum in the dialog. */
+          @page { margin: 0.2in; size: letter portrait; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .print-page-break { break-before: page; page-break-before: always; }
+          .print-avoid-break { break-inside: avoid; page-break-inside: avoid; }
+          img { max-width: 100% !important; }
+        }
       `}</style>
 
-      <div className="mapping-print-root" style={{ fontFamily: "Arial, 'Helvetica Neue', sans-serif", fontSize: 11, color: "#111827", lineHeight: 1.4 }}>
+      <div className="mapping-print-root" style={{
+        fontFamily: "'IBM Plex Sans', Arial, sans-serif",
+        fontSize: 11, color: INK, lineHeight: 1.35,
+        width: "100%", boxSizing: "border-box",
+      }}>
 
-        {/* ══════════ TITLE BLOCK ══════════ */}
-        <div style={{ marginBottom: 24, border: "2px solid #166534" }}>
-
-          {/* Branding strip */}
+        {/* ══════════ COVER / TITLE SHEET ══════════ */}
+        <div style={{ border: `2.5px solid ${INK}`, marginBottom: 14 }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "6px 16px", background: "#021a0d", borderBottom: "1px solid #14532d",
+            padding: "7px 12px", background: INK,
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.12em", color: "#4ade80", textTransform: "uppercase" }}>I&amp;I Automation</span>
-              <span style={{ color: "#166534", fontSize: 14 }}>·</span>
-              <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.22em", color: "#86efac", textTransform: "uppercase" }}>Equipment Mapping Report</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 8, height: 8, background: LIME }} />
+              <span style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700,
+                letterSpacing: "0.18em", color: LIME, textTransform: "uppercase",
+              }}>I&amp;I Automation · Equipment Mapping Drawing</span>
             </div>
-            <span style={{ fontSize: 8, color: "#4ade80", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>Confidential</span>
+            <span style={{
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600,
+              letterSpacing: "0.12em", color: "rgba(255,255,255,0.45)", textTransform: "uppercase",
+            }}>DWG {dwgNo}</span>
           </div>
 
-          {/* Title + stats row */}
-          <div style={{ display: "flex", alignItems: "flex-start", padding: "16px 16px 0", background: "#052e16", gap: 20 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 26, fontWeight: 900, color: "#ffffff", lineHeight: 1.1, letterSpacing: "-0.02em" }}>
-                {mapping.plant_name || mapping.name}
-              </div>
-              {mapping.plant_name && (
-                <div style={{ fontSize: 13, color: "#86efac", marginTop: 5, fontWeight: 600 }}>{mapping.name}</div>
-              )}
-              {(mapping.city || mapping.state) && (
-                <div style={{ fontSize: 11, color: "#4ade80", marginTop: 3 }}>
-                  {[mapping.city, mapping.state].filter(Boolean).join(", ")}
+          <div style={{ display: "flex", alignItems: "stretch" }}>
+            <div style={{ flex: 1, padding: "14px 14px 12px", borderRight: `1px solid ${HAIR}` }}>
+              <div style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: "0.18em", color: INK, opacity: 0.4, marginBottom: 4,
+              }}>Sheet Title</div>
+              <div style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 22, fontWeight: 700,
+                textTransform: "uppercase", lineHeight: 1.1, color: INK,
+              }}>{mapping.name}</div>
+              {(mapping.plant_name || mapping.city) && (
+                <div style={{
+                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 500,
+                  marginTop: 6, textTransform: "uppercase", letterSpacing: "0.06em",
+                  color: INK, opacity: 0.55,
+                }}>
+                  {mapping.plant_name}{mapping.city ? `  ·  ${mapping.city}, ${mapping.state}` : ""}
                 </div>
               )}
             </div>
-            {/* Stats boxes */}
-            <div style={{ display: "flex", border: "1px solid #166534", background: "rgba(0,0,0,0.25)", flexShrink: 0, alignSelf: "flex-start", marginTop: 4 }}>
+            <div style={{ display: "flex", flexShrink: 0 }}>
               {[
-                { n: machines.length, l: "Machines" },
-                { n: totalPhotos,     l: "Photos"   },
-                { n: plcCount,        l: "PLCs"     },
-                { n: driveCount,      l: "Drives"   },
+                { n: machines.length, l: "MACH" },
+                { n: totalPhotos, l: "PHOT" },
+                { n: plcCount, l: "PLC" },
+                { n: driveCount, l: "DRV" },
               ].map(({ n, l }, i) => (
-                <div key={l} style={{ padding: "10px 18px", textAlign: "center", borderLeft: i > 0 ? "1px solid #166534" : "none", minWidth: 56 }}>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: "#ffffff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{n}</div>
-                  <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: "#4ade80", marginTop: 3 }}>{l}</div>
+                <div key={l} style={{
+                  minWidth: 58, padding: "10px 12px", textAlign: "center",
+                  borderLeft: i > 0 ? `1px solid ${HAIR}` : "none",
+                  display: "flex", flexDirection: "column", justifyContent: "center",
+                }}>
+                  <div style={{
+                    fontFamily: "'IBM Plex Mono', monospace", fontSize: 22, fontWeight: 700,
+                    lineHeight: 1, color: INK, fontVariantNumeric: "tabular-nums",
+                  }}>{String(n).padStart(2, "0")}</div>
+                  <div style={{
+                    fontFamily: "'IBM Plex Mono', monospace", fontSize: 7, fontWeight: 700,
+                    textTransform: "uppercase", letterSpacing: "0.18em",
+                    color: INK, opacity: 0.45, marginTop: 4,
+                  }}>{l}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Engineering title-block footer row */}
-          <div style={{ display: "flex", borderTop: "1px solid #14532d", marginTop: 14, background: "#052e16" }}>
-            <div style={{ flex: 1, padding: "7px 16px", borderRight: "1px solid #14532d" }}>
-              <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#166534", marginBottom: 1 }}>Prepared By</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#4ade80" }}>I&amp;I Automation</div>
-            </div>
-            {eolCount > 0 ? (
-              <div style={{ flex: 2, padding: "7px 16px", background: "rgba(217,119,6,0.15)", borderRight: "1px solid #14532d" }}>
-                <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#92400e", marginBottom: 1 }}>EOL Alert</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24" }}>
-                  ⚠ {eolCount} End-of-Life PLC{eolCount !== 1 ? "s" : ""} Detected — Replacement Recommended
-                </div>
+          <div style={{ display: "flex", borderTop: `1px solid ${HAIR}` }}>
+            {[
+              { l: "Prepared by", v: "I&I Automation" },
+              { l: "Date", v: reportDate },
+              { l: "Rev", v: "A" },
+              { l: "Scale", v: "NTS" },
+            ].map((c) => (
+              <div key={c.l} style={{ padding: "6px 12px", borderRight: `1px solid ${HAIR}`, minWidth: 90 }}>
+                <div style={{
+                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 7, fontWeight: 700,
+                  textTransform: "uppercase", letterSpacing: "0.16em", color: INK, opacity: 0.4,
+                }}>{c.l}</div>
+                <div style={{
+                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700,
+                  color: INK, marginTop: 2,
+                }}>{c.v}</div>
               </div>
-            ) : (
-              <div style={{ flex: 2, padding: "7px 16px", borderRight: "1px solid #14532d" }}>
-                <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#166534", marginBottom: 1 }}>Status</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#4ade80" }}>No EOL equipment detected</div>
-              </div>
-            )}
-            <div style={{ padding: "7px 16px", minWidth: 130 }}>
-              <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#166534", marginBottom: 1 }}>Date</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#4ade80", fontFamily: "'Courier New', monospace" }}>{reportDate}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* ══════════ EQUIPMENT INDEX ══════════ */}
-        <div style={{ marginBottom: 24, border: "1px solid #e5e7eb" }}>
-          <div style={{
-            padding: "5px 12px", background: "#f9fafb", borderBottom: "1px solid #e5e7eb",
-            fontSize: 8, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.2em", color: "#6b7280",
-          }}>
-            Equipment Index — {machines.length} Machine{machines.length !== 1 ? "s" : ""} · {totalPhotos} Photos
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
-            {machines.map((m, i) => {
-              const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
-              const col = i % 3;
-              const row = Math.floor(i / 3);
-              const totalRows = Math.ceil(machines.length / 3);
-              return (
-                <div key={m.id} style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "6px 12px",
-                  borderRight: col < 2 ? "1px solid #e5e7eb" : "none",
-                  borderBottom: row < totalRows - 1 ? "1px solid #e5e7eb" : "none",
+            ))}
+            <div style={{ flex: 1, padding: "6px 12px", display: "flex", alignItems: "center" }}>
+              {eolCount > 0 ? (
+                <span style={{
+                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700,
+                  textTransform: "uppercase", letterSpacing: "0.06em",
+                  color: "#92400e", background: "#fef3c7", border: "1.5px solid #d97706",
+                  padding: "3px 8px",
                 }}>
-                  <span style={{ fontSize: 10, fontWeight: 900, color: "#166534", fontFamily: "'Courier New', monospace", minWidth: 22 }}>
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "#111827", flex: 1 }}>{m.name}</span>
-                  {mEol.obsolete && (
-                    <span style={{
-                      fontSize: 7, fontWeight: 900, color: "#92400e",
-                      background: "#fef3c7", padding: "1px 4px", borderRadius: 2,
-                      textTransform: "uppercase", letterSpacing: "0.08em", border: "1px solid #fbbf24",
-                    }}>EOL</span>
-                  )}
-                </div>
-              );
-            })}
+                  ⚠ {eolCount} EOL PLC{eolCount !== 1 ? "S" : ""} — REPLACE
+                </span>
+              ) : (
+                <span style={{
+                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600,
+                  textTransform: "uppercase", letterSpacing: "0.08em", color: INK, opacity: 0.4,
+                }}>No EOL equipment</span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* ══════════ MACHINE SECTIONS ══════════ */}
+        {/* ══════════ BOM / EQUIPMENT INDEX ══════════ */}
+        <div style={{ marginBottom: 14, border: `1.5px solid ${INK}` }}>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "5px 10px", background: INK,
+          }}>
+            <span style={{
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700,
+              letterSpacing: "0.18em", color: LIME, textTransform: "uppercase",
+            }}>BOM / Equipment Index</span>
+            <span style={{
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 8,
+              color: "rgba(255,255,255,0.4)",
+            }}>{machines.length} machines · {totalPhotos} photos</span>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "rgba(0,24,46,0.04)" }}>
+                {["Item", "Description", "Plant Tag", "Photos", "Flag"].map((h) => (
+                  <th key={h} style={{
+                    textAlign: "left", padding: "4px 10px",
+                    fontFamily: "'IBM Plex Mono', monospace", fontSize: 7, fontWeight: 700,
+                    textTransform: "uppercase", letterSpacing: "0.14em",
+                    color: INK, opacity: 0.4, borderBottom: `1px solid ${HAIR}`,
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {machines.map((m, i) => {
+                const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
+                return (
+                  <tr key={m.id}>
+                    <td style={{
+                      padding: "5px 10px", borderBottom: `1px solid ${HAIR}`,
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, color: INK,
+                      width: 48,
+                    }}>{String(i + 1).padStart(2, "0")}</td>
+                    <td style={{
+                      padding: "5px 10px", borderBottom: `1px solid ${HAIR}`,
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700,
+                      textTransform: "uppercase", color: INK,
+                    }}>{m.name}</td>
+                    <td style={{
+                      padding: "5px 10px", borderBottom: `1px solid ${HAIR}`,
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: INK, opacity: 0.5,
+                    }}>M-{String(i + 1).padStart(2, "0")}</td>
+                    <td style={{
+                      padding: "5px 10px", borderBottom: `1px solid ${HAIR}`,
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: INK, opacity: 0.5,
+                      width: 56,
+                    }}>{(m.photos ?? []).length}</td>
+                    <td style={{ padding: "5px 10px", borderBottom: `1px solid ${HAIR}`, width: 56 }}>
+                      {mEol.obsolete && (
+                        <span style={{
+                          fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, fontWeight: 700,
+                          color: "#92400e", background: "#fef3c7", border: "1px solid #d97706",
+                          padding: "1px 5px",
+                        }}>EOL</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ══════════ MACHINE SHEETS ══════════ */}
         {machines.map((machine, idx) => {
           const photos = machine.photos ?? [];
-
-          // Group photos by category
           const photosByCat: Partial<Record<CatKey, MappingPhoto[]>> = {};
           for (const p of photos) {
             const k = p.category as CatKey;
@@ -860,7 +969,6 @@ function PrintView({ mapping }: { mapping: Mapping }) {
           const orderedCats = (["machine", "plc", "hmi", "vfd", "servo"] as CatKey[])
             .filter((k) => (photosByCat[k] ?? []).length > 0);
 
-          // "other" photos grouped by custom label
           const otherPhotos = photos.filter((p) => p.category === "other");
           const otherGroups: { label: string; photos: MappingPhoto[] }[] = [];
           for (const p of otherPhotos) {
@@ -877,121 +985,93 @@ function PrintView({ mapping }: { mapping: Mapping }) {
           const machineEol = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
 
           return (
-            <div key={machine.id} className={idx > 0 ? "print-page-break" : ""} style={{ marginBottom: 32 }}>
+            <div key={machine.id} className={idx > 0 ? "print-page-break" : ""} style={{ marginBottom: 10 }}>
 
-              {/* ── Machine header bar ── */}
-              <div style={{ display: "flex", alignItems: "stretch", background: "#052e16", border: "2px solid #166534" }}>
-                {/* ISA-style equipment tag */}
-                <div style={{
-                  display: "flex", alignItems: "stretch", flexShrink: 0,
-                  borderRight: "2px solid #4ade80",
-                }}>
+              {/* Machine title bar */}
+              <div style={{
+                display: "flex", alignItems: "stretch",
+                border: `2px solid ${INK}`, background: "rgba(0,24,46,0.03)",
+              }}>
+                <div style={{ display: "flex", alignItems: "stretch", flexShrink: 0, borderRight: `2px solid ${INK}` }}>
                   <div style={{
-                    background: "#4ade80", color: "#052e16",
-                    padding: "0 8px", fontSize: 9, fontWeight: 900,
-                    fontFamily: "'Courier New', monospace",
-                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: LIME, color: INK, padding: "0 8px",
+                    fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 900,
+                    display: "flex", alignItems: "center",
                   }}>M</div>
                   <div style={{
-                    background: "#fff", color: "#111827",
-                    padding: "0 12px", fontSize: 16, fontWeight: 900,
-                    fontFamily: "'Courier New', monospace",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    minWidth: 44,
-                  }}>
-                    {String(idx + 1).padStart(2, "0")}
-                  </div>
+                    background: "#fff", color: INK, padding: "0 14px",
+                    fontFamily: "'IBM Plex Mono', monospace", fontSize: 18, fontWeight: 700,
+                    display: "flex", alignItems: "center", borderLeft: `1.5px solid ${INK}`,
+                  }}>{String(idx + 1).padStart(2, "0")}</div>
                 </div>
-
-                <div style={{ flex: 1, padding: "10px 16px" }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1.1 }}>
-                    {machine.name}
-                  </div>
+                <div style={{ flex: 1, padding: "8px 12px" }}>
+                  <div style={{
+                    fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700,
+                    textTransform: "uppercase", letterSpacing: "0.1em", color: INK, lineHeight: 1.15,
+                  }}>{machine.name}</div>
                   {machine.notes && (
-                    <div style={{ fontSize: 9, color: "#86efac", marginTop: 3, fontStyle: "italic" }}>{machine.notes}</div>
+                    <div style={{
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
+                      color: INK, opacity: 0.45, marginTop: 2, fontStyle: "italic",
+                    }}>{machine.notes}</div>
                   )}
                 </div>
-
-                <div style={{ padding: "10px 16px", display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: 4 }}>
+                <div style={{
+                  padding: "8px 12px", display: "flex", flexDirection: "column",
+                  alignItems: "flex-end", justifyContent: "center", gap: 3,
+                }}>
                   {photos.length > 0 && (
-                    <div style={{ fontSize: 9, color: "#4ade80", fontWeight: 700 }}>
-                      {photos.length} Photo{photos.length !== 1 ? "s" : ""}
-                    </div>
+                    <div style={{
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700,
+                      color: INK, opacity: 0.5,
+                    }}>{photos.length} PHOTO{photos.length !== 1 ? "S" : ""}</div>
                   )}
                   {machineEol.obsolete && (
                     <div style={{
-                      fontSize: 8, fontWeight: 900, color: "#fbbf24",
-                      background: "rgba(217,119,6,0.2)", padding: "2px 7px",
-                      borderRadius: 2, textTransform: "uppercase", letterSpacing: "0.08em",
-                    }}>⚠ EOL PLC</div>
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, fontWeight: 900,
+                      color: "#92400e", background: "#fef3c7", border: "1.5px solid #d97706",
+                      padding: "2px 6px", textTransform: "uppercase",
+                    }}>EOL PLC</div>
                   )}
                 </div>
               </div>
 
-              {/* ── Category sections ── */}
-              <div style={{ border: "1px solid #e5e7eb", borderTop: "2px solid #166534" }}>
-
+              <div style={{ border: `1.5px solid ${INK}`, borderTop: "none" }}>
                 {orderedCats.map((catKey) => {
                   const meta = CAT_PRINT[catKey];
                   const catPhotos = photosByCat[catKey] ?? [];
                   const specs = getCatSpecs(machine, catKey);
                   const isSpecCat = catKey === "plc" || catKey === "hmi" || catKey === "vfd" || catKey === "servo";
+                  const isOverview = catKey === "machine";
 
                   return (
-                    <div key={catKey} style={{ borderBottom: "1px solid #e5e7eb", breakInside: "avoid" }}>
-                      {/* Section header */}
-                      <div style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "5px 12px", background: meta.bgColor,
-                        borderLeft: `4px solid ${meta.borderColor}`, borderBottom: "1px solid #e5e7eb",
-                      }}>
-                        <span style={{ fontSize: 8, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.2em", color: meta.textColor }}>
-                          {meta.label}
-                        </span>
-                        <span style={{ fontSize: 8, color: "#9ca3af", fontFamily: "'Courier New', monospace" }}>
-                          {catPhotos.length} photo{catPhotos.length !== 1 ? "s" : ""}
-                          {isSpecCat && specs.length > 0 ? ` · ${specs.length} field${specs.length !== 1 ? "s" : ""}` : ""}
-                        </span>
-                      </div>
-
-                      {/* Section body: photos left, specs right for spec categories */}
-                      <div style={{ display: "flex", alignItems: "flex-start" }}>
-                        {/* Photos */}
-                        <div style={{ flex: isSpecCat ? "1 1 55%" : "1 1 100%", borderRight: isSpecCat && specs.length > 0 ? "1px solid #e5e7eb" : "none" }}>
-                          <PhotoGrid photos={catPhotos} wide={!isSpecCat && catPhotos.length >= 3} />
+                    <div key={catKey} className="print-avoid-break" style={{ borderBottom: `1px solid ${HAIR}` }}>
+                      <SectionBar
+                        label={meta.label}
+                        accent={meta.accent}
+                        right={`${catPhotos.length} PHOTO${catPhotos.length !== 1 ? "S" : ""}${isSpecCat && specs.length ? ` · ${specs.length} FIELDS` : ""}`}
+                      />
+                      {/* Photos first & large — then specs full-width underneath */}
+                      <PhotoGrid photos={catPhotos} size={isOverview ? "xl" : "lg"} />
+                      {isSpecCat && specs.length > 0 && (
+                        <div style={{ padding: "0 8px 10px" }}>
+                          <SpecDataTable
+                            specs={specs}
+                            eolResult={catKey === "plc" ? machineEol : undefined}
+                          />
                         </div>
-
-                        {/* Spec data table */}
-                        {isSpecCat && (
-                          <div style={{ flex: "0 0 45%", padding: 12 }}>
-                            {specs.length > 0 ? (
-                              <SpecDataTable
-                                specs={specs}
-                                eolResult={catKey === "plc" ? machineEol : undefined}
-                              />
-                            ) : (
-                              <div style={{ fontSize: 10, color: "#d1d5db", fontStyle: "italic", padding: "8px 0" }}>No specs recorded</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
                   );
                 })}
 
-                {/* Spec-only sections (specs exist but no photos for that category) */}
                 {specOnlyCats.map((catKey) => {
                   const meta = CAT_PRINT[catKey];
                   const specs = getCatSpecs(machine, catKey);
                   return (
-                    <div key={`spec-${catKey}`} style={{ borderBottom: "1px solid #e5e7eb", breakInside: "avoid" }}>
-                      <div style={{
-                        padding: "5px 12px", background: meta.bgColor,
-                        borderLeft: `4px solid ${meta.borderColor}`, borderBottom: "1px solid #e5e7eb",
-                      }}>
-                        <span style={{ fontSize: 8, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.2em", color: meta.textColor }}>{meta.label}</span>
-                      </div>
-                      <div style={{ padding: 12 }}>
+                    <div key={`spec-${catKey}`} className="print-avoid-break" style={{ borderBottom: `1px solid ${HAIR}` }}>
+                      <SectionBar label={meta.label} accent={meta.accent} />
+                      <div style={{ padding: 10 }}>
                         <SpecDataTable
                           specs={specs}
                           eolResult={catKey === "plc" ? machineEol : undefined}
@@ -1001,46 +1081,42 @@ function PrintView({ mapping }: { mapping: Mapping }) {
                   );
                 })}
 
-                {/* "Other" photo groups */}
                 {otherGroups.map((group) => (
-                  <div key={group.label} style={{ borderBottom: "1px solid #e5e7eb", breakInside: "avoid" }}>
-                    <div style={{
-                      padding: "5px 12px", background: "#f9fafb",
-                      borderLeft: "4px solid #9ca3af", borderBottom: "1px solid #e5e7eb",
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                    }}>
-                      <span style={{ fontSize: 8, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.2em", color: "#6b7280" }}>{group.label}</span>
-                      <span style={{ fontSize: 8, color: "#9ca3af", fontFamily: "'Courier New', monospace" }}>{group.photos.length} photo{group.photos.length !== 1 ? "s" : ""}</span>
-                    </div>
-                    <PhotoGrid photos={group.photos} wide={group.photos.length >= 3} />
+                  <div key={group.label} className="print-avoid-break" style={{ borderBottom: `1px solid ${HAIR}` }}>
+                    <SectionBar
+                      label={group.label}
+                      accent="#6b7280"
+                      right={`${group.photos.length} PHOTO${group.photos.length !== 1 ? "S" : ""}`}
+                    />
+                    <PhotoGrid photos={group.photos} size="lg" />
                   </div>
                 ))}
 
                 {orderedCats.length === 0 && otherGroups.length === 0 && !hasSpecs && (
-                  <div style={{ padding: "14px 16px", color: "#9ca3af", fontSize: 11, fontStyle: "italic" }}>
+                  <div style={{
+                    padding: "16px", fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 10, color: INK, opacity: 0.35, textTransform: "uppercase",
+                  }}>
                     No photos or specs recorded for this machine.
                   </div>
                 )}
               </div>
+
+              {/* Per-sheet footer */}
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "4px 10px", background: INK, marginTop: 0,
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 7,
+                letterSpacing: "0.12em", textTransform: "uppercase",
+                color: "rgba(255,255,255,0.4)",
+              }}>
+                <span>I&amp;I Automation · Control Engineering</span>
+                <span style={{ color: "rgba(172,236,0,0.7)" }}>Do not scale · NTS</span>
+                <span>M-{String(idx + 1).padStart(2, "0")} · {dwgNo} · Rev A</span>
+              </div>
             </div>
           );
         })}
-
-        {/* ══════════ DOCUMENT FOOTER ══════════ */}
-        <div style={{
-          marginTop: 24, paddingTop: 10,
-          borderTop: "2px solid #e5e7eb",
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          fontSize: 8, color: "#9ca3af",
-        }}>
-          <div>
-            <span style={{ fontWeight: 900, color: "#166534" }}>I&amp;I Automation</span>
-            {" "}· Equipment Mapping Report · {mapping.plant_name || mapping.name}
-          </div>
-          <div style={{ fontFamily: "'Courier New', monospace", fontSize: 7 }}>{printUrl}</div>
-          <div>Printed {new Date().toLocaleDateString()}</div>
-        </div>
-
       </div>
     </>
   );
@@ -1052,20 +1128,18 @@ function PhotoTile({ photo, onClick }: { photo: MappingPhoto; onClick: () => voi
   const [err, setErr] = useState(false);
   return (
     <button type="button" onClick={onClick}
-      className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 hover:ring-2 hover:ring-green-500 hover:ring-offset-2 transition-all duration-200 group shadow-sm">
+      className="relative aspect-square overflow-hidden bg-gray-100 hover:outline hover:outline-2 hover:outline-brand-lime group"
+      style={{ border: "1px solid rgba(0,24,46,0.35)" }}>
       {err ? (
         <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gray-50 gap-1">
-          <HiCamera className="w-7 h-7" />
-          <span className="text-[9px] text-gray-300">No image</span>
+          <HiCamera className="w-5 h-5" />
+          <span className="font-mono text-[8px]">NO IMG</span>
         </div>
       ) : (
-        <>
-          <img src={photoUrl(photo.machine_id, photo.filename, "thumb")} alt={photo.original_name}
-            loading="lazy" decoding="async"
-            onError={() => setErr(true)}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-        </>
+        <img src={photoUrl(photo.machine_id, photo.filename, "thumb")} alt={photo.original_name}
+          loading="lazy" decoding="async"
+          onError={() => setErr(true)}
+          className="w-full h-full object-cover" />
       )}
     </button>
   );
@@ -1105,6 +1179,36 @@ function specRows(m: MappingMachine, cat: SpecCatKey): { label: string; value: s
     { label: "Motor Model", value: m.servo_motor_model ?? "" },
     { label: "Motor P/N",   value: m.servo_motor_part_no ?? "" },
   ].filter((f) => f.value);
+}
+
+// Engineering-drawing palette — navy ink on drafting paper
+const INK   = "#00182e";
+const HAIR  = "rgba(0,24,46,0.28)";
+const FAINT = "rgba(0,24,46,0.04)";
+const LIME  = "#acec00";
+
+function TBCell({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  return (
+    <div className="px-3 py-1.5 min-w-[7rem]" style={{ borderLeft: `1px solid ${HAIR}` }}>
+      <p className="font-mono text-[8px] font-bold uppercase tracking-[0.18em]" style={{ color: INK, opacity: 0.45 }}>
+        {label}
+      </p>
+      <p className={`text-[12px] font-bold mt-0.5 truncate leading-tight ${mono ? "font-mono" : ""}`} style={{ color: INK }}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+/** Corner registration mark — like a CAD sheet crop mark */
+function CropMark({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
+  const h = pos.includes("l") ? "left-0" : "right-0";
+  const v = pos.includes("t") ? "top-0" : "bottom-0";
+  const barH = pos.includes("l") ? "border-l-2" : "border-r-2";
+  const barV = pos.includes("t") ? "border-t-2" : "border-b-2";
+  return (
+    <div className={`absolute ${h} ${v} w-3 h-3 ${barH} ${barV}`} style={{ borderColor: INK }} aria-hidden />
+  );
 }
 
 function MappingView({ mapping }: { mapping: Mapping }) {
@@ -1148,40 +1252,48 @@ function MappingView({ mapping }: { mapping: Mapping }) {
   const eolCount    = machines.filter((m) => checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series).obsolete).length;
   const reportDate  = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
-  // Spec table rendered as bordered engineering data cells
+  // Spec table — drafting-style ruled data cells
   function SpecTable({ rows, catKey, plcEol }: {
     rows: { label: string; value: string }[];
     catKey: SpecCatKey;
     plcEol?: ReturnType<typeof checkPLCObsolete>;
   }) {
     const meta = SPEC_META[catKey];
-    const SIcon = meta.Icon;
     return (
       <div>
-        <div className="flex items-center gap-1.5 mb-2">
-          <div className="w-4 h-4 flex items-center justify-center shrink-0"
-            style={{ background: meta.bg, color: meta.accent, borderRadius: 2 }}>
-            <SIcon className="w-2.5 h-2.5" />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: meta.text }}>{meta.label}</span>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span className="w-2 h-2 shrink-0" style={{ background: meta.accent }} />
+          <span className="font-mono text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: INK }}>{meta.label}</span>
           {catKey === "plc" && plcEol?.obsolete && (
             <EOLBadge note={plcEol.note!} successor={plcEol.successor} eolYear={plcEol.eolYear} />
           )}
         </div>
-        <div style={{ border: "1px solid #e5e7eb" }}>
+        <div style={{ border: `1px solid ${HAIR}` }}>
           {rows.map((r, i) => (
             <div key={r.label} className="flex items-stretch"
-              style={{ borderTop: i > 0 ? "1px solid #e5e7eb" : undefined }}>
-              <div className="flex items-center px-2.5 shrink-0"
-                style={{ width: 88, background: "#f9fafb", borderRight: "1px solid #e5e7eb", minHeight: 30 }}>
-                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 leading-tight">{r.label}</span>
+              style={{ borderTop: i > 0 ? `1px solid ${HAIR}` : undefined }}>
+              <div className="flex items-center px-2 shrink-0"
+                style={{ width: 84, background: FAINT, borderRight: `1px solid ${HAIR}`, minHeight: 26 }}>
+                <span className="text-[9px] font-black uppercase tracking-widest leading-tight" style={{ color: INK, opacity: 0.55 }}>{r.label}</span>
               </div>
-              <div className="flex items-center px-3 py-1.5 flex-1 bg-white">
-                <span className="text-sm font-bold text-gray-900 font-mono leading-snug">{r.value}</span>
+              <div className="flex items-center px-2.5 py-1 flex-1 bg-white">
+                <span className="text-[13px] font-bold font-mono leading-snug" style={{ color: INK }}>{r.value}</span>
               </div>
             </div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  function SectionRule({ no, title, right }: { no: string; title: string; right?: string }) {
+    return (
+      <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1"
+        style={{ background: FAINT, borderTop: `1px solid ${HAIR}`, borderBottom: `1px solid ${HAIR}` }}>
+        <span className="font-mono text-[10px] font-bold tabular-nums" style={{ color: INK }}>{no}</span>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: INK, opacity: 0.6 }}>{title}</span>
+        <div className="flex-1 h-px" style={{ background: HAIR }} />
+        {right && <span className="font-mono text-[9px] font-bold" style={{ color: INK, opacity: 0.4 }}>{right}</span>}
       </div>
     );
   }
@@ -1206,271 +1318,310 @@ function MappingView({ mapping }: { mapping: Mapping }) {
     return groups;
   }
 
+  const dwgNo = `MAP-${mapping.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  const plcCount = machines.filter((m) => m.plc_make || m.plc_model).length;
+  const driveCount = machines.filter((m) => m.vfd_make || m.servo_drive_make).length;
+
   return (
     <>
-      {/* True viewport-width breakout */}
-      <div style={{ width: "100vw", marginLeft: "calc(-50vw + 50%)", position: "relative" }}
-        className="-mt-4 sm:-mt-8">
+      {/* Full-bleed engineering sheet */}
+      <div className="-mx-3 sm:-mx-6 lg:-mx-8 -mt-2 relative eng-grid min-h-[70vh]">
+        {/* Outer drawing border */}
+        <div className="relative m-2 sm:m-3" style={{ border: `2px solid ${INK}`, background: "rgba(255,255,255,0.82)" }}>
+          <CropMark pos="tl" />
+          <CropMark pos="tr" />
+          <CropMark pos="bl" />
+          <CropMark pos="br" />
 
-        {/* ── Report header ── */}
-        <div className="relative overflow-hidden" style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 100%)" }}>
-          <div className="absolute inset-0 pointer-events-none"
-            style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
-          <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 px-5 sm:px-8 py-5">
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 mb-1">Equipment Mapping Report</p>
-              <h1 className="text-white font-black text-xl sm:text-2xl leading-tight truncate">{mapping.name}</h1>
-              {(mapping.plant_name || mapping.city) && (
-                <p className="text-green-300 text-sm mt-0.5">
-                  {mapping.plant_name}{mapping.city ? ` · ${mapping.city}, ${mapping.state}` : ""}
+          {/* ── Title block ── */}
+          <div style={{ borderBottom: `2px solid ${INK}` }}>
+            <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-1" style={{ background: INK }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 shrink-0" style={{ background: LIME }} />
+                <span className="font-mono text-[9px] font-bold uppercase tracking-[0.22em] truncate text-brand-lime">
+                  I&amp;I Automation · Equipment Mapping Drawing
+                </span>
+              </div>
+              <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] shrink-0 text-white/50">
+                DWG {dwgNo}
+              </span>
+            </div>
+
+            <div className="flex flex-col lg:flex-row lg:items-stretch">
+              <div className="flex-1 min-w-0 px-3 sm:px-4 py-3 flex flex-col justify-center" style={{ borderRight: `1px solid ${HAIR}` }}>
+                <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] mb-1" style={{ color: INK, opacity: 0.4 }}>
+                  Sheet Title
                 </p>
-              )}
-            </div>
-            <div className="flex gap-5 sm:gap-8 shrink-0">
-              {[
-                { n: machines.length, l: "Machines", Icon: HiCog8Tooth, c: "#4ade80" },
-                { n: totalPhotos,     l: "Photos",   Icon: HiPhoto,     c: "#86efac" },
-                { n: machines.filter(m => m.plc_make || m.plc_model).length, l: "PLCs", Icon: HiCpuChip, c: "#93c5fd" },
-                { n: machines.filter(m => m.vfd_make || m.servo_drive_make).length, l: "Drives", Icon: HiBolt, c: "#fcd34d" },
-              ].map(({ n, l, Icon, c }) => (
-                <div key={l} className="text-center">
-                  <div className="text-3xl font-black text-white tabular-nums leading-none">{n}</div>
-                  <div className="flex items-center justify-center gap-1 mt-1">
-                    <Icon className="w-3 h-3" style={{ color: c }} />
-                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: c }}>{l}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Drawing title-block footer row */}
-          <div className="relative border-t border-white/10 px-5 sm:px-8 py-2 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-6">
-              <div>
-                <p className="text-[8px] font-black uppercase tracking-widest text-green-700">Prepared by</p>
-                <p className="text-[11px] font-bold text-green-400">I&amp;I Automation</p>
+                <h1 className="font-mono font-bold text-xl sm:text-2xl uppercase leading-none" style={{ color: INK }}>
+                  {mapping.name}
+                </h1>
+                {(mapping.plant_name || mapping.city) && (
+                  <p className="font-mono text-[11px] font-medium mt-1.5 uppercase tracking-[0.08em]" style={{ color: INK, opacity: 0.55 }}>
+                    {mapping.plant_name}{mapping.city ? `  ·  ${mapping.city}, ${mapping.state}` : ""}
+                  </p>
+                )}
               </div>
-              {eolCount > 0 && (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded"
-                  style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.3)" }}>
-                  <span className="text-[10px] font-black text-amber-400">⚠</span>
-                  <span className="text-[10px] font-bold text-amber-400">{eolCount} EOL PLC{eolCount > 1 ? "s" : ""} detected</span>
-                </div>
-              )}
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-[8px] font-black uppercase tracking-widest text-green-700">Date</p>
-              <p className="text-[11px] font-mono font-bold text-green-400">{reportDate}</p>
-            </div>
-          </div>
 
-          {/* Mobile tab strip */}
-          <div className="lg:hidden border-t border-white/10 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            <div className="flex min-w-max px-4">
-              {machines.map((m, i) => {
-                const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
-                return (
-                  <button key={m.id}
-                    onClick={() => { setActiveTab(m.id); document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
-                    className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold border-b-2 transition-all whitespace-nowrap ${
-                      activeTab === m.id ? "border-green-400 text-green-300" : "border-transparent text-white/40 hover:text-white/70"
-                    }`}>
-                    <span className="font-mono opacity-60">{String(i + 1).padStart(2, "0")}</span>
-                    <span className="uppercase tracking-wide">{m.name}</span>
-                    {mEol.obsolete && <span className="text-amber-400 text-[9px] font-black">EOL</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Two-panel layout: sidebar + content ── */}
-        <div className="flex">
-
-          {/* Dark sticky sidebar — desktop only */}
-          <aside className="hidden lg:flex flex-col shrink-0 bg-gray-950 border-r border-gray-800"
-            style={{ width: 210, position: "sticky", top: 0, height: "100vh", overflowY: "auto" }}>
-            <div className="px-3 py-3 border-b border-gray-800">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-600">Equipment Index</p>
-              <p className="text-[10px] text-gray-600 mt-0.5 font-mono">{machines.length} machines · {totalPhotos} photos</p>
-            </div>
-            <nav className="flex-1 py-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-              {machines.map((m, i) => {
-                const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
-                const isActive = activeTab === m.id;
-                return (
-                  <button key={m.id}
-                    onClick={() => { setActiveTab(m.id); document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
-                    className="w-full text-left flex items-center gap-2 px-3 py-2.5 transition-all border-l-2"
-                    style={{
-                      borderLeftColor: isActive ? "#4ade80" : "transparent",
-                      background: isActive ? "rgba(20,83,45,0.35)" : undefined,
-                    }}>
-                    <span className="font-mono text-[10px] shrink-0 tabular-nums"
-                      style={{ color: isActive ? "#4ade80" : "#374151" }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span className={`text-xs font-bold uppercase tracking-wide flex-1 min-w-0 truncate leading-tight ${isActive ? "text-green-300" : "text-gray-500"}`}>
-                      {m.name}
-                    </span>
-                    {mEol.obsolete && (
-                      <span className="text-[9px] font-black text-amber-500 shrink-0">EOL</span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-            {/* Legend */}
-            <div className="px-3 py-3 border-t border-gray-800">
-              <p className="text-[8px] font-black uppercase tracking-[0.18em] text-gray-700 mb-2">Legend</p>
-              {[
-                { dot: "#3b82f6", label: "PLC / Control System" },
-                { dot: "#8b5cf6", label: "HMI / Operator Panel" },
-                { dot: "#f59e0b", label: "VFD / Variable Drive" },
-                { dot: "#22c55e", label: "Servo System" },
-              ].map((l) => (
-                <div key={l.label} className="flex items-center gap-2 mb-1.5">
-                  <div className="w-2 h-2 shrink-0" style={{ background: l.dot, borderRadius: 1 }} />
-                  <span className="text-[9px] text-gray-600 font-medium leading-tight">{l.label}</span>
-                </div>
-              ))}
-              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-800">
-                <div className="w-2 h-2 shrink-0 bg-amber-500" style={{ borderRadius: 1 }} />
-                <span className="text-[9px] text-amber-600 font-black">EOL = Vendor discontinued</span>
+              {/* Quantity block — like a parts count table */}
+              <div className="grid grid-cols-4 shrink-0" style={{ borderTop: `1px solid ${HAIR}` }}>
+                {[
+                  { n: machines.length, l: "MACH" },
+                  { n: totalPhotos, l: "PHOT" },
+                  { n: plcCount, l: "PLC" },
+                  { n: driveCount, l: "DRV" },
+                ].map(({ n, l }, i) => (
+                  <div key={l} className="flex flex-col items-center justify-center px-3 py-2.5 min-w-[4.5rem]"
+                    style={{ borderLeft: i > 0 ? `1px solid ${HAIR}` : undefined }}>
+                    <div className="font-mono text-2xl font-bold tabular-nums leading-none" style={{ color: INK }}>
+                      {String(n).padStart(2, "0")}
+                    </div>
+                    <div className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] mt-1" style={{ color: INK, opacity: 0.45 }}>{l}</div>
+                  </div>
+                ))}
               </div>
             </div>
-          </aside>
 
-          {/* Main content — graph-paper background */}
-          <div className="flex-1 min-w-0 divide-y-2 divide-gray-300"
-            style={{ background: "#f1f5f1", backgroundImage: "radial-gradient(rgba(0,0,0,0.055) 1px, transparent 1px)", backgroundSize: "18px 18px" }}>
-            {machines.map((machine, idx) => {
-              const groups    = buildGroups(machine);
-              const allPhotos = groups.flatMap((g) => g.photos);
-              const ctrlCats  = (["plc", "hmi"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
-              const driveCats = (["vfd", "servo"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
-              const hasSpecs  = ctrlCats.length > 0 || driveCats.length > 0;
-              const plcEol    = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
+            <div className="flex flex-wrap items-stretch" style={{ borderTop: `1px solid ${HAIR}` }}>
+              <TBCell label="Prepared by" value="I&I Automation" />
+              <TBCell label="Date" value={reportDate} mono />
+              <TBCell label="Rev" value="A" mono />
+              <TBCell label="Scale" value="NTS" mono />
+              <div className="flex-1 flex items-center px-3 py-1.5 min-w-0" style={{ borderLeft: `1px solid ${HAIR}` }}>
+                {eolCount > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-amber-900 bg-amber-100"
+                    style={{ border: `1.5px solid #d97706` }}>
+                    ⚠ {eolCount} EOL PLC{eolCount > 1 ? "S" : ""} — REPLACE
+                  </span>
+                ) : (
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: INK, opacity: 0.45 }}>
+                    No EOL equipment
+                  </span>
+                )}
+              </div>
+            </div>
 
-              return (
-                <div id={`mv-${machine.id}`} key={machine.id} className="bg-white"
-                  style={{ borderLeft: `4px solid ${plcEol.obsolete ? "#f59e0b" : "#166534"}` }}
-                  onClick={() => setActiveTab(machine.id)}>
+            {/* Mobile machine tabs */}
+            <div className="lg:hidden overflow-x-auto" style={{ scrollbarWidth: "none", borderTop: `1px solid ${HAIR}` }}>
+              <div className="flex min-w-max">
+                {machines.map((m, i) => {
+                  const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
+                  const isActive = activeTab === m.id;
+                  return (
+                    <button key={m.id}
+                      onClick={() => { setActiveTab(m.id); document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                      className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold border-b-2 whitespace-nowrap font-mono"
+                      style={{
+                        borderColor: isActive ? LIME : "transparent",
+                        color: INK,
+                        background: isActive ? FAINT : "transparent",
+                        opacity: isActive ? 1 : 0.45,
+                      }}>
+                      <span>{String(i + 1).padStart(2, "0")}</span>
+                      <span className="uppercase">{m.name}</span>
+                      {mEol.obsolete && <span className="text-amber-600 text-[9px]">EOL</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-                  {/* Machine header */}
-                  <div className="flex items-center gap-3 px-4 sm:px-5 py-2.5"
-                    style={{ background: "linear-gradient(90deg, #14532d 0%, #166534 100%)" }}>
-                    {/* ISA-style equipment tag */}
-                    <div className="flex items-stretch shrink-0 overflow-hidden" style={{ borderRadius: 2 }}>
-                      <div className="flex items-center justify-center px-1.5 bg-green-400 text-gray-950 font-black text-[10px] font-mono">M</div>
-                      <div className="flex items-center justify-center px-2 bg-white text-gray-900 font-black text-[11px] font-mono">
-                        {String(idx + 1).padStart(2, "0")}
-                      </div>
-                    </div>
-                    <div className="w-px h-4 bg-green-600 shrink-0" />
-                    <h2 className="text-white font-black text-sm uppercase tracking-widest flex-1 min-w-0 truncate">{machine.name}</h2>
-                    {machine.notes && (
-                      <span className="hidden sm:block text-green-300 text-[11px] italic shrink-0 max-w-[200px] truncate">{machine.notes}</span>
-                    )}
-                    {plcEol.obsolete && (
-                      <span className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 shrink-0 text-[9px] font-black text-amber-900 bg-amber-400" style={{ borderRadius: 2 }}>
-                        ⚠ EOL PLC
+          {/* ── BOM index + sheets ── */}
+          <div className="flex items-stretch">
+            {/* Parts-list / BOM column */}
+            <aside className="hidden lg:flex flex-col shrink-0 w-56"
+              style={{ borderRight: `2px solid ${INK}`, background: FAINT }}>
+              <div className="px-2.5 py-2 flex items-center justify-between" style={{ borderBottom: `1px solid ${HAIR}`, background: INK }}>
+                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-brand-lime">BOM / Index</p>
+                <p className="font-mono text-[9px] text-white/40">{machines.length}</p>
+              </div>
+              <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                {/* Column headers like a real BOM */}
+                <div className="grid grid-cols-[2rem_1fr_auto] gap-1 px-2.5 py-1 font-mono text-[8px] font-bold uppercase tracking-wider"
+                  style={{ color: INK, opacity: 0.4, borderBottom: `1px solid ${HAIR}` }}>
+                  <span>Item</span><span>Description</span><span>Flag</span>
+                </div>
+                {machines.map((m, i) => {
+                  const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
+                  const isActive = activeTab === m.id;
+                  return (
+                    <button key={m.id}
+                      onClick={() => { setActiveTab(m.id); document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                      className="w-full grid grid-cols-[2rem_1fr_auto] gap-1 items-center px-2.5 py-2 text-left transition-colors"
+                      style={{
+                        borderBottom: `1px solid ${HAIR}`,
+                        background: isActive ? "#fff" : "transparent",
+                        boxShadow: isActive ? `inset 3px 0 0 ${LIME}` : undefined,
+                      }}>
+                      <span className="font-mono text-[10px] font-bold tabular-nums" style={{ color: INK, opacity: isActive ? 1 : 0.4 }}>
+                        {String(i + 1).padStart(2, "0")}
                       </span>
-                    )}
-                    {allPhotos.length > 0 && (
-                      <span className="flex items-center gap-1 text-green-300 text-[11px] font-bold shrink-0">
-                        <HiPhoto className="w-3 h-3" />{allPhotos.length}
+                      <span className="font-mono text-[10px] font-bold uppercase truncate leading-tight"
+                        style={{ color: INK, opacity: isActive ? 1 : 0.55 }}>
+                        {m.name}
                       </span>
-                    )}
+                      {mEol.obsolete ? (
+                        <span className="font-mono text-[8px] font-bold text-amber-800 bg-amber-100 px-1"
+                          style={{ border: "1px solid #d97706" }}>EOL</span>
+                      ) : <span />}
+                    </button>
+                  );
+                })}
+              </nav>
+              <div className="px-2.5 py-2.5 mt-auto" style={{ borderTop: `2px solid ${INK}`, background: "#fff" }}>
+                <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] mb-1.5" style={{ color: INK, opacity: 0.4 }}>Legend</p>
+                {[
+                  { dot: "#1d4ed8", label: "PLC" },
+                  { dot: "#7c3aed", label: "HMI" },
+                  { dot: "#b45309", label: "VFD" },
+                  { dot: "#15803d", label: "Servo" },
+                ].map((l) => (
+                  <div key={l.label} className="flex items-center gap-1.5 mb-1">
+                    <div className="w-1.5 h-1.5 shrink-0" style={{ background: l.dot }} />
+                    <span className="font-mono text-[9px]" style={{ color: INK, opacity: 0.55 }}>{l.label}</span>
                   </div>
+                ))}
+                <div className="flex items-center gap-1.5 mt-1.5 pt-1.5" style={{ borderTop: `1px solid ${HAIR}` }}>
+                  <div className="w-1.5 h-1.5 shrink-0 bg-amber-500" />
+                  <span className="font-mono text-[9px] font-bold text-amber-700">EOL = discontinued</span>
+                </div>
+              </div>
+            </aside>
 
-                  {/* Spec sections */}
-                  {hasSpecs && (
-                    <div className="border-b border-gray-200">
-                      {ctrlCats.length > 0 && (
-                        <>
-                          <div className="flex items-center gap-2 px-4 sm:px-5 py-1.5 border-b border-gray-200"
-                            style={{ background: "#f8fafc" }}>
-                            <HiCpuChip className="w-3 h-3 text-gray-400" />
-                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Control Systems</span>
-                          </div>
-                          <div className={ctrlCats.length === 2 ? "grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-200" : ""}>
-                            {ctrlCats.map((catKey) => (
-                              <div key={catKey} className="px-4 sm:px-5 py-3.5">
-                                <SpecTable rows={specRows(machine, catKey)} catKey={catKey} plcEol={plcEol} />
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                      {driveCats.length > 0 && (
-                        <>
-                          <div className="flex items-center gap-2 px-4 sm:px-5 py-1.5 border-y border-gray-200"
-                            style={{ background: "#f8fafc" }}>
-                            <HiBolt className="w-3 h-3 text-gray-400" />
-                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Drive Systems</span>
-                          </div>
-                          <div className={driveCats.length === 2 ? "grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-200" : ""}>
-                            {driveCats.map((catKey) => (
-                              <div key={catKey} className="px-4 sm:px-5 py-3.5">
-                                <SpecTable rows={specRows(machine, catKey)} catKey={catKey} />
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
+            {/* Machine detail sheets */}
+            <div className="flex-1 min-w-0 p-2 sm:p-3 space-y-3 eng-grid">
+              {machines.length === 0 && (
+                <div className="flex items-center justify-center py-16 font-mono text-xs uppercase tracking-wider"
+                  style={{ color: INK, opacity: 0.35, border: `1px dashed ${HAIR}`, background: "#fff" }}>
+                  No machines on this drawing
+                </div>
+              )}
+              {machines.map((machine, idx) => {
+                const groups    = buildGroups(machine);
+                const allPhotos = groups.flatMap((g) => g.photos);
+                const ctrlCats  = (["plc", "hmi"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
+                const driveCats = (["vfd", "servo"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
+                const hasSpecs  = ctrlCats.length > 0 || driveCats.length > 0;
+                const plcEol    = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
 
-                  {/* Photo documentation */}
-                  {allPhotos.length > 0 && (
-                    <>
-                      <div className="flex items-center justify-between px-4 sm:px-5 py-1.5 border-b border-gray-200"
-                        style={{ background: "#f8fafc" }}>
-                        <div className="flex items-center gap-2">
-                          <HiPhoto className="w-3 h-3 text-gray-400" />
-                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Field Documentation</span>
+                return (
+                  <div id={`mv-${machine.id}`} key={machine.id} className="bg-white scroll-mt-3 relative"
+                    style={{ border: `1.5px solid ${INK}` }}
+                    onClick={() => setActiveTab(machine.id)}>
+
+                    {/* Machine title bar */}
+                    <div className="flex items-center gap-2.5 px-2.5 sm:px-3 py-1.5"
+                      style={{ borderBottom: `1.5px solid ${INK}`, background: FAINT }}>
+                      <div className="flex items-stretch shrink-0" style={{ border: `1.5px solid ${INK}` }}>
+                        <div className="flex items-center justify-center px-1.5 font-bold text-[10px] font-mono"
+                          style={{ background: LIME, color: INK }}>M</div>
+                        <div className="flex items-center justify-center px-2 bg-white font-bold text-[11px] font-mono"
+                          style={{ color: INK, borderLeft: `1.5px solid ${INK}` }}>
+                          {String(idx + 1).padStart(2, "0")}
                         </div>
-                        <span className="text-[9px] font-mono text-gray-400">{allPhotos.length} photos</span>
                       </div>
-                      <div className="px-4 sm:px-5 py-4 space-y-4">
-                        {groups.map((group) => {
-                          const cat = PHOTO_CATEGORIES.find((c) => c.key === group.catKey);
-                          const GIcon = cat?.Icon ?? HiCamera;
-                          return (
-                            <div key={group.key}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className={`flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${cat?.color ?? "bg-gray-100 text-gray-500"}`}
-                                  style={{ borderRadius: 2 }}>
-                                  <GIcon className="w-3 h-3" />{group.label}
-                                </div>
-                                <span className="text-[9px] font-mono text-gray-400">{group.photos.length}</span>
-                                <div className="flex-1 h-px bg-gray-200" />
-                              </div>
-                              <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1">
-                                {group.photos.map((photo) => (
-                                  <PhotoTile key={photo.id} photo={photo}
-                                    onClick={() => openLightbox(allPhotos, allPhotos.indexOf(photo))} />
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-
-                  {!hasSpecs && allPhotos.length === 0 && (
-                    <div className="flex items-center gap-2 px-5 py-5 text-gray-300">
-                      <HiCamera className="w-4 h-4" />
-                      <span className="text-sm">No data recorded yet</span>
+                      <h2 className="font-mono font-bold text-sm uppercase tracking-[0.12em] flex-1 min-w-0 truncate" style={{ color: INK }}>
+                        {machine.name}
+                      </h2>
+                      {machine.notes && (
+                        <span className="hidden md:block font-mono text-[10px] italic shrink-0 max-w-[200px] truncate" style={{ color: INK, opacity: 0.45 }}>
+                          {machine.notes}
+                        </span>
+                      )}
+                      {plcEol.obsolete && (
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 shrink-0 font-mono text-[9px] font-bold text-amber-900 bg-amber-100"
+                          style={{ border: "1.5px solid #d97706" }}>
+                          EOL PLC
+                        </span>
+                      )}
+                      {allPhotos.length > 0 && (
+                        <span className="flex items-center gap-1 font-mono text-[10px] font-bold shrink-0" style={{ color: INK, opacity: 0.45 }}>
+                          <HiPhoto className="w-3 h-3" />{allPhotos.length}
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+
+                    {hasSpecs && (
+                      <div>
+                        {ctrlCats.length > 0 && (
+                          <>
+                            <SectionRule no="1.0" title="Control Systems"
+                              right={`${ctrlCats.length} UNIT${ctrlCats.length !== 1 ? "S" : ""}`} />
+                            <div className={ctrlCats.length === 2 ? "grid grid-cols-1 sm:grid-cols-2" : ""}>
+                              {ctrlCats.map((catKey, ci) => (
+                                <div key={catKey} className="px-3 sm:px-4 py-2.5"
+                                  style={ci > 0 ? { borderLeft: `1px solid ${HAIR}` } : undefined}>
+                                  <SpecTable rows={specRows(machine, catKey)} catKey={catKey} plcEol={plcEol} />
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                        {driveCats.length > 0 && (
+                          <>
+                            <SectionRule no="2.0" title="Drive Systems"
+                              right={`${driveCats.length} UNIT${driveCats.length !== 1 ? "S" : ""}`} />
+                            <div className={driveCats.length === 2 ? "grid grid-cols-1 sm:grid-cols-2" : ""}>
+                              {driveCats.map((catKey, ci) => (
+                                <div key={catKey} className="px-3 sm:px-4 py-2.5"
+                                  style={ci > 0 ? { borderLeft: `1px solid ${HAIR}` } : undefined}>
+                                  <SpecTable rows={specRows(machine, catKey)} catKey={catKey} />
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {allPhotos.length > 0 && (
+                      <>
+                        <SectionRule no={hasSpecs ? "3.0" : "1.0"} title="Field Documentation"
+                          right={`${allPhotos.length} PHOTO${allPhotos.length !== 1 ? "S" : ""}`} />
+                        <div className="px-3 sm:px-4 py-3 space-y-3">
+                          {groups.map((group) => {
+                            const gMeta = SPEC_META[group.catKey as SpecCatKey];
+                            return (
+                              <div key={group.key}>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <span className="w-1.5 h-1.5 shrink-0" style={{ background: gMeta?.accent ?? "#6b7280" }} />
+                                  <span className="font-mono text-[9px] font-bold uppercase tracking-[0.18em]" style={{ color: INK, opacity: 0.65 }}>
+                                    {group.label}
+                                  </span>
+                                  <span className="font-mono text-[9px]" style={{ color: INK, opacity: 0.35 }}>({group.photos.length})</span>
+                                  <div className="flex-1 h-px" style={{ background: HAIR }} />
+                                </div>
+                                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1">
+                                  {group.photos.map((photo) => (
+                                    <PhotoTile key={photo.id} photo={photo}
+                                      onClick={() => openLightbox(allPhotos, allPhotos.indexOf(photo))} />
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+
+                    {!hasSpecs && allPhotos.length === 0 && (
+                      <div className="flex items-center gap-2 px-4 py-4" style={{ color: INK, opacity: 0.3 }}>
+                        <HiCamera className="w-4 h-4" />
+                        <span className="font-mono text-xs uppercase tracking-wider">No data recorded</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Sheet footer */}
+          <div className="flex items-center justify-between gap-3 px-3 py-1.5 font-mono text-[8px] uppercase tracking-[0.14em]"
+            style={{ borderTop: `2px solid ${INK}`, background: INK, color: "rgba(255,255,255,0.45)" }}>
+            <span>I&amp;I Automation · Control Engineering</span>
+            <span className="text-brand-lime/70">Do not scale · NTS</span>
+            <span>{dwgNo} · Rev A</span>
           </div>
         </div>
       </div>
@@ -1522,7 +1673,7 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                 onClick={() => setLightbox({ photo: p, list: lightbox.list, idx: i })}
                 className={`w-12 h-12 shrink-0 overflow-hidden rounded transition-all ${
                   i === lightbox.idx
-                    ? "ring-2 ring-green-400 ring-offset-1 ring-offset-black opacity-100"
+                    ? "ring-2 ring-brand-lime ring-offset-1 ring-offset-black opacity-100"
                     : "opacity-35 hover:opacity-60"
                 }`}>
                 <img src={photoUrl(p.machine_id, p.filename, "thumb")} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
@@ -1617,7 +1768,7 @@ export default function MappingEditorPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <svg className="animate-spin h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24">
+        <svg className="animate-spin h-8 w-8 text-brand-navy" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
         </svg>
@@ -1637,61 +1788,64 @@ export default function MappingEditorPage() {
       {/* Print view — lives outside the screen wrapper so display:none doesn't block it */}
       <PrintView mapping={mapping} />
 
-      {/* Screen UI */}
-      <div className="mapping-screen-only max-w-2xl mx-auto space-y-4 pb-24">
+      {/* Screen UI — view mode full-bleed; edit mode narrow for field entry */}
+      <div className={`mapping-screen-only space-y-3 pb-24 ${viewMode ? "" : "max-w-2xl mx-auto"}`}>
 
-        {/* Top bar */}
-        <div className="flex items-start gap-3">
+        {/* Technical toolbar */}
+        <div className="flex flex-wrap items-stretch gap-0 border-2 border-brand-navy bg-white">
           <button onClick={() => navigate("/mappings")}
-            className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 shrink-0 mt-0.5" title="Back">
-            <HiArrowLeft className="w-5 h-5" />
+            className="px-2.5 flex items-center justify-center border-r-2 border-brand-navy text-brand-navy/50 hover:bg-brand-lime hover:text-brand-navy transition-colors shrink-0"
+            title="Back to mappings">
+            <HiArrowLeft className="w-4 h-4" />
           </button>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 px-3 py-2">
             {editingTitle ? (
               <input autoFocus value={titleVal} onChange={(e) => setTitleVal(e.target.value)}
                 onBlur={saveTitle}
                 onKeyDown={(e) => { if (e.key === "Enter") saveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
-                className="w-full text-xl font-bold bg-white border-b-2 border-blue-400 focus:outline-none pb-0.5" />
+                className="w-full font-mono text-base font-bold bg-transparent border-b-2 border-brand-lime focus:outline-none uppercase" />
             ) : (
-              <button onClick={() => { setTitleVal(mapping.name); setEditingTitle(true); }} className="text-left w-full">
-                <h1 className="text-xl font-bold text-gray-900 hover:text-blue-600 flex items-center gap-1.5">
-                  {mapping.name}
-                  <HiPencil className="w-4 h-4 text-gray-300" />
+              <button onClick={() => { setTitleVal(mapping.name); setEditingTitle(true); }} className="text-left w-full group">
+                <h1 className="font-mono text-base font-bold text-brand-navy uppercase tracking-wide flex items-center gap-1.5 min-w-0">
+                  <span className="truncate">{mapping.name}</span>
+                  <HiPencil className="w-3.5 h-3.5 text-brand-navy/25 group-hover:text-brand-navy/60 shrink-0" />
                 </h1>
               </button>
             )}
-            <p className="text-sm text-gray-400 mt-0.5">
+            <p className="font-mono text-[10px] text-brand-navy/40 mt-0.5 truncate uppercase tracking-wider">
               {mapping.plant_name}{mapping.city && mapping.state ? ` · ${mapping.city}, ${mapping.state}` : ""}
             </p>
           </div>
 
-          <div className="flex gap-2 shrink-0">
-            {/* View / Edit toggle */}
-            <div className="flex rounded-xl border border-gray-200 overflow-hidden">
-              <button onClick={() => setViewMode(false)}
-                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${!viewMode ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
-                <HiPencilSquare className="w-3.5 h-3.5" />
-                Edit
-              </button>
-              <button onClick={() => setViewMode(true)}
-                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${viewMode ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
-                <HiEye className="w-3.5 h-3.5" />
-                View
-              </button>
-            </div>
-            <button onClick={toggleStatus}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
-                isComplete
-                  ? "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200"
-                  : "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100"
+          <div className="flex items-stretch shrink-0 w-full sm:w-auto border-t-2 sm:border-t-0 sm:border-l-2 border-brand-navy">
+            <button onClick={() => setViewMode(false)}
+              className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
+                !viewMode ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
               }`}>
-              {isComplete ? <HiCheckCircle className="w-4 h-4" /> : <HiClock className="w-4 h-4" />}
+              <HiPencilSquare className="w-3.5 h-3.5" />
+              Edit
+            </button>
+            <button onClick={() => setViewMode(true)}
+              className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
+                viewMode ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
+              }`}>
+              <HiEye className="w-3.5 h-3.5" />
+              View
+            </button>
+            <button onClick={toggleStatus}
+              className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
+                isComplete
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-amber-50 text-amber-800"
+              }`}>
+              {isComplete ? <HiCheckCircle className="w-3.5 h-3.5" /> : <HiClock className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{isComplete ? "Complete" : "In progress"}</span>
             </button>
             <button onClick={() => window.print()}
-              className="p-2 rounded-xl hover:bg-gray-100 text-gray-400" title="Print / Export PDF">
-              <HiPrinter className="w-5 h-5" />
+              className="px-3 flex items-center justify-center text-brand-navy/40 hover:bg-brand-lime hover:text-brand-navy transition-colors"
+              title="Print / Export PDF">
+              <HiPrinter className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -1701,10 +1855,10 @@ export default function MappingEditorPage() {
 
         {/* Edit mode — machines */}
         {!viewMode && machines.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl">
-            <HiBuildingOffice2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="text-sm font-medium">No machines yet</p>
-            <p className="text-xs mt-1">Add your first machine to start mapping</p>
+          <div className="text-center py-12 text-brand-navy/35 border-2 border-dashed border-brand-navy/25 bg-white">
+            <HiBuildingOffice2 className="w-8 h-8 mx-auto mb-3 opacity-40" />
+            <p className="font-mono text-sm font-bold uppercase tracking-wider">No machines yet</p>
+            <p className="font-mono text-[10px] mt-1 uppercase tracking-wider opacity-70">Add your first machine to start mapping</p>
           </div>
         ) : !viewMode && (
           <div className="space-y-4">
@@ -1717,45 +1871,47 @@ export default function MappingEditorPage() {
 
         {/* Add machine — only in edit mode */}
         {!viewMode && showAddMachine ? (
-          <form onSubmit={handleAddMachine} className="bg-white border-2 border-dashed border-blue-300 rounded-2xl p-4 space-y-3">
-            <label className="block text-sm font-medium text-gray-700">Machine name</label>
+          <form onSubmit={handleAddMachine} className="bg-white border-2 border-dashed border-brand-navy p-4 space-y-3">
+            <label className="block font-mono text-[10px] font-bold text-brand-navy/50 uppercase tracking-wider">Machine name</label>
             <input autoFocus type="text"
               placeholder="e.g. Conveyor Line 1, Compressor, Cooling Tower…"
               value={newMachineName} onChange={(e) => setNewMachineName(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="w-full border-2 border-brand-navy/20 px-3 py-2.5 font-mono text-sm focus:outline-none focus:border-brand-navy" />
             <div className="flex gap-2">
               <button type="submit" disabled={addingMachine}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 disabled:opacity-50">
+                className="flex-1 py-2.5 bg-brand-navy text-brand-lime font-mono text-[11px] font-bold uppercase tracking-wider hover:bg-brand-navy-700 disabled:opacity-50">
                 {addingMachine ? "Adding…" : "Add machine"}
               </button>
               <button type="button" onClick={() => setShowAddMachine(false)}
-                className="px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+                className="px-4 py-2.5 border-2 border-brand-navy/20 font-mono text-[11px] font-bold uppercase tracking-wider text-brand-navy/50 hover:bg-brand-navy/5">
                 Cancel
               </button>
             </div>
           </form>
         ) : !viewMode && (
           <button onClick={() => setShowAddMachine(true)}
-            className="w-full py-4 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/30 transition-all text-sm font-medium flex items-center justify-center gap-2">
-            <HiPlus className="w-5 h-5" />
+            className="w-full py-3.5 bg-white border-2 border-dashed border-brand-navy/25 text-brand-navy/45 hover:border-brand-navy hover:text-brand-navy transition-colors font-mono text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+            <HiPlus className="w-4 h-4" />
             Add machine
           </button>
         )}
 
         {/* Summary — only in edit mode */}
         {!viewMode && machines.length > 0 && (
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Summary</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-white border-2 border-brand-navy">
+            <div className="px-3 py-1.5 bg-brand-navy">
+              <h2 className="font-mono text-[9px] font-bold text-brand-lime uppercase tracking-[0.2em]">Summary</h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4">
               {[
-                { label: "Machines", value: machines.length },
-                { label: "Photos",   value: machines.reduce((s, m) => s + (m.photos ?? []).length, 0) },
-                { label: "With PLC", value: machines.filter((m) => m.plc_make || m.plc_model).length },
-                { label: "With VFD", value: machines.filter((m) => m.vfd_make || m.vfd_model).length },
-              ].map((stat) => (
-                <div key={stat.label} className="bg-white rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-                  <div className="text-xs text-gray-400 mt-0.5">{stat.label}</div>
+                { label: "MACH", value: machines.length },
+                { label: "PHOT", value: machines.reduce((s, m) => s + (m.photos ?? []).length, 0) },
+                { label: "PLC",  value: machines.filter((m) => m.plc_make || m.plc_model).length },
+                { label: "VFD",  value: machines.filter((m) => m.vfd_make || m.vfd_model).length },
+              ].map((stat, i) => (
+                <div key={stat.label} className="p-3 text-center" style={{ borderLeft: i > 0 ? "1px solid rgba(0,24,46,0.15)" : undefined }}>
+                  <div className="font-mono text-2xl font-bold text-brand-navy tabular-nums">{String(stat.value).padStart(2, "0")}</div>
+                  <div className="font-mono text-[8px] font-bold text-brand-navy/40 mt-1 uppercase tracking-[0.2em]">{stat.label}</div>
                 </div>
               ))}
             </div>

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import PlantMap from "../components/PlantMap";
 import RoutePanel from "../components/RoutePanel";
 import { fetchPlants, type Plant } from "../api/plants";
+import PageHeader from "../components/PageHeader";
 
 export default function MapPage() {
   const [plants, setPlants] = useState<Plant[]>([]);
@@ -113,9 +114,7 @@ export default function MapPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Plant Map</h1>
-      </div>
+      <PageHeader title="Plant Map" />
 
       {/* Controls — two compact rows on mobile, one row on desktop */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap relative z-20">
@@ -131,7 +130,7 @@ export default function MapPage() {
                 if (!e.target.value) setFocusedPlantId(null);
               }}
               placeholder="Search plants…"
-              className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+              className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime"
             />
             {dropdownRect != null &&
               createPortal(
@@ -165,7 +164,7 @@ export default function MapPage() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as "all" | "contacted" | "not_contacted")}
-            className="rounded-lg border border-gray-300 bg-white text-sm px-2 py-2 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shrink-0"
+            className="rounded-lg border border-gray-300 bg-white text-sm px-2 py-2 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime shrink-0"
           >
             <option value="all">All</option>
             <option value="contacted">Contacted</option>
@@ -180,7 +179,7 @@ export default function MapPage() {
               type="checkbox"
               checked={!hideNonIcp}
               onChange={(e) => setHideNonIcp(!e.target.checked)}
-              className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+              className="rounded border-gray-300 text-brand-navy-600 focus:ring-brand-lime"
             />
             <span className="text-sm text-gray-600 whitespace-nowrap">Show non-ICP</span>
           </label>
@@ -189,7 +188,7 @@ export default function MapPage() {
             onClick={handleToggleRouteMode}
             className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
               routeMode
-                ? "bg-blue-600 text-white hover:bg-blue-700"
+                ? "bg-brand-navy text-white hover:bg-brand-navy-700"
                 : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
             }`}
           >
@@ -208,7 +207,7 @@ export default function MapPage() {
 
       {/* Route mode hint */}
       {routeMode && (
-        <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+        <p className="text-xs text-brand-navy-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
           Route mode active — open any plant popup and click <strong>Add to Route</strong> to build your route.
         </p>
       )}

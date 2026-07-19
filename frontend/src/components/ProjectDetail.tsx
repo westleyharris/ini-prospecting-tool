@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { HiDocument } from "react-icons/hi2";
 import {
   fetchProject,
   uploadProjectFile,
@@ -175,9 +176,9 @@ export default function ProjectDetail({ project, plantName, onClose, onUpdate }:
                         <a
                           href={getProjectFileUrl(project.id, f.filename)}
                           download={f.original_name}
-                          className="text-sm text-blue-600 hover:underline"
+                          className="inline-flex items-center gap-1.5 text-sm text-brand-navy-600 hover:underline"
                         >
-                          📄 {f.original_name} ({f.file_type})
+                          <HiDocument className="w-4 h-4 shrink-0" /> {f.original_name} ({f.file_type})
                         </a>
                       </li>
                     ))}
