@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const ALLOWED_DOMAINS = ["ini-automation.com", "ime-us.com", "integratec.hn"];
+const ALLOWED_DOMAINS = ["ii-automation.com", "ime-us.com", "integratec.hn"];
 
 export default function RegisterPage() {
   const { user, loading: authLoading, register } = useAuth();
@@ -82,7 +82,7 @@ export default function RegisterPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@ini-automation.com"
+                placeholder="you@ii-automation.com"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-transparent"
               />
               <p className="mt-1.5 text-xs text-gray-500">

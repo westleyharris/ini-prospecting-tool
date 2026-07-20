@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export const authRouter = Router();
 
-const ALLOWED_DOMAINS = ["ini-automation.com", "ime-us.com", "integratec.hn"];
+const ALLOWED_DOMAINS = ["ii-automation.com", "ime-us.com", "integratec.hn"];
 const COOKIE_NAME = "ini_session";
 const SALT_ROUNDS = 12;
 
@@ -44,7 +44,7 @@ authRouter.post("/register", async (req, res) => {
 
     if (!ALLOWED_DOMAINS.includes(domain)) {
       return res.status(403).json({
-        error: `Registration is restricted to @ini-automation.com, @ime-us.com, and @integratec.hn email addresses.`,
+        error: `Registration is restricted to @ii-automation.com, @ime-us.com, and @integratec.hn email addresses.`,
       });
     }
 
