@@ -6,7 +6,7 @@ import {
   HiChevronDown, HiCheckCircle, HiClock, HiCamera,
   HiCpuChip, HiComputerDesktop, HiBolt, HiPhoto,
   HiBuildingOffice2, HiDocumentText, HiXMark, HiCog8Tooth,
-  HiEye, HiPencilSquare,
+  HiEye, HiPencilSquare, HiExclamationTriangle, HiShieldCheck, HiPresentationChartBar,
 } from "react-icons/hi2";
 import {
   getMapping, updateMapping, createMachine, updateMachine,
@@ -14,7 +14,9 @@ import {
   photoUrl,
   type Mapping, type MappingMachine, type MappingPhoto,
 } from "../api/mappings";
-import { checkPLCObsolete } from "../data/obsoletePlcs";
+import { checkPLCObsolete } from "../data/obsoleteEquipment";
+import { buildRiskRegister, RISK_META, type RiskFinding } from "../data/riskRegister";
+import { downloadPresentation } from "../services/presentation";
 
 // ─── EOL badge ────────────────────────────────────────────────────────────────
 function EOLBadge({ note, successor, eolYear }: { note: string; successor?: string; eolYear?: number }) {
@@ -599,8 +601,293 @@ function MachineCard({
 }
 
 // ─── Print view ───────────────────────────────────────────────────────────────
+// ─── Obsolescence risk register ───────────────────────────────────────────────
+
+const REG_INK  = "#00182e";
+const REG_LIME = "#acec00";
+const REG_HAIR = "rgba(0,24,46,0.22)";
+const MONO     = "'IBM Plex Mono', 'Courier New', monospace";
+
+/** Printable register sheet — ranked findings + the scoring method, so the customer can audit it. */
+function RiskPrintSheet({
+  register, mapping, dwgNo, reportDate,
+}: {
+  register: ReturnType<typeof buildRiskRegister>;
+  mapping: Mapping;
+  dwgNo: string;
+  reportDate: string;
+}) {
+  const { findings, counts, affectedMachines, totalMachines, totalUnits } = register;
+
+  const th: React.CSSProperties = {
+    textAlign: "left", padding: "5px 8px", fontFamily: MONO, fontSize: 7,
+    fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em",
+    color: REG_INK, opacity: 0.5, borderBottom: `1px solid ${REG_HAIR}`,
+  };
+  const td: React.CSSProperties = {
+    padding: "7px 8px", fontSize: 9, verticalAlign: "top",
+    borderBottom: `1px solid ${REG_HAIR}`, color: REG_INK,
+  };
+
+  return (
+    <div style={{ marginBottom: 14, border: `1.5px solid ${REG_INK}` }} className="print-avoid-break">
+      {/* Sheet header */}
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "5px 10px", background: REG_INK,
+      }}>
+        <span style={{
+          fontFamily: MONO, fontSize: 9, fontWeight: 700,
+          letterSpacing: "0.18em", color: REG_LIME, textTransform: "uppercase",
+        }}>Obsolescence Risk Register</span>
+        <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.4)" }}>
+          {dwgNo} · {reportDate}
+        </span>
+      </div>
+
+      {/* Summary band */}
+      <div style={{ display: "flex", borderBottom: `1.5px solid ${REG_INK}` }}>
+        {[
+          { n: findings.length, l: "Findings" },
+          { n: totalUnits, l: "Units affected" },
+          { n: `${affectedMachines}/${totalMachines}`, l: "Machines" },
+          { n: counts.critical, l: "Critical" },
+          { n: counts.high, l: "High" },
+          { n: counts.moderate, l: "Moderate" },
+        ].map((s) => (
+          <div key={s.l} style={{ flex: 1, padding: "8px 10px", borderRight: `1px solid ${REG_HAIR}`, textAlign: "center" }}>
+            <div style={{ fontFamily: MONO, fontSize: 17, fontWeight: 700, color: REG_INK }}>{s.n}</div>
+            <div style={{
+              fontFamily: MONO, fontSize: 7, fontWeight: 700, textTransform: "uppercase",
+              letterSpacing: "0.14em", color: REG_INK, opacity: 0.45, marginTop: 2,
+            }}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {findings.length === 0 ? (
+        <div style={{ padding: "22px 12px", textAlign: "center" }}>
+          <div style={{
+            fontFamily: MONO, fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+            letterSpacing: "0.1em", color: REG_INK,
+          }}>No obsolete equipment identified</div>
+          <div style={{ fontSize: 9, marginTop: 5, color: REG_INK, opacity: 0.55 }}>
+            No control or drive asset recorded in this mapping matches a vendor end-of-life declaration.
+          </div>
+        </div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: "rgba(0,24,46,0.04)" }}>
+              <th style={{ ...th, width: 26 }}>#</th>
+              <th style={{ ...th, width: 62 }}>Risk</th>
+              <th style={{ ...th, width: 42 }}>Type</th>
+              <th style={th}>Installed equipment</th>
+              <th style={{ ...th, width: 96 }}>Location</th>
+              <th style={{ ...th, width: 40 }}>Qty</th>
+              <th style={{ ...th, width: 40 }}>EOL</th>
+              <th style={{ ...th, width: 120 }}>Recommended replacement</th>
+            </tr>
+          </thead>
+          <tbody>
+            {findings.map((f, i) => {
+              const meta = RISK_META[f.level];
+              return (
+                <tr key={f.key} className="print-avoid-break">
+                  <td style={{ ...td, fontFamily: MONO, fontWeight: 700, opacity: 0.45 }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </td>
+                  <td style={td}>
+                    <span style={{
+                      display: "inline-block", padding: "2px 5px",
+                      background: meta.bg, border: `1px solid ${meta.border}`, color: meta.ink,
+                      fontFamily: MONO, fontSize: 7, fontWeight: 700,
+                      textTransform: "uppercase", letterSpacing: "0.1em",
+                    }}>{meta.label}</span>
+                  </td>
+                  <td style={{ ...td, fontFamily: MONO, fontSize: 8, fontWeight: 700, opacity: 0.7 }}>
+                    {f.categoryLabel}
+                  </td>
+                  <td style={td}>
+                    <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>
+                      {f.make} {f.model}
+                    </div>
+                    <div style={{ fontSize: 8, opacity: 0.6, marginTop: 2 }}>{f.note}</div>
+                  </td>
+                  <td style={{ ...td, fontFamily: MONO, fontSize: 8 }}>
+                    {f.machines.map((m) => m.tag).join(", ")}
+                  </td>
+                  <td style={{ ...td, fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>{f.unitCount}</td>
+                  <td style={{ ...td, fontFamily: MONO, fontSize: 9 }}>{f.eolYear ?? "—"}</td>
+                  <td style={{ ...td, fontFamily: MONO, fontSize: 9, fontWeight: 600, color: "#166534" }}>
+                    {f.successor ?? "Consult vendor"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+
+      {/* Method + disclaimer */}
+      <div style={{ borderTop: `1.5px solid ${REG_INK}`, padding: "8px 10px", background: "rgba(0,24,46,0.03)" }}>
+        <div style={{
+          fontFamily: MONO, fontSize: 7, fontWeight: 700, textTransform: "uppercase",
+          letterSpacing: "0.16em", color: REG_INK, opacity: 0.5, marginBottom: 4,
+        }}>Scoring method</div>
+        <div style={{ fontSize: 8, lineHeight: 1.5, color: REG_INK, opacity: 0.75 }}>
+          Each finding scores 2–7 across three factors: <strong>age</strong> (years since the vendor
+          discontinued the product), <strong>exposure</strong> (units of that asset installed at this
+          facility), and <strong>migration path</strong> (whether the vendor names a direct successor).
+          Critical ≥ 6 · High 4–5 · Moderate ≤ 3. Lifecycle data reflects published vendor
+          declarations and should be confirmed against the manufacturer's current lifecycle
+          statement before procurement.
+        </div>
+        <div style={{
+          marginTop: 6, fontFamily: MONO, fontSize: 7, textTransform: "uppercase",
+          letterSpacing: "0.1em", color: REG_INK, opacity: 0.4,
+        }}>
+          Prepared by I&amp;I Automation · {mapping.plant_name ?? "Plant"} · {reportDate}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** On-screen register — same content, styled to match the drafting-sheet view. */
+function RiskRegisterView({ mapping }: { mapping: Mapping }) {
+  const register = buildRiskRegister(mapping);
+  const { findings, counts, affectedMachines, totalMachines, totalUnits } = register;
+
+  return (
+    <div className="space-y-3">
+      {/* Header band */}
+      <div className="border-2 border-brand-navy bg-white">
+        <div className="flex items-center justify-between px-3 py-2 bg-brand-navy">
+          <div className="flex items-center gap-2">
+            <HiExclamationTriangle className="w-4 h-4 text-brand-lime" />
+            <span className="font-mono text-[11px] font-bold text-brand-lime uppercase tracking-[0.16em]">
+              Obsolescence Risk Register
+            </span>
+          </div>
+          <span className="font-mono text-[10px] text-white/40 uppercase tracking-wider">
+            {mapping.plant_name}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-6 divide-x divide-brand-navy/15">
+          {[
+            { n: findings.length, l: "Findings" },
+            { n: totalUnits, l: "Units" },
+            { n: `${affectedMachines}/${totalMachines}`, l: "Machines" },
+            { n: counts.critical, l: "Critical" },
+            { n: counts.high, l: "High" },
+            { n: counts.moderate, l: "Moderate" },
+          ].map((s) => (
+            <div key={s.l} className="px-2 py-3 text-center">
+              <div className="font-mono text-xl font-bold text-brand-navy tabular-nums">{s.n}</div>
+              <div className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/45 mt-0.5">
+                {s.l}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {findings.length === 0 ? (
+        <div className="border-2 border-brand-navy bg-white px-6 py-12 text-center">
+          <HiShieldCheck className="w-10 h-10 mx-auto text-emerald-500 mb-3" />
+          <p className="font-mono text-sm font-bold text-brand-navy uppercase tracking-wider">
+            No obsolete equipment identified
+          </p>
+          <p className="text-xs text-brand-navy/50 mt-1.5 max-w-md mx-auto">
+            No control or drive asset recorded in this mapping matches a vendor end-of-life
+            declaration. Add equipment details in Edit mode to widen the check.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {findings.map((f, i) => (
+            <RiskFindingCard key={f.key} finding={f} index={i} />
+          ))}
+        </div>
+      )}
+
+      {/* Method note */}
+      <div className="border-2 border-brand-navy/20 bg-white px-3 py-3">
+        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-brand-navy/45 mb-1.5">
+          Scoring method
+        </p>
+        <p className="text-[11px] leading-relaxed text-brand-navy/65">
+          Each finding scores 2–7 across three factors: <strong>age</strong> (years since the vendor
+          discontinued it), <strong>exposure</strong> (units installed at this facility), and{" "}
+          <strong>migration path</strong> (whether a direct successor is published).
+          Critical ≥ 6 · High 4–5 · Moderate ≤ 3. Confirm lifecycle status with the manufacturer
+          before procurement.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function RiskFindingCard({ finding, index }: { finding: RiskFinding; index: number }) {
+  const meta = RISK_META[finding.level];
+  return (
+    <div className="border-2 bg-white" style={{ borderColor: REG_INK }}>
+      <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: meta.bg, borderBottom: `1px solid ${REG_HAIR}` }}>
+        <span className="font-mono text-[10px] font-bold tabular-nums" style={{ color: meta.ink, opacity: 0.6 }}>
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <span className="px-1.5 py-0.5 font-mono text-[9px] font-black uppercase tracking-[0.12em] border"
+          style={{ color: meta.ink, borderColor: meta.border, background: "rgba(255,255,255,0.6)" }}>
+          {meta.label} risk
+        </span>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: meta.ink, opacity: 0.75 }}>
+          {finding.categoryLabel}
+        </span>
+        <span className="ml-auto font-mono text-[10px] font-bold" style={{ color: meta.ink }}>
+          Score {finding.score}/7
+        </span>
+      </div>
+
+      <div className="px-3 py-3">
+        <p className="font-mono text-base font-bold text-brand-navy">
+          {finding.make} {finding.model}
+        </p>
+        <p className="text-xs text-brand-navy/55 mt-0.5">{finding.note}</p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 mt-3 pt-3 border-t border-brand-navy/10">
+          <div>
+            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">Units</p>
+            <p className="font-mono text-sm font-bold text-brand-navy">{finding.unitCount}</p>
+          </div>
+          <div>
+            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">Discontinued</p>
+            <p className="font-mono text-sm font-bold text-brand-navy">{finding.eolYear ?? "—"}</p>
+          </div>
+          <div className="col-span-2">
+            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">Location</p>
+            <p className="font-mono text-xs font-bold text-brand-navy truncate">
+              {finding.machines.map((m) => `${m.tag} ${m.name}`).join(" · ")}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 px-2.5 py-2 border" style={{ borderColor: "#16653433", background: "#f0fdf4" }}>
+          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em]" style={{ color: "#166534", opacity: 0.7 }}>
+            Recommended replacement
+          </p>
+          <p className="font-mono text-sm font-bold mt-0.5" style={{ color: "#166534" }}>
+            {finding.successor ?? "Consult vendor for migration path"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Full-bleed engineering drawing sheet. Hidden on screen; revealed by @media print.
-function PrintView({ mapping }: { mapping: Mapping }) {
+function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "sheet" | "risk" }) {
+  const register = buildRiskRegister(mapping);
   const machines = mapping.machines ?? [];
   const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
   const eolCount    = machines.filter((m) => checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series).obsolete).length;
@@ -889,6 +1176,10 @@ function PrintView({ mapping }: { mapping: Mapping }) {
           </div>
         </div>
 
+        {mode === "risk" ? (
+          <RiskPrintSheet register={register} mapping={mapping} dwgNo={dwgNo} reportDate={reportDate} />
+        ) : (
+          <>
         {/* ══════════ BOM / EQUIPMENT INDEX ══════════ */}
         <div style={{ marginBottom: 14, border: `1.5px solid ${INK}` }}>
           <div style={{
@@ -1117,6 +1408,8 @@ function PrintView({ mapping }: { mapping: Mapping }) {
             </div>
           );
         })}
+          </>
+        )}
       </div>
     </>
   );
@@ -1699,7 +1992,9 @@ export default function MappingEditorPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleVal, setTitleVal] = useState("");
   // Open on the read-only report; editing is opt-in via the Edit toggle
-  const [viewMode, setViewMode] = useState(true);
+  const [mode, setMode] = useState<"edit" | "view" | "risk">("view");
+  const [buildingDeck, setBuildingDeck] = useState(false);
+  const viewMode = mode !== "edit";
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (silent = false) => {
@@ -1787,7 +2082,7 @@ export default function MappingEditorPage() {
   return (
     <>
       {/* Print view — lives outside the screen wrapper so display:none doesn't block it */}
-      <PrintView mapping={mapping} />
+      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} />
 
       {/* Screen UI — view mode full-bleed; edit mode narrow for field entry */}
       <div className={`mapping-screen-only space-y-3 pb-24 ${viewMode ? "" : "max-w-2xl mx-auto"}`}>
@@ -1820,19 +2115,26 @@ export default function MappingEditorPage() {
           </div>
 
           <div className="flex items-stretch shrink-0 w-full sm:w-auto border-t-2 sm:border-t-0 sm:border-l-2 border-brand-navy">
-            <button onClick={() => setViewMode(false)}
+            <button onClick={() => setMode("edit")}
               className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
-                !viewMode ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
+                mode === "edit" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
               }`}>
               <HiPencilSquare className="w-3.5 h-3.5" />
               Edit
             </button>
-            <button onClick={() => setViewMode(true)}
+            <button onClick={() => setMode("view")}
               className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
-                viewMode ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
+                mode === "view" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
               }`}>
               <HiEye className="w-3.5 h-3.5" />
               View
+            </button>
+            <button onClick={() => setMode("risk")}
+              className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
+                mode === "risk" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
+              }`}>
+              <HiExclamationTriangle className="w-3.5 h-3.5" />
+              Risk
             </button>
             <button onClick={toggleStatus}
               className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
@@ -1843,6 +2145,25 @@ export default function MappingEditorPage() {
               {isComplete ? <HiCheckCircle className="w-3.5 h-3.5" /> : <HiClock className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{isComplete ? "Complete" : "In progress"}</span>
             </button>
+            <button
+              onClick={async () => {
+                if (!mapping) return;
+                setBuildingDeck(true);
+                try {
+                  await downloadPresentation(mapping, (mid, f) => photoUrl(mid, f, "print"));
+                } catch (err) {
+                  console.error(err);
+                  alert("Could not build the presentation.");
+                } finally {
+                  setBuildingDeck(false);
+                }
+              }}
+              disabled={buildingDeck}
+              className="px-3 flex items-center justify-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 text-brand-navy/50 hover:bg-brand-lime hover:text-brand-navy transition-colors disabled:opacity-50"
+              title="Download Automation Report (PowerPoint)">
+              <HiPresentationChartBar className="w-4 h-4" />
+              <span className="hidden sm:inline">{buildingDeck ? "Building…" : "Deck"}</span>
+            </button>
             <button onClick={() => window.print()}
               className="px-3 flex items-center justify-center text-brand-navy/40 hover:bg-brand-lime hover:text-brand-navy transition-colors"
               title="Print / Export PDF">
@@ -1852,7 +2173,8 @@ export default function MappingEditorPage() {
         </div>
 
         {/* View mode */}
-        {viewMode && <MappingView mapping={mapping} />}
+        {mode === "view" && <MappingView mapping={mapping} />}
+        {mode === "risk" && <RiskRegisterView mapping={mapping} />}
 
         {/* Edit mode — machines */}
         {!viewMode && machines.length === 0 ? (
