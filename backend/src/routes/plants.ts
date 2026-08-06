@@ -16,7 +16,8 @@ plantsRouter.get("/", async (req, res) => {
 
     let sql = `SELECT p.*,
       (SELECT COUNT(*) FROM visits v WHERE v.plant_id = p.id) as visit_count,
-      (SELECT COUNT(*) FROM projects proj WHERE proj.plant_id = p.id) as project_count
+      (SELECT COUNT(*) FROM projects proj WHERE proj.plant_id = p.id) as project_count,
+      (SELECT COUNT(*) FROM mappings m WHERE m.plant_id = p.id) as mapping_count
       FROM plants p WHERE 1=1`;
     const params: (string | number)[] = [];
 
@@ -88,6 +89,7 @@ plantsRouter.post("/", (req, res) => {
     const plant = db.prepare("SELECT * FROM plants WHERE id = ?").get(id) as Record<string, unknown>;
     (plant as Record<string, unknown>).visit_count = 0;
     (plant as Record<string, unknown>).project_count = 0;
+    (plant as Record<string, unknown>).mapping_count = 0;
     (plant as Record<string, unknown>).distance_miles = null;
     res.status(201).json(plant);
   } catch (err) {
@@ -129,6 +131,7 @@ plantsRouter.get("/metrics", (req, res) => {
     const totalVisits = (db.prepare("SELECT COUNT(*) as c FROM visits").get() as { c: number }).c;
     const totalProjects = (db.prepare("SELECT COUNT(*) as c FROM projects").get() as { c: number }).c;
     const totalCommissionings = (db.prepare("SELECT COUNT(*) as c FROM commissionings").get() as { c: number }).c;
+    const totalMappings = (db.prepare("SELECT COUNT(*) as c FROM mappings").get() as { c: number }).c;
 
     res.json({
       total,
@@ -139,6 +142,7 @@ plantsRouter.get("/metrics", (req, res) => {
       totalVisits,
       totalProjects,
       totalCommissionings,
+      totalMappings,
     });
   } catch (err) {
     console.error(err);

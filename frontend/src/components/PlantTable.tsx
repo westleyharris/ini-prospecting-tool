@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { HiClipboardDocumentList } from "react-icons/hi2";
+import { HiClipboardDocumentList, HiCpuChip, HiFolder } from "react-icons/hi2";
+import { Link } from "react-router-dom";
 import { createPortal } from "react-dom";
 import type { Plant } from "../api/plants";
 import { updatePlant, deletePlant, deletePlantsBulk } from "../api/plants";
@@ -50,7 +51,7 @@ type ColumnKey =
   | "photo" | "address" | "location" | "distance"
   | "phone" | "website" | "status" | "type" | "relevance"
   | "summary" | "hours" | "price" | "rating"
-  | "visits" | "projects" | "contacted" | "customer"
+  | "visits" | "mappings" | "projects" | "contacted" | "customer"
   | "not_icp" | "followup" | "notes";
 
 interface ColumnConfig { key: ColumnKey; label: string; defaultVisible: boolean }
@@ -70,6 +71,7 @@ const COLUMNS: ColumnConfig[] = [
   { key: "price",      label: "Price",      defaultVisible: false },
   { key: "rating",     label: "Rating",     defaultVisible: false },
   { key: "visits",     label: "Visits",     defaultVisible: true },
+  { key: "mappings",   label: "Mappings",   defaultVisible: true },
   { key: "projects",   label: "Projects",   defaultVisible: true },
   { key: "contacted",  label: "Contacted",  defaultVisible: true },
   { key: "customer",   label: "Customer",   defaultVisible: true },
@@ -513,6 +515,7 @@ export default function PlantTable({
               {vis("price") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>}
               {vis("rating") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>}
               {vis("visits") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visits</th>}
+              {vis("mappings") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mappings</th>}
               {vis("projects") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Projects</th>}
               {vis("contacted") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacted</th>}
               {vis("customer") && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>}
@@ -663,11 +666,19 @@ export default function PlantTable({
                       </button>
                     </td>
                   )}
+                  {vis("mappings") && (
+                    <td className="px-4 py-3">
+                      <Link to={`/mappings?plant_id=${plant.id}`} title="View equipment mappings for this plant"
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-brand-navy/5 text-brand-navy-600 hover:bg-brand-navy/10 border border-brand-navy/10">
+                        <HiCpuChip className="w-3.5 h-3.5" aria-hidden />{plant.mapping_count ?? 0}
+                      </Link>
+                    </td>
+                  )}
                   {vis("projects") && (
                     <td className="px-4 py-3">
                       <button type="button" onClick={() => setProjectsPlant(plant)} title="View and add projects — create new or open existing"
                         className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/60">
-                        <span aria-hidden>📁</span>{plant.project_count ?? 0}
+                        <HiFolder className="w-3.5 h-3.5" aria-hidden />{plant.project_count ?? 0}
                       </button>
                     </td>
                   )}

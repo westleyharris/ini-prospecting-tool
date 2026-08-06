@@ -36,12 +36,13 @@ export default function MetricsCards({ metrics, loading }: MetricsCardsProps) {
     },
     { label: "New This Week", value: metrics.newThisWeek, color: "text-purple-600" },
     { label: "Visits", value: metrics.totalVisits ?? 0, color: "text-brand-navy-600" },
+    { label: "Mappings", value: metrics.totalMappings ?? 0, color: "text-brand-navy-600" },
     { label: "Projects", value: metrics.totalProjects ?? 0, color: "text-indigo-600" },
     { label: "Commissionings", value: metrics.totalCommissionings ?? 0, color: "text-teal-600" },
   ];
 
   const coreCards = cards.slice(0, 5);
-  const crmCards = cards.slice(5, 8);
+  const crmCards = cards.slice(5);
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -55,7 +56,7 @@ export default function MetricsCards({ metrics, loading }: MetricsCardsProps) {
       </div>
       <div>
         <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5 sm:mb-2 text-center">CRM</p>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           {crmCards.map(({ label, value, color }) => (
             <div key={label} className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 text-center min-w-0">
               <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{label}</p>

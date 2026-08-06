@@ -48,7 +48,13 @@
       "Bash(curl -s -w \"\\\\n%{http_code} %{content_type}\\\\n\" \"http://localhost:5173/api/health\")",
       "Bash(kill 95875)",
       "Bash(curl -s -o /dev/null -w \"thumb sm: %{http_code} %{content_type}\\\\n\" \"http://localhost:5173/thumb/mappings/d31a5b32-bc20-4375-828f-b83f1cfe9772/25193c4c-edc9-4293-acd9-ce87aac0ef0f.png?s=sm\")",
-      "Bash(curl -s -o /dev/null -w \"uploads: %{http_code} %{content_type}\\\\n\" \"http://localhost:5173/uploads/mappings/d31a5b32-bc20-4375-828f-b83f1cfe9772/25193c4c-edc9-4293-acd9-ce87aac0ef0f.png\")"
+      "Bash(curl -s -o /dev/null -w \"uploads: %{http_code} %{content_type}\\\\n\" \"http://localhost:5173/uploads/mappings/d31a5b32-bc20-4375-828f-b83f1cfe9772/25193c4c-edc9-4293-acd9-ce87aac0ef0f.png\")",
+      "Bash(echo \"TSC_EXIT=$?\")",
+      "Bash(echo \"FRONTEND_EXIT=$?\")",
+      "Bash(node -v; ls ~/.nvm/versions/node 2>/dev/null; cat \"/Users/westleyharris/Desktop/Projects/INI Data Pipeline/.nvmrc\" 2>/dev/null; ls /usr/local/bin/node /opt/homebrew/bin/node 2>/dev/null)",
+      "Bash(/usr/local/bin/node -v)",
+      "Bash(/opt/homebrew/bin/node -v)",
+      "Bash(/usr/local/bin/node -e ' *)"
     ]
   }
 }

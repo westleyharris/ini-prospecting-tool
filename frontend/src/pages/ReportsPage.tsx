@@ -1,10 +1,19 @@
 import { useState, useEffect, useMemo } from "react";
-import { HiDocumentText, HiDocument } from "react-icons/hi2";
-import { fetchVisits, deleteVisit, getVisitFileUrl, type Visit, type VisitFile } from "../api/visits";
+import { Link } from "react-router-dom";
+import {
+  HiDocumentText,
+  HiDocument,
+  HiCpuChip,
+  HiClipboardDocumentList,
+  HiPhoto,
+  HiMagnifyingGlass,
+  HiArrowTopRightOnSquare,
+} from "react-icons/hi2";
+import { deleteVisit, getVisitFileUrl } from "../api/visits";
+import { deleteMapping } from "../api/mappings";
+import { fetchReports, type Report, type ReportKind } from "../api/reports";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
-
-type VisitWithFiles = Visit & { files?: VisitFile[] };
 
 function FileIcon({ filename }: { filename: string }) {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
@@ -25,11 +34,7 @@ function formatDate(dateStr: string): string {
   }
 }
 
-interface NotesCellProps {
-  notes: string;
-}
-
-function NotesCell({ notes }: NotesCellProps) {
+function NotesCell({ notes }: { notes: string }) {
   const [expanded, setExpanded] = useState(false);
   const limit = 120;
   if (notes.length <= limit) return <span>{notes}</span>;
@@ -47,18 +52,40 @@ function NotesCell({ notes }: NotesCellProps) {
   );
 }
 
+/** Type chip shown in the first column so the two report kinds read apart at a glance. */
+function KindBadge({ kind }: { kind: ReportKind }) {
+  const meta =
+    kind === "mapping"
+      ? { label: "Mapping", Icon: HiCpuChip, className: "bg-brand-navy/5 text-brand-navy-600 border-brand-navy/15" }
+      : { label: "Visit", Icon: HiClipboardDocumentList, className: "bg-amber-50 text-amber-700 border-amber-200" };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-black uppercase tracking-wider ${meta.className}`}
+    >
+      <meta.Icon className="w-3 h-3" />
+      {meta.label}
+    </span>
+  );
+}
+
+const FILTERS: { key: "all" | ReportKind; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "visit", label: "Visits" },
+  { key: "mapping", label: "Mappings" },
+];
+
 export default function ReportsPage() {
-  const [visits, setVisits] = useState<VisitWithFiles[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filesOnly, setFilesOnly] = useState(false);
+  const [kindFilter, setKindFilter] = useState<"all" | ReportKind>("all");
+  const [attachmentsOnly, setAttachmentsOnly] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await fetchVisits();
-      setVisits(data as VisitWithFiles[]);
+      setReports(await fetchReports());
     } catch (err) {
       console.error(err);
     } finally {
@@ -70,53 +97,87 @@ export default function ReportsPage() {
     load();
   }, []);
 
-  const handleDelete = async (visit: VisitWithFiles) => {
-    if (!confirm(`Delete visit from ${visit.visit_date} for ${visit.plant_name ?? "this plant"}?`)) return;
-    setDeletingId(visit.id);
+  const handleDelete = async (report: Report) => {
+    const what =
+      report.kind === "mapping"
+        ? `mapping "${report.title}"`
+        : `visit from ${formatDate(report.date)}`;
+    if (!confirm(`Delete ${what} for ${report.plant_name ?? "this plant"}?`)) return;
+
+    setDeletingId(report.id);
     try {
-      await deleteVisit(visit.id);
-      setVisits((prev) => prev.filter((v) => v.id !== visit.id));
+      if (report.kind === "mapping") await deleteMapping(report.id);
+      else await deleteVisit(report.id);
+      setReports((prev) => prev.filter((r) => r.id !== report.id));
     } catch (err) {
       console.error(err);
-      alert("Failed to delete visit");
+      alert(`Failed to delete ${report.kind}`);
     } finally {
       setDeletingId(null);
     }
   };
 
+  const counts = useMemo(
+    () => ({
+      all: reports.length,
+      visit: reports.filter((r) => r.kind === "visit").length,
+      mapping: reports.filter((r) => r.kind === "mapping").length,
+    }),
+    [reports]
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return visits.filter((v) => {
-      if (filesOnly && (!v.files || v.files.length === 0)) return false;
+    return reports.filter((r) => {
+      if (kindFilter !== "all" && r.kind !== kindFilter) return false;
+      if (attachmentsOnly && r.attachmentCount === 0) return false;
       if (!q) return true;
+      const title = r.kind === "mapping" ? r.title : "";
       return (
-        (v.plant_name ?? "").toLowerCase().includes(q) ||
-        (v.notes ?? "").toLowerCase().includes(q)
+        (r.plant_name ?? "").toLowerCase().includes(q) ||
+        (r.notes ?? "").toLowerCase().includes(q) ||
+        title.toLowerCase().includes(q)
       );
     });
-  }, [visits, search, filesOnly]);
+  }, [reports, search, kindFilter, attachmentsOnly]);
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Reports"
-        subtitle="All visits and uploaded reports. Add visits from the Dashboard via plant → Visits."
+        subtitle="Plant visits and equipment mappings collected in the field."
       />
 
-      {/* Filters */}
+      {/* Type filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden bg-white">
+          {FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setKindFilter(key)}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                kindFilter === key
+                  ? "bg-brand-navy text-white"
+                  : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              {label}
+              <span className={`ml-1.5 tabular-nums ${kindFilter === key ? "text-brand-lime" : "text-gray-400"}`}>
+                {counts[key]}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Search + attachments */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[180px] max-w-xs">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-          </svg>
+          <HiMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search plants or notes…"
+            placeholder="Search plants, notes, mappings…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="block w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:border-brand-lime focus:ring-1 focus:ring-brand-lime"
@@ -125,17 +186,17 @@ export default function ReportsPage() {
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
-            checked={filesOnly}
-            onChange={(e) => setFilesOnly(e.target.checked)}
+            checked={attachmentsOnly}
+            onChange={(e) => setAttachmentsOnly(e.target.checked)}
             className="rounded border-gray-300 text-brand-navy-600 focus:ring-brand-lime"
           />
-          <span className="text-sm text-gray-700">With reports only</span>
+          <span className="text-sm text-gray-700">With attachments only</span>
         </label>
         {!loading && (
           <span className="text-xs text-gray-400 ml-auto">
-            {filtered.length === visits.length
-              ? `${visits.length} visit${visits.length === 1 ? "" : "s"}`
-              : `${filtered.length} of ${visits.length}`}
+            {filtered.length === reports.length
+              ? `${reports.length} report${reports.length === 1 ? "" : "s"}`
+              : `${filtered.length} of ${reports.length}`}
           </span>
         )}
       </div>
@@ -151,10 +212,10 @@ export default function ReportsPage() {
         ) : filtered.length === 0 ? (
           <EmptyState
             Icon={HiDocumentText}
-            title={visits.length === 0 ? "No visits yet" : "No results"}
+            title={reports.length === 0 ? "No reports yet" : "No results"}
             hint={
-              visits.length === 0
-                ? "Add visits from the Dashboard via a plant's Visits button."
+              reports.length === 0
+                ? "Log a visit from a plant on the Dashboard, or start a mapping from the Mappings page."
                 : "Try adjusting your search or filters."
             }
           />
@@ -163,37 +224,70 @@ export default function ReportsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plant</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Visit date</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Files</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contents</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
-                {filtered.map((visit) => (
-                  <tr key={visit.id} className="hover:bg-gray-50">
+                {filtered.map((report) => (
+                  <tr key={`${report.kind}-${report.id}`} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <KindBadge kind={report.kind} />
+                    </td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
-                      {visit.plant_name ?? "—"}
-                      {(visit.plant_city || visit.plant_state) && (
+                      {report.plant_name ?? "—"}
+                      {(report.plant_city || report.plant_state) && (
                         <div className="text-xs font-normal text-gray-400">
-                          {[visit.plant_city, visit.plant_state].filter(Boolean).join(", ")}
+                          {[report.plant_city, report.plant_state].filter(Boolean).join(", ")}
                         </div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                      {formatDate(visit.visit_date)}
+                      {formatDate(report.date)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 max-w-xs">
-                      {visit.notes ? <NotesCell notes={visit.notes} /> : <span className="text-gray-300">—</span>}
+                      {report.kind === "mapping" ? (
+                        <div className="flex flex-col gap-0.5">
+                          <Link
+                            to={`/mappings/${report.id}`}
+                            className="font-medium text-brand-navy-600 hover:underline"
+                          >
+                            {report.title}
+                          </Link>
+                          {report.notes && (
+                            <span className="text-xs text-gray-400">
+                              <NotesCell notes={report.notes} />
+                            </span>
+                          )}
+                        </div>
+                      ) : report.notes ? (
+                        <NotesCell notes={report.notes} />
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      {visit.files && visit.files.length > 0 ? (
+                      {report.kind === "mapping" ? (
+                        <div className="flex items-center gap-3 text-sm text-gray-600 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1">
+                            <HiCpuChip className="w-4 h-4 text-gray-400" />
+                            {report.machineCount}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <HiPhoto className="w-4 h-4 text-gray-400" />
+                            {report.photoCount}
+                          </span>
+                        </div>
+                      ) : report.files.length > 0 ? (
                         <div className="flex flex-col gap-1">
-                          {visit.files.map((f) => (
+                          {report.files.map((f) => (
                             <a
                               key={f.id}
-                              href={getVisitFileUrl(visit.id, f.filename)}
+                              href={getVisitFileUrl(report.id, f.filename)}
                               download={f.original_name}
                               className="inline-flex items-center gap-1 text-sm text-brand-navy-600 hover:underline"
                             >
@@ -207,14 +301,24 @@ export default function ReportsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(visit)}
-                        disabled={deletingId === visit.id}
-                        className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
-                      >
-                        {deletingId === visit.id ? "Deleting…" : "Delete"}
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        {report.kind === "mapping" && (
+                          <Link
+                            to={`/mappings/${report.id}`}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-brand-navy-600 hover:underline"
+                          >
+                            Open <HiArrowTopRightOnSquare className="w-3 h-3" />
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(report)}
+                          disabled={deletingId === report.id}
+                          className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                        >
+                          {deletingId === report.id ? "Deleting…" : "Delete"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

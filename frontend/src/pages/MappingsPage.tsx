@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   HiPlus, HiMagnifyingGlass, HiTrash, HiChevronRight,
   HiMap, HiCheckCircle, HiClock, HiXMark,
@@ -138,6 +138,7 @@ export default function MappingsPage() {
   const [newPlantId, setNewPlantId] = useState("");
   const [plants, setPlants] = useState<PlantOption[]>([]);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     load();
@@ -179,7 +180,14 @@ export default function MappingsPage() {
     setMappings((prev) => prev.filter((x) => x.id !== m.id));
   }
 
+  // ?plant_id= scopes the list to one plant (linked from the plant table)
+  const plantScope = searchParams.get("plant_id");
+  const scopedPlantName = plantScope
+    ? mappings.find((m) => m.plant_id === plantScope)?.plant_name ?? "this plant"
+    : null;
+
   const filtered = mappings.filter((m) => {
+    if (plantScope && m.plant_id !== plantScope) return false;
     const q = search.toLowerCase();
     return (
       !q ||
@@ -221,6 +229,25 @@ export default function MappingsPage() {
           {showNew ? "Cancel" : "New mapping"}
         </button>
       </div>
+
+      {/* Plant scope chip — set when arriving from a plant's Mappings button */}
+      {plantScope && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-white border-2 border-brand-navy">
+          <span className="font-mono text-[10px] font-bold text-brand-navy/50 uppercase tracking-wider">
+            Filtered to plant
+          </span>
+          <span className="font-mono text-[11px] font-bold text-brand-navy truncate">{scopedPlantName}</span>
+          <button
+            onClick={() => {
+              searchParams.delete("plant_id");
+              setSearchParams(searchParams, { replace: true });
+            }}
+            className="ml-auto flex items-center gap-1 font-mono text-[10px] font-bold text-brand-navy/60 hover:text-brand-navy uppercase tracking-wider"
+          >
+            <HiXMark className="w-3.5 h-3.5" /> Clear
+          </button>
+        </div>
+      )}
 
       {/* New mapping form */}
       {showNew && (

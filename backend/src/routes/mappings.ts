@@ -43,7 +43,11 @@ mappingsRouter.get("/", (req, res) => {
   if (plant_id) {
     rows = db
       .prepare(
-        `SELECT m.*, p.name as plant_name, p.city, p.state
+        `SELECT m.*, p.name as plant_name, p.city, p.state,
+                (SELECT COUNT(*) FROM mapping_machines mm WHERE mm.mapping_id = m.id) as machine_count,
+                (SELECT COUNT(*) FROM mapping_photos mp
+                   JOIN mapping_machines mm2 ON mm2.id = mp.machine_id
+                  WHERE mm2.mapping_id = m.id) as photo_count
          FROM mappings m
          JOIN plants p ON p.id = m.plant_id
          WHERE m.plant_id = ?
@@ -53,7 +57,11 @@ mappingsRouter.get("/", (req, res) => {
   } else {
     rows = db
       .prepare(
-        `SELECT m.*, p.name as plant_name, p.city, p.state
+        `SELECT m.*, p.name as plant_name, p.city, p.state,
+                (SELECT COUNT(*) FROM mapping_machines mm WHERE mm.mapping_id = m.id) as machine_count,
+                (SELECT COUNT(*) FROM mapping_photos mp
+                   JOIN mapping_machines mm2 ON mm2.id = mp.machine_id
+                  WHERE mm2.mapping_id = m.id) as photo_count
          FROM mappings m
          JOIN plants p ON p.id = m.plant_id
          ORDER BY m.created_at DESC`

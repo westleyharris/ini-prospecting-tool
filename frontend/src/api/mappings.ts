@@ -55,6 +55,9 @@ export interface Mapping {
   state?: string;
   formatted_address?: string;
   machines?: MappingMachine[];
+  // Aggregates returned by the list endpoint
+  machine_count?: number;
+  photo_count?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

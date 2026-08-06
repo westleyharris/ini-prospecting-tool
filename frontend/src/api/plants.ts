@@ -39,6 +39,7 @@ export interface Plant {
   updated_at: string;
   visit_count?: number;
   project_count?: number;
+  mapping_count?: number;
 }
 
 export interface Metrics {
@@ -50,6 +51,7 @@ export interface Metrics {
   totalVisits?: number;
   totalProjects?: number;
   totalCommissionings?: number;
+  totalMappings?: number;
 }
 
 export async function createPlant(data: {
