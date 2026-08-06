@@ -54,7 +54,8 @@
       "Bash(node -v; ls ~/.nvm/versions/node 2>/dev/null; cat \"/Users/westleyharris/Desktop/Projects/INI Data Pipeline/.nvmrc\" 2>/dev/null; ls /usr/local/bin/node /opt/homebrew/bin/node 2>/dev/null)",
       "Bash(/usr/local/bin/node -v)",
       "Bash(/opt/homebrew/bin/node -v)",
-      "Bash(/usr/local/bin/node -e ' *)"
+      "Bash(/usr/local/bin/node -e ' *)",
+      "Bash(lsof -nP -iTCP:3001 -sTCP:LISTEN)"
     ]
   }
 }

@@ -474,7 +474,7 @@ function MachineCard({
   onDelete: () => void;
 }) {
   const [machine, setMachine] = useState(initialMachine);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameVal, setNameVal] = useState(machine.name);
 
@@ -1698,7 +1698,8 @@ export default function MappingEditorPage() {
   const [showAddMachine, setShowAddMachine] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleVal, setTitleVal] = useState("");
-  const [viewMode, setViewMode] = useState(false);
+  // Open on the read-only report; editing is opt-in via the Edit toggle
+  const [viewMode, setViewMode] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (silent = false) => {
