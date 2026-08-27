@@ -1,29 +1,28 @@
 import type { Mapping, MappingMachine } from "../api/mappings";
-import { checkObsolete, type EquipmentCategory } from "./obsoleteEquipment";
+import { checkAsset, type EquipmentCategory, type LifecycleStatus } from "./obsoleteEquipment";
 
 /**
- * Obsolescence risk register.
+ * Lifecycle risk register.
  *
  * Walks every machine in a mapping, checks each control/drive asset against the
  * vendor lifecycle table, then groups identical assets so the register reads as
- * "SLC 5/04 — 3 units" rather than repeating the same finding per machine.
+ * "PLC-5/20 — 3 units" rather than repeating the same finding per machine.
  */
 
-export type RiskLevel = "critical" | "high" | "moderate";
+export type RiskLevel = "critical" | "high" | "moderate" | "watch";
 
 export interface RiskFinding {
   key: string;
   category: EquipmentCategory;
-  /** Display label — a drive finding may be a VFD or a servo drive */
   categoryLabel: string;
   make: string;
   model: string;
-  /** Machines running this asset, in sheet order */
   machines: { id: string; tag: string; name: string }[];
   unitCount: number;
   eolYear?: number;
   note: string;
   successor?: string;
+  status: LifecycleStatus;
   score: number;
   level: RiskLevel;
   breakdown: { age: number; exposure: number; migration: number };
@@ -31,11 +30,9 @@ export interface RiskFinding {
 
 export interface RiskRegister {
   findings: RiskFinding[];
-  /** Machines carrying at least one obsolete asset */
   affectedMachines: number;
   totalMachines: number;
   counts: Record<RiskLevel, number>;
-  /** Total obsolete units across the plant */
   totalUnits: number;
 }
 
@@ -45,14 +42,9 @@ interface Candidate {
   make: string | null;
   model: string | null;
   series?: string | null;
+  partNo?: string | null;
 }
 
-/**
- * Field techs type the same asset several ways — "SLC 5/04" and "SLC 5/04 CPU",
- * "AB" and "Allen-Bradley". Grouping on the raw strings would split one finding
- * into several and understate how exposed the plant actually is, so the register
- * groups on a normalized key while still displaying the cleanest label seen.
- */
 const MAKE_ALIASES: Record<string, string> = {
   ab: "allen-bradley",
   "a b": "allen-bradley",
@@ -68,7 +60,6 @@ const MAKE_ALIASES: Record<string, string> = {
   "omron corporation": "omron",
 };
 
-/** Descriptor words that don't identify the product itself. */
 const NOISE_TOKENS = new Set([
   "cpu", "processor", "module", "controller", "control", "unit", "series",
   "plc", "hmi", "panel", "terminal", "drive", "vfd", "inverter", "servo",
@@ -92,24 +83,34 @@ function normalizeModel(model: string): string {
 
 function candidatesFor(m: MappingMachine): Candidate[] {
   return [
-    { category: "plc", categoryLabel: "PLC", make: m.plc_make, model: m.plc_model, series: m.plc_series },
-    { category: "hmi", categoryLabel: "HMI", make: m.hmi_make, model: m.hmi_model },
+    { category: "plc", categoryLabel: "PLC", make: m.plc_make, model: m.plc_model, series: m.plc_series, partNo: m.plc_part_no },
+    { category: "hmi", categoryLabel: "HMI", make: m.hmi_make, model: m.hmi_model, partNo: m.hmi_part_no },
     { category: "drive", categoryLabel: "VFD", make: m.vfd_make, model: m.vfd_model },
-    { category: "drive", categoryLabel: "Servo", make: m.servo_drive_make, model: m.servo_drive_model },
+    { category: "servo", categoryLabel: "Servo", make: m.servo_drive_make, model: m.servo_drive_model },
+    { category: "servo", categoryLabel: "Servo motor", make: m.servo_motor_make, model: m.servo_motor_model, partNo: m.servo_motor_part_no },
   ];
 }
 
 /**
  * Risk score, 2–7. Deliberately simple so it can be explained on the printed sheet:
- *   age       how long ago the vendor discontinued it
+ *   age       how long ago the vendor discontinued it (mature platforms score 1)
  *   exposure  how many units in this plant depend on it
  *   migration whether a documented successor exists
  */
-function scoreOf(eolYear: number | undefined, unitCount: number, hasSuccessor: boolean) {
+function scoreOf(
+  status: LifecycleStatus,
+  eolYear: number | undefined,
+  unitCount: number,
+  hasSuccessor: boolean,
+) {
   const now = new Date().getFullYear();
   let age: number;
-  if (eolYear === undefined) {
-    age = 2; // legacy platform, discontinued long enough ago that we don't track the date
+  if (status === "mature") {
+    age = 1;
+  } else if (status === "unsupported") {
+    age = 3;
+  } else if (eolYear === undefined) {
+    age = 2;
   } else {
     const years = now - eolYear;
     age = years >= 10 ? 3 : years >= 5 ? 2 : 1;
@@ -119,7 +120,8 @@ function scoreOf(eolYear: number | undefined, unitCount: number, hasSuccessor: b
   return { age, exposure, migration, total: age + exposure + migration };
 }
 
-function levelOf(score: number): RiskLevel {
+function levelOf(status: LifecycleStatus, score: number): RiskLevel {
+  if (status === "mature") return "watch";
   if (score >= 6) return "critical";
   if (score >= 4) return "high";
   return "moderate";
@@ -134,20 +136,21 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
     const tag = `M-${String(idx + 1).padStart(2, "0")}`;
 
     for (const c of candidatesFor(machine)) {
-      const result = checkObsolete(c.category, c.make, c.model, c.series);
-      if (!result.obsolete) continue;
+      const result = checkAsset(c.category, {
+        make: c.make, model: c.model, series: c.series, partNo: c.partNo,
+      });
+      if (result.status === "unknown") continue;
 
       affected.add(machine.id);
 
       const make = (c.make ?? "").trim();
-      const model = [c.model, c.series].filter(Boolean).join(" ").trim();
-      const key = `${c.category}|${normalizeMake(make)}|${normalizeModel(model)}`;
+      const model = [c.model, c.series].filter(Boolean).join(" ").trim() || (c.partNo ?? "").trim();
+      const key = `${c.category}|${normalizeMake(make)}|${normalizeModel(model)}|${result.status}`;
 
       const existing = grouped.get(key);
       if (existing) {
         existing.machines.push({ id: machine.id, tag, name: machine.name });
         existing.unitCount += 1;
-        // Keep the cleanest labels: the fullest make, the least cluttered model
         if (make.length > existing.make.length) existing.make = make;
         if (model && (!existing.model || model.length < existing.model.length)) existing.model = model;
       } else {
@@ -162,6 +165,7 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
           eolYear: result.eolYear,
           note: result.note ?? "",
           successor: result.successor,
+          status: result.status,
           score: 0,
           level: "moderate",
           breakdown: { age: 0, exposure: 0, migration: 0 },
@@ -171,19 +175,25 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
   });
 
   const findings = [...grouped.values()].map((f) => {
-    const s = scoreOf(f.eolYear, f.unitCount, Boolean(f.successor));
+    const s = scoreOf(f.status, f.eolYear, f.unitCount, Boolean(f.successor));
     return {
       ...f,
       score: s.total,
-      level: levelOf(s.total),
+      level: levelOf(f.status, s.total),
       breakdown: { age: s.age, exposure: s.exposure, migration: s.migration },
     };
   });
 
-  // Highest risk first; break ties by how much of the plant is exposed
-  findings.sort((a, b) => b.score - a.score || b.unitCount - a.unitCount || a.categoryLabel.localeCompare(b.categoryLabel));
+  const levelRank: Record<RiskLevel, number> = { critical: 4, high: 3, moderate: 2, watch: 1 };
+  findings.sort(
+    (a, b) =>
+      levelRank[b.level] - levelRank[a.level] ||
+      b.score - a.score ||
+      b.unitCount - a.unitCount ||
+      a.categoryLabel.localeCompare(b.categoryLabel)
+  );
 
-  const counts: Record<RiskLevel, number> = { critical: 0, high: 0, moderate: 0 };
+  const counts: Record<RiskLevel, number> = { critical: 0, high: 0, moderate: 0, watch: 0 };
   let totalUnits = 0;
   for (const f of findings) {
     counts[f.level] += 1;
@@ -203,4 +213,5 @@ export const RISK_META: Record<RiskLevel, { label: string; ink: string; bg: stri
   critical: { label: "Critical", ink: "#7f1d1d", bg: "#fee2e2", border: "#dc2626" },
   high:     { label: "High",     ink: "#7c2d12", bg: "#ffedd5", border: "#ea580c" },
   moderate: { label: "Moderate", ink: "#78350f", bg: "#fef3c7", border: "#d97706" },
+  watch:    { label: "Watch",    ink: "#1e3a5f", bg: "#e8eef5", border: "#64748b" },
 };

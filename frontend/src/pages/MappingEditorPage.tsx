@@ -14,30 +14,64 @@ import {
   photoUrl,
   type Mapping, type MappingMachine, type MappingPhoto,
 } from "../api/mappings";
-import { checkPLCObsolete } from "../data/obsoleteEquipment";
+import { LIFECYCLE_META, type LifecycleResult } from "../data/obsoleteEquipment";
+import { assessMachine, lifeFor } from "../data/machineAssessment";
 import { buildRiskRegister, RISK_META, type RiskFinding } from "../data/riskRegister";
+import { buildOpportunityRegister } from "../data/opportunityRegister";
 import { downloadPresentation } from "../services/presentation";
+import { ObservationsPanel } from "../components/ObservationsPanel";
 
-// ─── EOL badge ────────────────────────────────────────────────────────────────
-function EOLBadge({ note, successor, eolYear }: { note: string; successor?: string; eolYear?: number }) {
+// ─── Lifecycle badge ──────────────────────────────────────────────────────────
+function LifecycleBadge({ result }: { result?: LifecycleResult }) {
+  if (!result || result.status === "unknown") return null;
+  const meta = LIFECYCLE_META[result.status];
   return (
     <div className="relative group/eol inline-flex shrink-0">
-      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded border border-amber-300 cursor-help">
-        ⚠ EOL
+      <span
+        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest rounded border cursor-help"
+        style={{ background: meta.bg, color: meta.ink, borderColor: meta.border }}
+      >
+        {result.status === "mature" ? meta.short : `⚠ ${meta.short}`}
       </span>
-      {/* Tooltip */}
       <div className="absolute bottom-full left-0 mb-2 z-20 w-60 bg-gray-950 text-white rounded-xl p-3 text-xs shadow-xl opacity-0 pointer-events-none group-hover/eol:opacity-100 transition-opacity duration-150"
         style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
-        <p className="font-semibold text-amber-400 mb-1 leading-snug">{note}</p>
-        {eolYear && <p className="text-gray-400 text-[10px]">Discontinued: {eolYear}</p>}
-        {successor && (
+        <p className="font-semibold mb-1 leading-snug" style={{ color: meta.border }}>{result.note}</p>
+        {result.eolYear && <p className="text-gray-400 text-[10px]">Discontinued: {result.eolYear}</p>}
+        {result.successor && (
           <div className="mt-1.5 pt-1.5 border-t border-white/10">
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">Recommended replacement</p>
-            <p className="text-brand-lime font-bold mt-0.5">{successor}</p>
+            <p className="text-brand-lime font-bold mt-0.5">{result.successor}</p>
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+function FlagPills({ machine, max = 3 }: { machine: MappingMachine; max?: number }) {
+  const a = assessMachine(machine);
+  const pills: { text: string; ink: string; bg: string; border: string }[] = [];
+  if (a.hasEol) {
+    const st = a.worst.status === "unsupported" ? "UNSUP" : "EOL";
+    pills.push({ text: st, ink: "#92400e", bg: "#fef3c7", border: "#d97706" });
+  } else if (a.hasMature) {
+    pills.push({ text: "MAT", ink: "#1e3a5f", bg: "#e8eef5", border: "#64748b" });
+  }
+  for (const f of a.flags) {
+    if (pills.length >= max) break;
+    if (pills.some((p) => p.text === f.short)) continue;
+    pills.push({ text: f.short, ink: "#00182e", bg: "#f4f6f2", border: "rgba(0,24,46,0.35)" });
+  }
+  if (pills.length === 0) return null;
+  return (
+    <span className="inline-flex flex-wrap gap-0.5 justify-end">
+      {pills.map((p) => (
+        <span key={p.text} className="font-mono text-[8px] font-bold px-1 leading-4"
+          style={{ color: p.ink, background: p.bg, border: `1px solid ${p.border}` }}>
+          {p.text}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -67,7 +101,7 @@ function FieldGroup({
   fields: { key: keyof MappingMachine; label: string; placeholder: string }[];
   machine: MappingMachine;
   onSave: (data: Partial<MappingMachine>) => Promise<void>;
-  eolResult?: ReturnType<typeof checkPLCObsolete>;
+  eolResult?: LifecycleResult;
 }) {
   const [editing, setEditing] = useState(false);
   const [vals, setVals] = useState<Record<string, string>>({});
@@ -139,9 +173,7 @@ function FieldGroup({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-700">{title}</span>
-            {eolResult?.obsolete && (
-              <EOLBadge note={eolResult.note!} successor={eolResult.successor} eolYear={eolResult.eolYear} />
-            )}
+            <LifecycleBadge result={eolResult} />
           </div>
           {hasAny ? (
             <p className="text-xs text-gray-500 truncate mt-0.5">
@@ -559,14 +591,15 @@ function MachineCard({
               { key: "plc_part_no", label: "Part number", placeholder: "e.g. 1769-L33ER/B" },
             ]}
             machine={machine} onSave={saveFields}
-            eolResult={checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series)} />
+            eolResult={lifeFor(machine, "plc")} />
           <FieldGroup title="HMI" Icon={HiComputerDesktop}
             fields={[
               { key: "hmi_make",    label: "Make",        placeholder: "e.g. Allen-Bradley" },
               { key: "hmi_model",   label: "Model",       placeholder: "e.g. PanelView Plus 7" },
               { key: "hmi_part_no", label: "Part number", placeholder: "e.g. 2711P-T7C22D9P" },
             ]}
-            machine={machine} onSave={saveFields} />
+            machine={machine} onSave={saveFields}
+            eolResult={lifeFor(machine, "hmi")} />
           <FieldGroup title="VFD" Icon={HiBolt}
             fields={[
               { key: "vfd_make",    label: "Make",    placeholder: "e.g. Allen-Bradley" },
@@ -574,13 +607,15 @@ function MachineCard({
               { key: "vfd_hp",      label: "HP",      placeholder: "e.g. 5 HP" },
               { key: "vfd_voltage", label: "Voltage", placeholder: "e.g. 480V" },
             ]}
-            machine={machine} onSave={saveFields} />
+            machine={machine} onSave={saveFields}
+            eolResult={lifeFor(machine, "vfd")} />
           <FieldGroup title="Servo Drive" Icon={HiCog8Tooth}
             fields={[
               { key: "servo_drive_make",  label: "Drive Make",  placeholder: "e.g. Allen-Bradley, Yaskawa" },
               { key: "servo_drive_model", label: "Drive Model", placeholder: "e.g. Kinetix 5500, SGDV" },
             ]}
-            machine={machine} onSave={saveFields} />
+            machine={machine} onSave={saveFields}
+            eolResult={lifeFor(machine, "servo")} />
           <FieldGroup title="Servo Motor" Icon={HiCog8Tooth}
             fields={[
               { key: "servo_motor_make",    label: "Motor Make",    placeholder: "e.g. Allen-Bradley, Fanuc" },
@@ -588,6 +623,7 @@ function MachineCard({
               { key: "servo_motor_part_no", label: "Motor Part No", placeholder: "e.g. MPL-B430P-MJ72AA" },
             ]}
             machine={machine} onSave={saveFields} />
+          <ObservationsPanel machine={machine} onUpdate={(updated) => { setMachine(updated); onUpdate(updated); }} />
           <NotesField
             value={machine.notes ?? ""}
             onSave={async (notes) => {
@@ -639,7 +675,7 @@ function RiskPrintSheet({
         <span style={{
           fontFamily: MONO, fontSize: 9, fontWeight: 700,
           letterSpacing: "0.18em", color: REG_LIME, textTransform: "uppercase",
-        }}>Obsolescence Risk Register</span>
+        }}>Lifecycle Risk Register</span>
         <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.4)" }}>
           {dwgNo} · {reportDate}
         </span>
@@ -653,7 +689,7 @@ function RiskPrintSheet({
           { n: `${affectedMachines}/${totalMachines}`, l: "Machines" },
           { n: counts.critical, l: "Critical" },
           { n: counts.high, l: "High" },
-          { n: counts.moderate, l: "Moderate" },
+          { n: counts.watch, l: "Watch" },
         ].map((s) => (
           <div key={s.l} style={{ flex: 1, padding: "8px 10px", borderRight: `1px solid ${REG_HAIR}`, textAlign: "center" }}>
             <div style={{ fontFamily: MONO, fontSize: 17, fontWeight: 700, color: REG_INK }}>{s.n}</div>
@@ -737,9 +773,9 @@ function RiskPrintSheet({
         }}>Scoring method</div>
         <div style={{ fontSize: 8, lineHeight: 1.5, color: REG_INK, opacity: 0.75 }}>
           Each finding scores 2–7 across three factors: <strong>age</strong> (years since the vendor
-          discontinued the product), <strong>exposure</strong> (units of that asset installed at this
+          discontinued the product; mature platforms score 1), <strong>exposure</strong> (units of that asset installed at this
           facility), and <strong>migration path</strong> (whether the vendor names a direct successor).
-          Critical ≥ 6 · High 4–5 · Moderate ≤ 3. Lifecycle data reflects published vendor
+          Critical ≥ 6 · High 4–5 · Moderate ≤ 3 · Watch = mature / still shipping. Lifecycle data reflects published vendor
           declarations and should be confirmed against the manufacturer's current lifecycle
           statement before procurement.
         </div>
@@ -767,7 +803,7 @@ function RiskRegisterView({ mapping }: { mapping: Mapping }) {
           <div className="flex items-center gap-2">
             <HiExclamationTriangle className="w-4 h-4 text-brand-lime" />
             <span className="font-mono text-[11px] font-bold text-brand-lime uppercase tracking-[0.16em]">
-              Obsolescence Risk Register
+              Lifecycle Risk Register
             </span>
           </div>
           <span className="font-mono text-[10px] text-white/40 uppercase tracking-wider">
@@ -781,7 +817,7 @@ function RiskRegisterView({ mapping }: { mapping: Mapping }) {
             { n: `${affectedMachines}/${totalMachines}`, l: "Machines" },
             { n: counts.critical, l: "Critical" },
             { n: counts.high, l: "High" },
-            { n: counts.moderate, l: "Moderate" },
+            { n: counts.watch, l: "Watch" },
           ].map((s) => (
             <div key={s.l} className="px-2 py-3 text-center">
               <div className="font-mono text-xl font-bold text-brand-navy tabular-nums">{s.n}</div>
@@ -797,7 +833,7 @@ function RiskRegisterView({ mapping }: { mapping: Mapping }) {
         <div className="border-2 border-brand-navy bg-white px-6 py-12 text-center">
           <HiShieldCheck className="w-10 h-10 mx-auto text-emerald-500 mb-3" />
           <p className="font-mono text-sm font-bold text-brand-navy uppercase tracking-wider">
-            No obsolete equipment identified
+            No lifecycle findings identified
           </p>
           <p className="text-xs text-brand-navy/50 mt-1.5 max-w-md mx-auto">
             No control or drive asset recorded in this mapping matches a vendor end-of-life
@@ -819,12 +855,69 @@ function RiskRegisterView({ mapping }: { mapping: Mapping }) {
         </p>
         <p className="text-[11px] leading-relaxed text-brand-navy/65">
           Each finding scores 2–7 across three factors: <strong>age</strong> (years since the vendor
-          discontinued it), <strong>exposure</strong> (units installed at this facility), and{" "}
+          discontinued it; mature platforms score 1), <strong>exposure</strong> (units installed at this facility), and{" "}
           <strong>migration path</strong> (whether a direct successor is published).
-          Critical ≥ 6 · High 4–5 · Moderate ≤ 3. Confirm lifecycle status with the manufacturer
-          before procurement.
+          Critical ≥ 6 · High 4–5 · Moderate ≤ 3 · Watch = mature / still shipping. Confirm lifecycle
+          status with the manufacturer before procurement.
         </p>
       </div>
+
+      <OpportunityRegisterView mapping={mapping} />
+    </div>
+  );
+}
+
+function OpportunityRegisterView({ mapping }: { mapping: Mapping }) {
+  const register = buildOpportunityRegister(mapping);
+  const { findings, affectedMachines, totalMachines, totalFlags } = register;
+
+  return (
+    <div className="space-y-3 pt-4">
+      <div className="border-2 border-brand-navy bg-white">
+        <div className="flex items-center justify-between px-3 py-2 bg-brand-navy">
+          <div className="flex items-center gap-2">
+            <HiShieldCheck className="w-4 h-4 text-brand-lime" />
+            <span className="font-mono text-[11px] font-bold text-brand-lime uppercase tracking-[0.16em]">
+              Opportunity Register
+            </span>
+          </div>
+          <span className="font-mono text-[10px] text-white/40 uppercase tracking-wider">
+            {affectedMachines}/{totalMachines} machines · {totalFlags} flags
+          </span>
+        </div>
+      </div>
+
+      {findings.length === 0 ? (
+        <div className="border-2 border-brand-navy/20 bg-white px-6 py-8 text-center">
+          <p className="font-mono text-xs font-bold text-brand-navy/50 uppercase tracking-wider">
+            No opportunity flags yet
+          </p>
+          <p className="text-xs text-brand-navy/45 mt-1.5 max-w-md mx-auto">
+            In Edit mode, record operator interface, diagnostics, and network on each machine.
+            Flags such as no HMI, trapped modern hardware, and control islands appear here.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {findings.map((f) => (
+            <div key={f.key} className="border-2 bg-white" style={{ borderColor: REG_INK }}>
+              <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: "#f4f6f2", borderBottom: `1px solid ${REG_HAIR}` }}>
+                <span className="font-mono text-[9px] font-black uppercase tracking-[0.12em] px-1.5 py-0.5 border border-brand-navy/30 text-brand-navy">
+                  {f.short}
+                </span>
+                <span className="font-mono text-xs font-bold text-brand-navy uppercase tracking-wide">{f.label}</span>
+                <span className="ml-auto font-mono text-[10px] font-bold text-brand-navy">{f.unitCount} station{f.unitCount === 1 ? "" : "s"}</span>
+              </div>
+              <div className="px-3 py-3">
+                <p className="text-xs text-brand-navy/70 leading-relaxed">{f.pitch}</p>
+                <p className="font-mono text-[10px] font-bold text-brand-navy mt-2">
+                  {f.machines.map((m) => `${m.tag} ${m.name}`).join(" · ")}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -861,8 +954,12 @@ function RiskFindingCard({ finding, index }: { finding: RiskFinding; index: numb
             <p className="font-mono text-sm font-bold text-brand-navy">{finding.unitCount}</p>
           </div>
           <div>
-            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">Discontinued</p>
-            <p className="font-mono text-sm font-bold text-brand-navy">{finding.eolYear ?? "—"}</p>
+            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">
+              {finding.status === "mature" ? "Status" : "Discontinued"}
+            </p>
+            <p className="font-mono text-sm font-bold text-brand-navy">
+              {finding.status === "mature" ? "Mature" : (finding.eolYear ?? "—")}
+            </p>
           </div>
           <div className="col-span-2">
             <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">Location</p>
@@ -888,9 +985,12 @@ function RiskFindingCard({ finding, index }: { finding: RiskFinding; index: numb
 // Full-bleed engineering drawing sheet. Hidden on screen; revealed by @media print.
 function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "sheet" | "risk" }) {
   const register = buildRiskRegister(mapping);
+  const opportunities = buildOpportunityRegister(mapping);
   const machines = mapping.machines ?? [];
   const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
-  const eolCount    = machines.filter((m) => checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series).obsolete).length;
+  const assessments = machines.map(assessMachine);
+  const eolCount    = assessments.filter((a) => a.hasEol).length;
+  const flagCount   = assessments.reduce((s, a) => s + a.flags.length, 0);
   const plcCount    = machines.filter((m) => m.plc_make || m.plc_model).length;
   const driveCount  = machines.filter((m) => m.vfd_make || m.vfd_model || m.servo_drive_make).length;
   const reportDate  = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -940,7 +1040,7 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
 
   function SpecDataTable({ specs, eolResult }: {
     specs: { label: string; value: string }[];
-    eolResult?: ReturnType<typeof checkPLCObsolete>;
+    eolResult?: LifecycleResult;
   }) {
     return (
       <div>
@@ -964,16 +1064,20 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
             ))}
           </tbody>
         </table>
-        {eolResult?.obsolete && (
+        {eolResult && eolResult.status !== "unknown" && (
           <div style={{
-            marginTop: 8, background: "#fef3c7", border: "1.5px solid #d97706",
+            marginTop: 8,
+            background: LIFECYCLE_META[eolResult.status].bg,
+            border: `1.5px solid ${LIFECYCLE_META[eolResult.status].border}`,
             padding: "8px 10px",
           }}>
             <div style={{
               fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 900,
-              color: "#92400e", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 3,
-            }}>⚠ End of Life — Replacement Recommended</div>
-            <div style={{ fontSize: 10, color: "#78350f", lineHeight: 1.45 }}>{eolResult.note}</div>
+              color: LIFECYCLE_META[eolResult.status].ink, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 3,
+            }}>
+              {eolResult.status === "mature" ? "Mature platform — plan replacement" : "⚠ End of Life — Replacement Recommended"}
+            </div>
+            <div style={{ fontSize: 10, color: LIFECYCLE_META[eolResult.status].ink, lineHeight: 1.45 }}>{eolResult.note}</div>
             {eolResult.successor && (
               <div style={{ marginTop: 4, fontSize: 10, color: "#065f46", fontWeight: 700 }}>
                 Successor: {eolResult.successor}
@@ -1164,20 +1268,75 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
                   color: "#92400e", background: "#fef3c7", border: "1.5px solid #d97706",
                   padding: "3px 8px",
                 }}>
-                  ⚠ {eolCount} EOL PLC{eolCount !== 1 ? "S" : ""} — REPLACE
+                  ⚠ {eolCount} discontinued · {flagCount} opportunity flag{flagCount !== 1 ? "s" : ""}
+                </span>
+              ) : flagCount > 0 ? (
+                <span style={{
+                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700,
+                  textTransform: "uppercase", letterSpacing: "0.06em",
+                  color: "#00182e", background: "#f4f6f2", border: "1.5px solid rgba(0,24,46,0.3)",
+                  padding: "3px 8px",
+                }}>
+                  {flagCount} opportunity flag{flagCount !== 1 ? "s" : ""}
                 </span>
               ) : (
                 <span style={{
                   fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600,
                   textTransform: "uppercase", letterSpacing: "0.08em", color: INK, opacity: 0.4,
-                }}>No EOL equipment</span>
+                }}>No discontinued equipment</span>
               )}
             </div>
           </div>
         </div>
 
         {mode === "risk" ? (
-          <RiskPrintSheet register={register} mapping={mapping} dwgNo={dwgNo} reportDate={reportDate} />
+          <>
+            <RiskPrintSheet register={register} mapping={mapping} dwgNo={dwgNo} reportDate={reportDate} />
+            <div style={{ marginBottom: 14, border: `1.5px solid ${INK}` }} className="print-avoid-break">
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "5px 10px", background: INK,
+              }}>
+                <span style={{
+                  fontFamily: MONO, fontSize: 9, fontWeight: 700,
+                  letterSpacing: "0.18em", color: LIME, textTransform: "uppercase",
+                }}>Opportunity Register</span>
+                <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.4)" }}>
+                  {opportunities.affectedMachines}/{opportunities.totalMachines} machines · {opportunities.totalFlags} flags
+                </span>
+              </div>
+              {opportunities.findings.length === 0 ? (
+                <div style={{ padding: "16px 12px", fontSize: 10, color: INK, opacity: 0.55 }}>
+                  No opportunity flags recorded. Fill floor observations in Edit mode.
+                </div>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <tbody>
+                    {opportunities.findings.map((f) => (
+                      <tr key={f.key} className="print-avoid-break">
+                        <td style={{ padding: "8px 10px", borderBottom: `1px solid ${HAIR}`, width: 72, verticalAlign: "top" }}>
+                          <span style={{
+                            fontFamily: MONO, fontSize: 8, fontWeight: 700, padding: "2px 5px",
+                            border: `1px solid ${INK}`, color: INK,
+                          }}>{f.short}</span>
+                        </td>
+                        <td style={{ padding: "8px 10px", borderBottom: `1px solid ${HAIR}`, verticalAlign: "top" }}>
+                          <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: INK }}>{f.label}</div>
+                          <div style={{ fontSize: 9, color: INK, opacity: 0.7, marginTop: 3, lineHeight: 1.4 }}>{f.pitch}</div>
+                        </td>
+                        <td style={{ padding: "8px 10px", borderBottom: `1px solid ${HAIR}`, fontFamily: MONO, fontSize: 9, color: INK, width: 160, verticalAlign: "top" }}>
+                          {f.machines.map((m) => m.tag).join(", ")}
+                        </td>
+                        <td style={{ padding: "8px 10px", borderBottom: `1px solid ${HAIR}`, fontFamily: MONO, fontSize: 11, fontWeight: 700, color: INK, width: 36 }}>
+                          {f.unitCount}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>
         ) : (
           <>
         {/* ══════════ BOM / EQUIPMENT INDEX ══════════ */}
@@ -1210,7 +1369,6 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
             </thead>
             <tbody>
               {machines.map((m, i) => {
-                const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
                 return (
                   <tr key={m.id}>
                     <td style={{
@@ -1232,14 +1390,8 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
                       fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: INK, opacity: 0.5,
                       width: 56,
                     }}>{(m.photos ?? []).length}</td>
-                    <td style={{ padding: "5px 10px", borderBottom: `1px solid ${HAIR}`, width: 56 }}>
-                      {mEol.obsolete && (
-                        <span style={{
-                          fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, fontWeight: 700,
-                          color: "#92400e", background: "#fef3c7", border: "1px solid #d97706",
-                          padding: "1px 5px",
-                        }}>EOL</span>
-                      )}
+                    <td style={{ padding: "5px 10px", borderBottom: `1px solid ${HAIR}`, width: 110 }}>
+                      <FlagPills machine={m} max={3} />
                     </td>
                   </tr>
                 );
@@ -1273,7 +1425,7 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
           const specOnlyCats = (["plc", "hmi", "vfd", "servo"] as CatKey[]).filter((k) => {
             return getCatSpecs(machine, k).length > 0 && !(photosByCat[k] ?? []).length;
           });
-          const machineEol = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
+          const assessment = assessMachine(machine);
 
           return (
             <div key={machine.id} className={idx > 0 ? "print-page-break" : ""} style={{ marginBottom: 10 }}>
@@ -1317,13 +1469,20 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
                       color: INK, opacity: 0.5,
                     }}>{photos.length} PHOTO{photos.length !== 1 ? "S" : ""}</div>
                   )}
-                  {machineEol.obsolete && (
+                  {assessment.hasEol && (
                     <div style={{
                       fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, fontWeight: 900,
                       color: "#92400e", background: "#fef3c7", border: "1.5px solid #d97706",
                       padding: "2px 6px", textTransform: "uppercase",
-                    }}>EOL PLC</div>
+                    }}>{assessment.worst.status === "unsupported" ? "Unsupported" : "Discontinued"}</div>
                   )}
+                  {assessment.flags.slice(0, 2).map((f) => (
+                    <div key={f.key} style={{
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, fontWeight: 700,
+                      color: "#00182e", background: "#f4f6f2", border: "1px solid rgba(0,24,46,0.3)",
+                      padding: "2px 6px", textTransform: "uppercase",
+                    }}>{f.short}</div>
+                  ))}
                 </div>
               </div>
 
@@ -1348,7 +1507,7 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
                         <div style={{ padding: "0 8px 10px" }}>
                           <SpecDataTable
                             specs={specs}
-                            eolResult={catKey === "plc" ? machineEol : undefined}
+                            eolResult={lifeFor(machine, catKey as "plc" | "hmi" | "vfd" | "servo")}
                           />
                         </div>
                       )}
@@ -1365,7 +1524,7 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
                       <div style={{ padding: 10 }}>
                         <SpecDataTable
                           specs={specs}
-                          eolResult={catKey === "plc" ? machineEol : undefined}
+                          eolResult={lifeFor(machine, catKey as "plc" | "hmi" | "vfd" | "servo")}
                         />
                       </div>
                     </div>
@@ -1382,6 +1541,29 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
                     <PhotoGrid photos={group.photos} size="lg" />
                   </div>
                 ))}
+
+                {(assessment.flags.length > 0 || assessment.opportunity.length > 0) && (
+                  <div className="print-avoid-break" style={{ borderBottom: `1px solid ${HAIR}` }}>
+                    <SectionBar label="Current vs. possible" accent="#00182e" />
+                    <div style={{ padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <div>
+                        <div style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: INK, opacity: 0.45, marginBottom: 4 }}>Today</div>
+                        {assessment.today.map((t) => (
+                          <div key={t} style={{ fontFamily: MONO, fontSize: 10, color: INK, marginBottom: 3 }}>{t}</div>
+                        ))}
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#166534", marginBottom: 4 }}>Opportunity</div>
+                        {assessment.opportunity.map((t) => (
+                          <div key={t} style={{ fontSize: 10, color: INK, marginBottom: 3 }}>{t}</div>
+                        ))}
+                        {assessment.flags.map((f) => (
+                          <div key={f.key} style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, color: INK, opacity: 0.55, marginTop: 2 }}>{f.short}</div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {orderedCats.length === 0 && otherGroups.length === 0 && !hasSpecs && (
                   <div style={{
@@ -1542,14 +1724,16 @@ function MappingView({ mapping }: { mapping: Mapping }) {
   }, [machines]);
 
   const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
-  const eolCount    = machines.filter((m) => checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series).obsolete).length;
+  const assessments = machines.map(assessMachine);
+  const eolCount    = assessments.filter((a) => a.hasEol).length;
+  const flagCount   = assessments.reduce((s, a) => s + a.flags.length, 0);
   const reportDate  = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
   // Spec table — drafting-style ruled data cells
-  function SpecTable({ rows, catKey, plcEol }: {
+  function SpecTable({ rows, catKey, life }: {
     rows: { label: string; value: string }[];
     catKey: SpecCatKey;
-    plcEol?: ReturnType<typeof checkPLCObsolete>;
+    life?: LifecycleResult;
   }) {
     const meta = SPEC_META[catKey];
     return (
@@ -1557,9 +1741,7 @@ function MappingView({ mapping }: { mapping: Mapping }) {
         <div className="flex items-center gap-1.5 mb-1.5">
           <span className="w-2 h-2 shrink-0" style={{ background: meta.accent }} />
           <span className="font-mono text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: INK }}>{meta.label}</span>
-          {catKey === "plc" && plcEol?.obsolete && (
-            <EOLBadge note={plcEol.note!} successor={plcEol.successor} eolYear={plcEol.eolYear} />
-          )}
+          <LifecycleBadge result={life} />
         </div>
         <div style={{ border: `1px solid ${HAIR}` }}>
           {rows.map((r, i) => (
@@ -1683,11 +1865,16 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                 {eolCount > 0 ? (
                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-amber-900 bg-amber-100"
                     style={{ border: `1.5px solid #d97706` }}>
-                    ⚠ {eolCount} EOL PLC{eolCount > 1 ? "S" : ""} — REPLACE
+                    ⚠ {eolCount} discontinued · {flagCount} opportunit{flagCount === 1 ? "y" : "ies"}
+                  </span>
+                ) : flagCount > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em]"
+                    style={{ color: INK, background: "#f4f6f2", border: `1.5px solid ${HAIR}` }}>
+                    {flagCount} opportunity flag{flagCount === 1 ? "" : "s"}
                   </span>
                 ) : (
                   <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: INK, opacity: 0.45 }}>
-                    No EOL equipment
+                    No discontinued equipment
                   </span>
                 )}
               </div>
@@ -1697,7 +1884,6 @@ function MappingView({ mapping }: { mapping: Mapping }) {
             <div className="lg:hidden overflow-x-auto" style={{ scrollbarWidth: "none", borderTop: `1px solid ${HAIR}` }}>
               <div className="flex min-w-max">
                 {machines.map((m, i) => {
-                  const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
                   const isActive = activeTab === m.id;
                   return (
                     <button key={m.id}
@@ -1711,7 +1897,7 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                       }}>
                       <span>{String(i + 1).padStart(2, "0")}</span>
                       <span className="uppercase">{m.name}</span>
-                      {mEol.obsolete && <span className="text-amber-600 text-[9px]">EOL</span>}
+                      {assessMachine(m).hasEol && <span className="text-amber-600 text-[9px]">EOL</span>}
                     </button>
                   );
                 })}
@@ -1735,7 +1921,6 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                   <span>Item</span><span>Description</span><span>Flag</span>
                 </div>
                 {machines.map((m, i) => {
-                  const mEol = checkPLCObsolete(m.plc_make, m.plc_model, m.plc_series);
                   const isActive = activeTab === m.id;
                   return (
                     <button key={m.id}
@@ -1753,10 +1938,7 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                         style={{ color: INK, opacity: isActive ? 1 : 0.55 }}>
                         {m.name}
                       </span>
-                      {mEol.obsolete ? (
-                        <span className="font-mono text-[8px] font-bold text-amber-800 bg-amber-100 px-1"
-                          style={{ border: "1px solid #d97706" }}>EOL</span>
-                      ) : <span />}
+                      <FlagPills machine={m} max={2} />
                     </button>
                   );
                 })}
@@ -1778,6 +1960,10 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                   <div className="w-1.5 h-1.5 shrink-0 bg-amber-500" />
                   <span className="font-mono text-[9px] font-bold text-amber-700">EOL = discontinued</span>
                 </div>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <div className="w-1.5 h-1.5 shrink-0" style={{ background: INK, opacity: 0.35 }} />
+                  <span className="font-mono text-[9px]" style={{ color: INK, opacity: 0.55 }}>Flags = opportunities</span>
+                </div>
               </div>
             </aside>
 
@@ -1795,7 +1981,11 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                 const ctrlCats  = (["plc", "hmi"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
                 const driveCats = (["vfd", "servo"] as SpecCatKey[]).filter((k) => specRows(machine, k).length > 0);
                 const hasSpecs  = ctrlCats.length > 0 || driveCats.length > 0;
-                const plcEol    = checkPLCObsolete(machine.plc_make, machine.plc_model, machine.plc_series);
+                const assessment = assessMachine(machine);
+                const plcLife    = lifeFor(machine, "plc");
+                const hmiLife    = lifeFor(machine, "hmi");
+                const vfdLife    = lifeFor(machine, "vfd");
+                const servoLife  = lifeFor(machine, "servo");
 
                 return (
                   <div id={`mv-${machine.id}`} key={machine.id} className="bg-white scroll-mt-3 relative"
@@ -1821,12 +2011,18 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                           {machine.notes}
                         </span>
                       )}
-                      {plcEol.obsolete && (
+                      {assessment.hasEol && (
                         <span className="flex items-center gap-1 px-1.5 py-0.5 shrink-0 font-mono text-[9px] font-bold text-amber-900 bg-amber-100"
                           style={{ border: "1.5px solid #d97706" }}>
-                          EOL PLC
+                          {assessment.worst.status === "unsupported" ? "UNSUP" : "EOL"}
                         </span>
                       )}
+                      {assessment.flags.slice(0, 2).map((f) => (
+                        <span key={f.key} className="hidden sm:inline-flex px-1.5 py-0.5 shrink-0 font-mono text-[8px] font-bold"
+                          style={{ color: INK, background: "#f4f6f2", border: `1px solid ${HAIR}` }}>
+                          {f.short}
+                        </span>
+                      ))}
                       {allPhotos.length > 0 && (
                         <span className="flex items-center gap-1 font-mono text-[10px] font-bold shrink-0" style={{ color: INK, opacity: 0.45 }}>
                           <HiPhoto className="w-3 h-3" />{allPhotos.length}
@@ -1844,7 +2040,8 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                               {ctrlCats.map((catKey, ci) => (
                                 <div key={catKey} className="px-3 sm:px-4 py-2.5"
                                   style={ci > 0 ? { borderLeft: `1px solid ${HAIR}` } : undefined}>
-                                  <SpecTable rows={specRows(machine, catKey)} catKey={catKey} plcEol={plcEol} />
+                                  <SpecTable rows={specRows(machine, catKey)} catKey={catKey}
+                                    life={catKey === "plc" ? plcLife : hmiLife} />
                                 </div>
                               ))}
                             </div>
@@ -1858,7 +2055,8 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                               {driveCats.map((catKey, ci) => (
                                 <div key={catKey} className="px-3 sm:px-4 py-2.5"
                                   style={ci > 0 ? { borderLeft: `1px solid ${HAIR}` } : undefined}>
-                                  <SpecTable rows={specRows(machine, catKey)} catKey={catKey} />
+                                  <SpecTable rows={specRows(machine, catKey)} catKey={catKey}
+                                    life={catKey === "vfd" ? vfdLife : servoLife} />
                                 </div>
                               ))}
                             </div>
@@ -1867,9 +2065,30 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                       </div>
                     )}
 
+                    {(assessment.flags.length > 0 || assessment.opportunity.length > 0) && (
+                      <>
+                        <SectionRule no={hasSpecs ? "3.0" : "1.0"} title="Current vs. possible"
+                          right={`${assessment.flags.length} FLAG${assessment.flags.length !== 1 ? "S" : ""}`} />
+                        <div className="grid grid-cols-1 sm:grid-cols-2">
+                          <div className="px-3 sm:px-4 py-2.5" style={{ borderRight: `1px solid ${HAIR}` }}>
+                            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] mb-1.5" style={{ color: INK, opacity: 0.4 }}>Today</p>
+                            {assessment.today.map((t) => (
+                              <p key={t} className="font-mono text-[11px] font-bold" style={{ color: INK }}>{t}</p>
+                            ))}
+                          </div>
+                          <div className="px-3 sm:px-4 py-2.5">
+                            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] mb-1.5" style={{ color: "#166534" }}>Possible</p>
+                            {assessment.opportunity.map((t) => (
+                              <p key={t} className="text-[11px] leading-snug" style={{ color: INK }}>{t}</p>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
                     {allPhotos.length > 0 && (
                       <>
-                        <SectionRule no={hasSpecs ? "3.0" : "1.0"} title="Field Documentation"
+                        <SectionRule no={hasSpecs ? ((assessment.flags.length || assessment.opportunity.length) ? "4.0" : "3.0") : "1.0"} title="Field Documentation"
                           right={`${allPhotos.length} PHOTO${allPhotos.length !== 1 ? "S" : ""}`} />
                         <div className="px-3 sm:px-4 py-3 space-y-3">
                           {groups.map((group) => {

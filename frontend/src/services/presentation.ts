@@ -1,15 +1,18 @@
 import PptxGenJS from "pptxgenjs";
 import type { Mapping, MappingMachine } from "../api/mappings";
 import { buildRiskRegister, type RiskFinding } from "../data/riskRegister";
+import { buildOpportunityRegister } from "../data/opportunityRegister";
+import { assessMachine, buildPlantNarrative } from "../data/machineAssessment";
+import { FLAG_DEFS } from "../data/observations";
 
 /**
  * Automation Report deck generator.
  *
  * Design follows the I&I Automation company profile deck: navy/lime palette,
  * left lime stripe, eyebrow + title + short lime underline, logo top-right,
- * page number bottom-right. Content structure follows the Kroger and Abilene
- * Automation Reports: title → executive summary → obsolescence → justification
- * → equipment detail → field documentation → roadmap → contact.
+ * Content structure: title → what we found → executive summary → dual
+ * justification → lifecycle risk → opportunity map → equipment detail
+ * (today vs possible) → phased roadmap → contact.
  */
 
 // ─── Brand ────────────────────────────────────────────────────────────────────
@@ -169,6 +172,9 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
 
   const machines = mapping.machines ?? [];
   const register = buildRiskRegister(mapping);
+  const opportunities = buildOpportunityRegister(mapping);
+  const narrative = buildPlantNarrative(mapping);
+  const assessments = machines.map(assessMachine);
   const plant = mapping.plant_name ?? "Plant";
   const location = [mapping.city, mapping.state].filter(Boolean).join(", ");
   const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
@@ -225,19 +231,42 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     s.addNotes(`Automation Report for ${plant}. Field mapping captured ${machines.length} machines and ${totalPhotos} photos.`);
   }
 
-  // ══ 2 · Executive summary ══════════════════════════════════════════════════
+  // ══ 2 · What we found ══════════════════════════════════════════════════════
+  {
+    page++;
+    const s = frame(pptx, { eyebrow: "The line", title: "What We Found", theme: "dark", pageNo: page, images });
+
+    s.addText(narrative.story, {
+      x: BODY_L, y: CONTENT_T, w: 11.7, h: 1.85,
+      fontFace: FONT, fontSize: 15, color: WHITE, lineSpacing: 22, margin: 0, valign: "top",
+    });
+
+    s.addText(
+      narrative.bullets.map((f, i) => ({
+        text: f,
+        options: { bullet: true, breakLine: i !== narrative.bullets.length - 1 },
+      })),
+      { x: BODY_L, y: 3.7, w: 11.7, h: 2.2, fontFace: FONT, fontSize: 15, color: PALE, paraSpaceAfter: 8, margin: 0 }
+    );
+    s.addNotes(narrative.story);
+  }
+
+  // ══ 3 · Executive summary ══════════════════════════════════════════════════
   {
     page++;
     const s = frame(pptx, { eyebrow: "Overview", title: "Executive Summary", theme: "light", pageNo: page, images });
 
-    const eol = register.findings.length;
+    const eol = register.findings.filter((f) => f.status !== "mature").length;
     const auto = summary ??
-      `I&I Automation completed an on-site automation assessment at ${plant}${location ? ` in ${location}` : ""}. ` +
+      `I&I Automation completed an on-site controls survey at ${plant}${location ? ` in ${location}` : ""}. ` +
       `${machines.length} machine${machines.length === 1 ? "" : "s"} ${machines.length === 1 ? "was" : "were"} surveyed and ` +
       `${totalPhotos} field photograph${totalPhotos === 1 ? "" : "s"} recorded. ` +
       (eol > 0
-        ? `${eol} obsolescence finding${eol === 1 ? "" : "s"} ${eol === 1 ? "was" : "were"} identified across ${register.totalUnits} installed unit${register.totalUnits === 1 ? "" : "s"}, representing increased downtime risk from limited parts availability and reduced vendor support.`
-        : `No end-of-life control or drive equipment was identified in the surveyed scope.`);
+        ? `${eol} discontinued platform${eol === 1 ? "" : "s"} ${eol === 1 ? "was" : "were"} identified across ${register.totalUnits} installed unit${register.totalUnits === 1 ? "" : "s"}. `
+        : `No discontinued control or drive equipment was identified in the surveyed scope. `) +
+      (opportunities.findings.length > 0
+        ? `${opportunities.findings.length} operational opportunit${opportunities.findings.length === 1 ? "y" : "ies"} ${opportunities.findings.length === 1 ? "is" : "are"} on the table — visibility, diagnostics, line data, and trapped modern hardware.`
+        : `Floor observations are recorded per station so the next conversation is about the process, not only the parts list.`);
 
     s.addText(auto, {
       x: BODY_L, y: CONTENT_T, w: 5.9, h: 2.1,
@@ -245,10 +274,11 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     });
 
     const findings: string[] = [];
-    if (eol > 0) findings.push(`${eol} obsolete platform${eol === 1 ? "" : "s"} across ${register.affectedMachines} of ${register.totalMachines} machines`);
+    if (eol > 0) findings.push(`${eol} discontinued platform${eol === 1 ? "" : "s"} across ${register.affectedMachines} of ${register.totalMachines} machines`);
     if (register.counts.critical) findings.push(`${register.counts.critical} finding${register.counts.critical === 1 ? "" : "s"} rated critical`);
+    if (narrative.trapped) findings.push(`${narrative.trapped} modern drive/servo package${narrative.trapped === 1 ? "" : "s"} trapped behind a legacy PLC`);
+    if (narrative.noHmi) findings.push(`${narrative.noHmi} station${narrative.noHmi === 1 ? "" : "s"} with no operator visibility`);
     findings.push(`${plcCount} PLC${plcCount === 1 ? "" : "s"} and ${driveCount} drive system${driveCount === 1 ? "" : "s"} documented`);
-    findings.push("Migration paths identified with vendor-recommended successors");
 
     s.addText(
       findings.map((f, i) => ({ text: f, options: { bullet: true, breakLine: i !== findings.length - 1 } })),
@@ -259,8 +289,8 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     s.addShape("rect", { x: 6.95, y: CONTENT_T, w: 5.65, h: 3.15, fill: { color: CARD }, line: { width: 0 } });
     statTile(s, 7.15, CONTENT_T + 0.35, 2.5, String(machines.length), "Machines", "light");
     statTile(s, 9.9, CONTENT_T + 0.35, 2.5, String(totalPhotos), "Photos", "light");
-    statTile(s, 7.15, CONTENT_T + 1.65, 2.5, String(register.findings.length), "EOL findings", "light");
-    statTile(s, 9.9, CONTENT_T + 1.65, 2.5, String(register.totalUnits), "Units at risk", "light");
+    statTile(s, 7.15, CONTENT_T + 1.65, 2.5, String(eol), "Discontinued", "light");
+    statTile(s, 9.9, CONTENT_T + 1.65, 2.5, String(opportunities.findings.length), "Opportunities", "light");
 
     s.addText(`Assessment scope · ${plant}`, {
       x: 6.95, y: 5.0, w: 5.65, h: 0.3,
@@ -302,7 +332,7 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     const counts: [string, number][] = [
       ["Critical", register.counts.critical],
       ["High", register.counts.high],
-      ["Moderate", register.counts.moderate],
+      ["Watch / mature", register.counts.watch],
     ];
     counts.forEach(([label, n], i) => {
       const y = CONTENT_T + i * 1.15;
@@ -354,58 +384,110 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     // Footnote tracks the bottom of the table so a short register doesn't strand it
     const tableBottom = CONTENT_T + rows.length * ROW_H;
     s.addText(
-      "Scoring: age (years since discontinuation) + exposure (units installed) + migration path (successor published). " +
-      "Critical ≥ 6 · High 4–5 · Moderate ≤ 3.",
+      "Scoring: age + exposure + migration path. Critical ≥ 6 · High 4–5 · Moderate ≤ 3 · Watch = mature / still shipping.",
       { x: BODY_L, y: tableBottom + 0.28, w: 11.8, h: 0.5, fontFace: FONT, fontSize: 10, color: GREY, margin: 0 }
     );
   }
 
-  // ══ 5 · Justification (dark) ═══════════════════════════════════════════════
-  {
+  // ══ Opportunity map ════════════════════════════════════════════════════════
+  if (opportunities.findings.length > 0) {
     page++;
-    const s = frame(pptx, { eyebrow: "Justification", title: "Why Obsolescence Matters", theme: "dark", pageNo: page, images });
+    const s = frame(pptx, { eyebrow: "Opportunity", title: "Where We Can Help", theme: "light", pageNo: page, images });
 
-    s.addText("Unplanned downtime on legacy control hardware is the dominant cost driver.", {
-      x: BODY_L, y: CONTENT_T, w: 11.7, h: 0.5,
-      fontFace: FONT, fontSize: 17, bold: true, color: WHITE, margin: 0,
-    });
-
-    const cards: [string, string][] = [
-      ["Parts", "Obsolete platforms depend on brokered or salvaged spares, with no guaranteed lead time."],
-      ["Support", "Vendor technical support and firmware patches end, leaving faults to on-site trial and error."],
-      ["Recovery", "Failures take longer to diagnose and restore, extending every hour of lost production."],
+    const flagCols = FLAG_DEFS.filter((d) => opportunities.findings.some((f) => f.key === d.key));
+    const head = ["Station", "Lifecycle", ...flagCols.map((c) => c.short)];
+    const rows: PptxGenJS.TableRow[] = [
+      head.map((h) => ({
+        text: h.toUpperCase(),
+        options: { bold: true, fontSize: 8, color: WHITE, fill: { color: NAVY }, margin: 5 },
+      })),
     ];
-    cards.forEach(([t, body], i) => {
-      const x = BODY_L + i * 3.95;
-      s.addShape("rect", { x, y: 2.5, w: 3.6, h: 2.35, fill: { color: "0C1550" }, line: { width: 0 } });
-      s.addShape("rect", { x: x + 0.3, y: 2.8, w: 0.42, h: 0.42, fill: { color: LIME }, line: { width: 0 } });
-      s.addText(t, {
-        x: x + 0.3, y: 3.35, w: 3.0, h: 0.4,
-        fontFace: FONT, fontSize: 17, bold: true, color: WHITE, margin: 0,
-      });
-      s.addText(body, {
-        x: x + 0.3, y: 3.8, w: 3.0, h: 0.9,
-        fontFace: FONT, fontSize: 11.5, color: PALE, lineSpacing: 16, margin: 0,
-      });
+    machines.forEach((m, idx) => {
+      const a = assessments[idx];
+      const life = a.hasEol ? (a.worst.status === "unsupported" ? "UNSUP" : "EOL") : a.hasMature ? "MAT" : "—";
+      const cells: PptxGenJS.TableCell[] = [
+        { text: `M-${String(idx + 1).padStart(2, "0")}  ${m.name}`, options: { fontSize: 10, bold: true, color: NAVY } },
+        { text: life, options: { fontSize: 9, bold: true, color: a.hasEol ? "B45309" : GREY } },
+      ];
+      for (const col of flagCols) {
+        const hit = a.flags.some((f) => f.key === col.key);
+        cells.push({ text: hit ? "●" : "—", options: { fontSize: 11, align: "center", color: hit ? "166534" : "D9DEE7" } });
+      }
+      rows.push(cells);
     });
 
-    s.addText(
-      "Migrating legacy hardware mitigates obsolescence risk while reducing maintenance cost and downtime.",
-      { x: BODY_L, y: 5.35, w: 11.7, h: 0.5, fontFace: FONT, fontSize: 14, bold: true, color: LIME, margin: 0 }
-    );
+    const colW = [3.4, 1.15, ...flagCols.map(() => Math.min(1.4, 7.25 / Math.max(flagCols.length, 1)))];
+    s.addTable(rows, {
+      x: BODY_L, y: CONTENT_T, w: 11.8,
+      colW,
+      border: { type: "solid", color: "D9DEE7", pt: 1 },
+      fontFace: FONT, valign: "middle", margin: 5, autoPage: false,
+    });
+
+    const pitches = opportunities.findings.slice(0, 2);
+    if (pitches.length) {
+      s.addText(
+        pitches.map((p) => p.pitch).join("  ·  "),
+        { x: BODY_L, y: 6.35, w: 11.8, h: 0.45, fontFace: FONT, fontSize: 11, color: GREY, margin: 0 }
+      );
+    }
   }
 
-  // ══ 6..n · Machine detail ══════════════════════════════════════════════════
+  // ══ Dual justification (dark) ══════════════════════════════════════════════
+  {
+    page++;
+    const s = frame(pptx, { eyebrow: "Justification", title: "Why This Matters", theme: "dark", pageNo: page, images });
+
+    s.addText("The same survey has to convince the plant and the people who sign the PO.", {
+      x: BODY_L, y: CONTENT_T, w: 11.7, h: 0.4,
+      fontFace: FONT, fontSize: 16, bold: true, color: WHITE, margin: 0,
+    });
+
+    const cols: [string, [string, string][]][] = [
+      ["Corporate", [
+        ["Parts", "Discontinued platforms depend on brokered or salvaged spares, with no guaranteed lead time."],
+        ["Knowledge", "PLC-5 / DH+ skill is walking out the door. Recovery waits on one person."],
+        ["Spend", "Modern drives are already on the floor. The legacy processor is what keeps that spend from paying off."],
+      ]],
+      ["Operations", [
+        ["Visibility", "The operator should see why it stopped — not a blinking light and a guess."],
+        ["Recovery", "Mechanics restore from the panel. A laptop and a 1990s cable is not a maintenance plan."],
+        ["Balance", "Starve/block time becomes a number. Line balance stops being an opinion."],
+      ]],
+    ];
+    cols.forEach((col, ci) => {
+      const x = BODY_L + ci * 5.95;
+      s.addText(col[0].toUpperCase(), {
+        x, y: 2.2, w: 5.5, h: 0.28,
+        fontFace: FONT, fontSize: 11, bold: true, charSpacing: 1.4, color: LIME, margin: 0,
+      });
+      col[1].forEach(([t, body], i) => {
+        const y = 2.55 + i * 1.15;
+        s.addShape("rect", { x, y, w: 5.7, h: 1.05, fill: { color: "0C1550" }, line: { width: 0 } });
+        s.addText(t, {
+          x: x + 0.25, y: y + 0.12, w: 5.2, h: 0.28,
+          fontFace: FONT, fontSize: 14, bold: true, color: WHITE, margin: 0,
+        });
+        s.addText(body, {
+          x: x + 0.25, y: y + 0.42, w: 5.2, h: 0.5,
+          fontFace: FONT, fontSize: 12, color: PALE, margin: 0,
+        });
+      });
+    });
+  }
+
+  // ══ Machine detail ═════════════════════════════════════════════════════════
   machines.forEach((m, idx) => {
     page++;
     const tag = `M-${String(idx + 1).padStart(2, "0")}`;
     const s = frame(pptx, { eyebrow: `Equipment · ${tag}`, title: m.name, theme: "light", pageNo: page, images });
 
-    const specs = specLine(m);
+    const a = assessMachine(m);
+    const specs = a.today.length ? a.today : specLine(m);
     if (specs.length) {
       s.addText(
         specs.map((t, i) => ({ text: t, options: { bullet: true, breakLine: i !== specs.length - 1 } })),
-        { x: BODY_L, y: CONTENT_T, w: 5.6, h: 2.0, fontFace: FONT, fontSize: 14, color: INK, paraSpaceAfter: 9, margin: 0 }
+        { x: BODY_L, y: CONTENT_T, w: 5.6, h: 1.55, fontFace: FONT, fontSize: 13, color: INK, paraSpaceAfter: 6, margin: 0 }
       );
     } else {
       s.addText("No control or drive equipment recorded for this machine.", {
@@ -413,20 +495,35 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
       });
     }
 
-    const mFindings = register.findings.filter((f) => f.machines.some((mm) => mm.id === m.id));
-    if (mFindings.length) {
-      s.addShape("rect", { x: BODY_L, y: 3.85, w: 5.6, h: 0.05, fill: { color: LIME }, line: { width: 0 } });
-      s.addText("OBSOLESCENCE", {
-        x: BODY_L, y: 4.0, w: 5.6, h: 0.25,
+    if (a.opportunity.length) {
+      s.addShape("rect", { x: BODY_L, y: 3.35, w: 5.6, h: 0.05, fill: { color: LIME }, line: { width: 0 } });
+      s.addText("POSSIBLE", {
+        x: BODY_L, y: 3.48, w: 5.6, h: 0.22,
         fontFace: FONT, fontSize: 9, bold: true, charSpacing: 1.2, color: GREY, margin: 0,
       });
       s.addText(
-        mFindings.map((f, i) => ({
-          text: `${f.make} ${f.model} → ${f.successor ?? "consult vendor"}`,
-          options: { bullet: true, breakLine: i !== mFindings.length - 1 },
+        a.opportunity.map((t, i) => ({
+          text: t,
+          options: { bullet: true, breakLine: i !== a.opportunity.length - 1 },
         })),
-        { x: BODY_L, y: 4.28, w: 5.6, h: 1.5, fontFace: FONT, fontSize: 12.5, color: INK, paraSpaceAfter: 7, margin: 0 }
+        { x: BODY_L, y: 3.72, w: 5.6, h: 1.55, fontFace: FONT, fontSize: 12, color: INK, paraSpaceAfter: 5, margin: 0 }
       );
+    } else {
+      const mFindings = register.findings.filter((f) => f.machines.some((mm) => mm.id === m.id));
+      if (mFindings.length) {
+        s.addShape("rect", { x: BODY_L, y: 3.85, w: 5.6, h: 0.05, fill: { color: LIME }, line: { width: 0 } });
+        s.addText("LIFECYCLE", {
+          x: BODY_L, y: 4.0, w: 5.6, h: 0.25,
+          fontFace: FONT, fontSize: 9, bold: true, charSpacing: 1.2, color: GREY, margin: 0,
+        });
+        s.addText(
+          mFindings.map((f, i) => ({
+            text: `${f.make} ${f.model} → ${f.successor ?? "consult vendor"}`,
+            options: { bullet: true, breakLine: i !== mFindings.length - 1 },
+          })),
+          { x: BODY_L, y: 4.28, w: 5.6, h: 1.5, fontFace: FONT, fontSize: 12.5, color: INK, paraSpaceAfter: 7, margin: 0 }
+        );
+      }
     }
 
     if (m.notes) {
@@ -456,14 +553,19 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
 
     const steps: [string, string][] = [];
     if (register.counts.critical > 0) {
-      steps.push(["Immediate", `Address ${register.counts.critical} critical obsolescence finding${register.counts.critical === 1 ? "" : "s"} — confirm spares and migration budget.`]);
+      steps.push(["Immediate", `Address ${register.counts.critical} critical discontinued asset${register.counts.critical === 1 ? "" : "s"} — confirm spares and a replacement budget before the next unplanned stop.`]);
     }
-    if (register.findings.length > 0) {
-      steps.push(["Near term", "Legacy PLC and HMI migration plan with vendor-recommended successors."]);
-      steps.push(["Near term", "Critical spares and supportability review for remaining legacy assets."]);
+    if (narrative.trapped || narrative.noHmi) {
+      steps.push(["Near term", "HMI and Ethernet on stations with no visibility, starting where a modern drive is already trapped behind a legacy PLC."]);
     }
-    steps.push(["Ongoing", "Backup and disaster recovery standardization for all programmable devices."]);
-    steps.push(["Ongoing", "Control system security review — panel access, key-switch position, and network segmentation."]);
+    if (register.findings.some((f) => f.status !== "mature")) {
+      steps.push(["Near term", "Legacy PLC / HMI migration plan with vendor-recommended successors and a common spare strategy."]);
+    }
+    if (narrative.islands || opportunities.findings.some((f) => f.key === "no_counts")) {
+      steps.push(["Line project", "Station counts and a simple overview so operations can see starve/block time — line balance as a number."]);
+    }
+    steps.push(["Program", "Standard platform for the next machine that fails. One programming environment, one spare strategy, remote support possible."]);
+    steps.push(["Ongoing", "Backup every programmable device. Panel access, key-switch position, and network segmentation as a standing practice."]);
 
     steps.slice(0, 5).forEach(([when, what], i) => {
       const y = CONTENT_T + i * 0.98;
@@ -493,12 +595,12 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     if (images.logoWhite) {
       s.addImage({ data: images.logoWhite, x: 0.9, y: 1.0, w: 2.2, h: 1.9, sizing: { type: "contain", w: 2.2, h: 1.9 } });
     }
-    s.addText("Ready to discuss a\nmigration project?", {
+    s.addText("Ready to put a\nprogram in place?", {
       x: 0.9, y: 3.3, w: 6.0, h: 1.2,
       fontFace: FONT, fontSize: 30, bold: true, color: WHITE, lineSpacing: 38, margin: 0,
     });
     s.addText(
-      `Contact I&I Automation to review the findings in this report, scope a migration, or plan technical support for ${plant}.`,
+      `Contact I&I Automation to walk ${plant} through these findings, scope the first station, or stand up a plant-wide controls program.`,
       { x: 0.9, y: 4.7, w: 6.0, h: 0.9, fontFace: FONT, fontSize: 13.5, color: PALE, lineSpacing: 21, margin: 0 }
     );
     s.addShape("rect", { x: 0.9, y: 5.75, w: 1.7, h: 0.06, fill: { color: LIME }, line: { width: 0 } });
@@ -529,6 +631,7 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
 function riskColor(f: RiskFinding): string {
   if (f.level === "critical") return "B91C1C";
   if (f.level === "high") return "C2410C";
+  if (f.level === "watch") return "475569";
   return "B45309";
 }
 

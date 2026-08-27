@@ -248,6 +248,7 @@ const newMachineColumns = [
   { name: "servo_motor_make",     type: "TEXT" },
   { name: "servo_motor_model",    type: "TEXT" },
   { name: "servo_motor_part_no",  type: "TEXT" },
+  { name: "observations",         type: "TEXT" },
 ];
 for (const col of newMachineColumns) {
   if (!existingMachineColsSet.has(col.name)) {

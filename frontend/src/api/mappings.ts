@@ -35,6 +35,8 @@ export interface MappingMachine {
   servo_motor_make: string | null;
   servo_motor_model: string | null;
   servo_motor_part_no: string | null;
+  /** JSON blob of MachineObservations — operational survey fields + opportunity flags. */
+  observations: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

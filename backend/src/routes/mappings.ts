@@ -218,7 +218,7 @@ mappingsRouter.post("/:id/machines", (req, res) => {
     vfd_make, vfd_model, vfd_hp, vfd_voltage,
     servo_drive_make, servo_drive_model,
     servo_motor_make, servo_motor_model, servo_motor_part_no,
-    notes,
+    observations, notes,
   } = req.body;
 
   db.prepare(
@@ -229,8 +229,8 @@ mappingsRouter.post("/:id/machines", (req, res) => {
        vfd_make, vfd_model, vfd_hp, vfd_voltage,
        servo_drive_make, servo_drive_model,
        servo_motor_make, servo_motor_model, servo_motor_part_no,
-       notes, created_at, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       observations, notes, created_at, updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   ).run(
     id, req.params.id, name, sort_order,
     plc_make ?? null, plc_model ?? null, plc_series ?? null, plc_part_no ?? null,
@@ -238,7 +238,7 @@ mappingsRouter.post("/:id/machines", (req, res) => {
     vfd_make ?? null, vfd_model ?? null, vfd_hp ?? null, vfd_voltage ?? null,
     servo_drive_make ?? null, servo_drive_model ?? null,
     servo_motor_make ?? null, servo_motor_model ?? null, servo_motor_part_no ?? null,
-    notes ?? null, ts, ts
+    observations ?? null, notes ?? null, ts, ts
   );
 
   res.status(201).json(db.prepare("SELECT * FROM mapping_machines WHERE id = ?").get(id));
@@ -259,13 +259,15 @@ mappingsRouter.patch("/machines/:machineId", (req, res) => {
     "vfd_make", "vfd_model", "vfd_hp", "vfd_voltage",
     "servo_drive_make", "servo_drive_model",
     "servo_motor_make", "servo_motor_model", "servo_motor_part_no",
-    "notes",
+    "observations", "notes",
   ] as const;
 
   for (const key of allowed) {
     if (key in req.body) {
       fields.push(`${key} = ?`);
-      values.push(req.body[key]);
+      let val = req.body[key];
+      if (key === "observations" && val && typeof val === "object") val = JSON.stringify(val);
+      values.push(val);
     }
   }
 
