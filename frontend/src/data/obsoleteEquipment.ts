@@ -37,6 +37,8 @@ export interface AssetRef {
   model?: string | null;
   series?: string | null;
   partNo?: string | null;
+  /** Free text (notes, OCR) — used so “PLC-5” typed in notes still matches. */
+  extra?: string | null;
 }
 
 export interface LifecycleResult {
@@ -46,6 +48,10 @@ export interface LifecycleResult {
   note?: string;
   successor?: string;
   eolYear?: number;
+  /** Catalog brand, e.g. Allen-Bradley — used when the field entry is shorthand. */
+  brand?: string;
+  /** Catalog family, e.g. PLC-5 — groups “plc-5”, “PLC-5/20”, and 1785-* together. */
+  family?: string;
 }
 
 export const LIFECYCLE_META: Record<
@@ -774,8 +780,12 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
 
 function haystackOf(asset: AssetRef): { tokens: string[]; compact: string; aliasedMake: string } {
   const aliasedMake = aliasMake(asset.make ?? "");
-  const raw = [aliasedMake, asset.model, asset.series, asset.partNo].filter(Boolean).join(" ");
+  const raw = [aliasedMake, asset.model, asset.series, asset.partNo, asset.extra].filter(Boolean).join(" ");
   return { tokens: tokenize(raw), compact: compact(raw), aliasedMake };
+}
+
+function distinctiveModel(entry: ObsoleteEntry): boolean {
+  return entry.modelParts.some((p) => compact(p).length >= 4 || tokenize(p).length >= 2);
 }
 
 function entryMatches(entry: ObsoleteEntry, hay: ReturnType<typeof haystackOf>): boolean {
@@ -792,11 +802,36 @@ function entryMatches(entry: ObsoleteEntry, hay: ReturnType<typeof haystackOf>):
 
   if (makeHits(hay.aliasedMake, entry.makeParts)) return true;
 
-  // No make entered — allow distinctive model/catalog hits only.
+  // PLC-5, SLC 500, etc. are unique families. A junk OCR make (or "plc-5" typed
+  // into Make) must not hide a match the drawing already flagged as EOL.
+  if (distinctiveModel(entry)) return true;
+
   if (!hay.aliasedMake) {
     return entry.modelParts.some((p) => compact(p).length >= 4 || tokenize(p).length >= 2);
   }
   return false;
+}
+
+function titleCase(value: string): string {
+  return value.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
+function entryBrand(entry: ObsoleteEntry): string {
+  const parts = entry.makeParts.map((p) => p.toLowerCase());
+  if (parts.some((p) => p === "allen" || p === "rockwell")) return "Allen-Bradley";
+  if (parts.some((p) => p === "ge")) return "GE";
+  if (parts.some((p) => p === "bosch" || p === "rexroth")) return "Bosch Rexroth";
+  if (parts[0]) return titleCase(parts[0]);
+  return "";
+}
+
+function entryFamily(entry: ObsoleteEntry): string {
+  const parts = [...entry.modelParts].sort((a, b) => b.length - a.length);
+  const tokens = tokenize(parts[0] ?? "");
+  if (tokens[0] === "plc" && tokens[1]) return `PLC-${tokens[1].toUpperCase()}`;
+  if (tokens[0] === "slc") return ["SLC", ...tokens.slice(1).map((t) => t.toUpperCase())].join(" ");
+  if (tokens.length === 0) return (entry.catalogPrefixes?.[0] ?? "").toUpperCase();
+  return tokens.map((t) => (/\d/.test(t) ? t.toUpperCase() : titleCase(t))).join(" ");
 }
 
 function toResult(entry: ObsoleteEntry): LifecycleResult {
@@ -806,6 +841,8 @@ function toResult(entry: ObsoleteEntry): LifecycleResult {
     note: entry.note,
     successor: entry.successor,
     eolYear: entry.eolYear,
+    brand: entryBrand(entry),
+    family: entryFamily(entry),
   };
 }
 
@@ -813,7 +850,7 @@ const UNKNOWN: LifecycleResult = { obsolete: false, status: "unknown" };
 
 /** Look up a single asset against the lifecycle table. */
 export function checkAsset(category: EquipmentCategory, asset: AssetRef): LifecycleResult {
-  const hasAny = Boolean(asset.make || asset.model || asset.series || asset.partNo);
+  const hasAny = Boolean(asset.make || asset.model || asset.series || asset.partNo || asset.extra);
   if (!hasAny) return UNKNOWN;
 
   const hay = haystackOf(asset);

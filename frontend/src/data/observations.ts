@@ -57,6 +57,24 @@ export const FLAG_DEFS = [
     short: "SAFETY",
     pitch: "When the safety circuit drops there is no status on the HMI. Crews guess which gate, e-stop, or relay opened.",
   },
+  {
+    key: "estop_unlit",
+    label: "E-stop not visible when latched",
+    short: "E-STOP",
+    pitch: "A dark mushroom does not tell you it is pressed. An illuminated e-stop lights when it is latched so the line is not hunting a stop for twenty minutes.",
+  },
+  {
+    key: "panel_hvac",
+    label: "Panel climate / failed AC",
+    short: "HVAC",
+    pitch: "A dead cabinet air conditioner cooks drives and processors. Replacing panel HVAC is cheaper than the next overtemp trip on a hot afternoon.",
+  },
+  {
+    key: "no_backup",
+    label: "No program backup on file",
+    short: "BACKUP",
+    pitch: "If this processor dies tonight, recovery is a rewrite. An image on file turns a disaster into a restore.",
+  },
 ] as const;
 
 export type FlagKey = (typeof FLAG_DEFS)[number]["key"];

@@ -46,21 +46,6 @@ interface Candidate {
   partNo?: string | null;
 }
 
-const MAKE_ALIASES: Record<string, string> = {
-  ab: "allen-bradley",
-  "a b": "allen-bradley",
-  "allen bradley": "allen-bradley",
-  allenbradley: "allen-bradley",
-  "allen bradley rockwell": "allen-bradley",
-  rockwell: "allen-bradley",
-  "rockwell automation": "allen-bradley",
-  ge: "ge",
-  "ge fanuc": "ge",
-  "schneider electric": "schneider",
-  "mitsubishi electric": "mitsubishi",
-  "omron corporation": "omron",
-};
-
 const NOISE_TOKENS = new Set([
   "cpu", "processor", "module", "controller", "control", "unit", "series",
   "plc", "hmi", "panel", "terminal", "drive", "vfd", "inverter", "servo",
@@ -68,11 +53,6 @@ const NOISE_TOKENS = new Set([
 
 function normText(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function normalizeMake(make: string): string {
-  const n = normText(make);
-  return MAKE_ALIASES[n] ?? n;
 }
 
 function normalizeModel(model: string): string {
@@ -140,21 +120,24 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
     for (const c of candidatesFor(machine)) {
       const result = checkAsset(c.category, {
         make: c.make, model: c.model, series: c.series, partNo: c.partNo,
+        extra: machine.notes,
       });
       if (result.status === "unknown") continue;
 
       affected.add(machine.id);
 
-      const make = (c.make ?? "").trim();
-      const model = [c.model, c.series].filter(Boolean).join(" ").trim() || (c.partNo ?? "").trim();
-      const key = `${c.category}|${normalizeMake(make)}|${normalizeModel(model)}|${result.status}`;
+      const make = (result.brand || (c.make ?? "").trim());
+      const model = (result.family || [c.model, c.series].filter(Boolean).join(" ").trim() || (c.partNo ?? "").trim());
+      const key = `${c.category}|${result.family ?? normalizeModel(model)}|${result.status}`;
 
       const existing = grouped.get(key);
       if (existing) {
         existing.machines.push({ id: machine.id, tag, name });
         existing.unitCount += 1;
         if (make.length > existing.make.length) existing.make = make;
-        if (model && (!existing.model || model.length < existing.model.length)) existing.model = model;
+        if (model && (!existing.model || (result.family && existing.model !== result.family) || model.length < existing.model.length)) {
+          existing.model = result.family || model;
+        }
       } else {
         grouped.set(key, {
           key,

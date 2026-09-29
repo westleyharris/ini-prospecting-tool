@@ -5,16 +5,21 @@ import { extname } from "path";
  * Category-specific prompts tell GPT what to look for in each photo type.
  */
 const CATEGORY_PROMPTS: Record<string, string> = {
-  plc: `This is a photo of an industrial PLC (Programmable Logic Controller).
-Extract the following from any visible labels, nameplates, or screens:
+  plc: `This is a photo of an industrial PLC (Programmable Logic Controller), often a chassis in a control panel.
+Extract the following from any visible labels, nameplates, door markings, or screens:
 - Make / Manufacturer (e.g. Allen-Bradley, Siemens, Mitsubishi, Omron, Beckhoff, Schneider, GE)
-- Model name/number (e.g. CompactLogix L33ER, S7-1200)
-- Series (if visible, e.g. 1769, 1756, ControlLogix)
-- Part number / catalog number (e.g. 1769-L33ER/B)
+- Model / family name (e.g. PLC-5, SLC 500, CompactLogix L33ER, ControlLogix, S7-300)
+- Series (if visible, e.g. 1769, 1756, 1785, 1747)
+- Part number / catalog number (e.g. 1785-L40B, 1769-L33ER/B)
+
+Look specifically for:
+- Door or processor markings that say PLC-5, PLC-2, PLC-3, SLC, MicroLogix, ControlLogix, CompactLogix
+- Catalog stickers starting with 1785 (that IS a PLC-5), 1771 (PLC-5 I/O), 1746/1747 (SLC 500), 1756, 1769
+- LED windows or keyswitches labeled RUN / REM / PROG on older Allen-Bradley processors
 
 Respond in this exact JSON format (no markdown, no explanation):
 {"make":"","model":"","series":"","part_no":""}
-If a field is not visible, leave it as empty string.`,
+If a field is not visible, leave it as empty string. Prefer the family name (PLC-5) over a blank model when the door says PLC-5 even if the catalog sticker is hard to read.`,
 
   hmi: `This is a photo of an industrial HMI (Human Machine Interface / operator panel / touchscreen).
 Extract the following from any visible labels, nameplates, or screens:

@@ -5,6 +5,9 @@ import { buildOpportunityRegister } from "../data/opportunityRegister";
 import { assessMachine, buildPlantNarrative } from "../data/machineAssessment";
 import { FLAG_DEFS } from "../data/observations";
 import { machineTag } from "../data/consolidateMappings";
+import {
+  pickCriticalExamples, pickThemeExamples, FLOOR_OFFERS, ALSO_ON_THE_FLOOR,
+} from "../data/deckOffers";
 
 /**
  * Automation Report deck generator.
@@ -110,19 +113,6 @@ function frame(
   return slide;
 }
 
-/** Lime bar that sits under an image, per the profile deck. */
-function imageWithRule(
-  slide: PptxGenJS.Slide,
-  data: string,
-  box: { x: number; y: number; w: number; h: number }
-) {
-  slide.addImage({ data, ...box, sizing: { type: "cover", w: box.w, h: box.h } });
-  slide.addShape("rect", {
-    x: box.x, y: box.y + box.h + 0.09, w: box.w, h: 0.08,
-    fill: { color: LIME }, line: { width: 0 },
-  });
-}
-
 function statTile(
   slide: PptxGenJS.Slide,
   x: number, y: number, w: number,
@@ -140,19 +130,6 @@ function statTile(
     fontFace: FONT, fontSize: 9, bold: true, charSpacing: 1.1,
     color: dark ? PALE : GREY, align: "center", margin: 0,
   });
-}
-
-function specLine(m: MappingMachine): string[] {
-  const out: string[] = [];
-  const plc = [m.plc_make, m.plc_model, m.plc_series].filter(Boolean).join(" ");
-  const hmi = [m.hmi_make, m.hmi_model].filter(Boolean).join(" ");
-  const vfd = [m.vfd_make, m.vfd_model].filter(Boolean).join(" ");
-  const srv = [m.servo_drive_make, m.servo_drive_model].filter(Boolean).join(" ");
-  if (plc) out.push(`PLC — ${plc}`);
-  if (hmi) out.push(`HMI — ${hmi}`);
-  if (vfd) out.push(`VFD — ${vfd}`);
-  if (srv) out.push(`Servo — ${srv}`);
-  return out;
 }
 
 // ─── Deck ─────────────────────────────────────────────────────────────────────
@@ -438,42 +415,56 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     page++;
     const s = frame(pptx, { eyebrow: "Opportunity", title: "Where We Can Help", theme: "light", pageNo: page, images });
 
-    const flagCols = FLAG_DEFS.filter((d) => opportunities.findings.some((f) => f.key === d.key));
-    const head = ["Station", "Lifecycle", ...flagCols.map((c) => c.short)];
-    const rows: PptxGenJS.TableRow[] = [
-      head.map((h) => ({
-        text: h.toUpperCase(),
-        options: { bold: true, fontSize: 8, color: WHITE, fill: { color: NAVY }, margin: 5 },
-      })),
-    ];
-    machines.forEach((m, idx) => {
-      const a = assessments[idx];
-      const life = a.hasEol ? (a.worst.status === "unsupported" ? "UNSUP" : "EOL") : a.hasMature ? "MAT" : "—";
-      const cells: PptxGenJS.TableCell[] = [
-        { text: `${machineTag(m, idx)}  ${m.line_name ? `${m.line_name} · ` : ""}${m.name}`, options: { fontSize: 10, bold: true, color: NAVY } },
-        { text: life, options: { fontSize: 9, bold: true, color: a.hasEol ? "B45309" : GREY } },
+    if (machines.length > 12) {
+      const head = ["Opportunity", "Stations", "Why it matters"];
+      const rows: PptxGenJS.TableRow[] = [
+        head.map((h) => ({
+          text: h.toUpperCase(),
+          options: { bold: true, fontSize: 9, color: WHITE, fill: { color: NAVY }, margin: 6 },
+        })),
       ];
-      for (const col of flagCols) {
-        const hit = a.flags.some((f) => f.key === col.key);
-        cells.push({ text: hit ? "●" : "—", options: { fontSize: 11, align: "center", color: hit ? "166534" : "D9DEE7" } });
+      for (const f of opportunities.findings.slice(0, 8)) {
+        rows.push([
+          { text: f.label, options: { fontSize: 12, bold: true, color: NAVY } },
+          { text: String(f.unitCount), options: { fontSize: 14, bold: true, color: NAVY, align: "center" } },
+          { text: f.pitch, options: { fontSize: 11, color: INK } },
+        ]);
       }
-      rows.push(cells);
-    });
-
-    const colW = [4.2, 1.15, ...flagCols.map(() => Math.min(1.4, 6.45 / Math.max(flagCols.length, 1)))];
-    s.addTable(rows, {
-      x: BODY_L, y: CONTENT_T, w: 11.8,
-      colW,
-      border: { type: "solid", color: "D9DEE7", pt: 1 },
-      fontFace: FONT, valign: "middle", margin: 5, autoPage: false,
-    });
-
-    const pitches = opportunities.findings.slice(0, 2);
-    if (pitches.length) {
-      s.addText(
-        pitches.map((p) => p.pitch).join("  ·  "),
-        { x: BODY_L, y: 6.35, w: 11.8, h: 0.45, fontFace: FONT, fontSize: 11, color: GREY, margin: 0 }
-      );
+      s.addTable(rows, {
+        x: BODY_L, y: CONTENT_T, w: 11.8,
+        colW: [3.2, 1.3, 7.3],
+        border: { type: "solid", color: "D9DEE7", pt: 1 },
+        fontFace: FONT, valign: "middle", margin: 7, autoPage: false,
+      });
+    } else {
+      const flagCols = FLAG_DEFS.filter((d) => opportunities.findings.some((f) => f.key === d.key));
+      const head = ["Station", "Lifecycle", ...flagCols.map((c) => c.short)];
+      const rows: PptxGenJS.TableRow[] = [
+        head.map((h) => ({
+          text: h.toUpperCase(),
+          options: { bold: true, fontSize: 8, color: WHITE, fill: { color: NAVY }, margin: 5 },
+        })),
+      ];
+      machines.forEach((m, idx) => {
+        const a = assessments[idx];
+        const life = a.hasEol ? (a.worst.status === "unsupported" ? "UNSUP" : "EOL") : a.hasMature ? "MAT" : "—";
+        const cells: PptxGenJS.TableCell[] = [
+          { text: `${machineTag(m, idx)}  ${m.line_name ? `${m.line_name} · ` : ""}${m.name}`, options: { fontSize: 10, bold: true, color: NAVY } },
+          { text: life, options: { fontSize: 9, bold: true, color: a.hasEol ? "B45309" : GREY } },
+        ];
+        for (const col of flagCols) {
+          const hit = a.flags.some((f) => f.key === col.key);
+          cells.push({ text: hit ? "●" : "—", options: { fontSize: 11, align: "center", color: hit ? "166534" : "D9DEE7" } });
+        }
+        rows.push(cells);
+      });
+      const colW = [4.2, 1.15, ...flagCols.map(() => Math.min(1.4, 6.45 / Math.max(flagCols.length, 1)))];
+      s.addTable(rows, {
+        x: BODY_L, y: CONTENT_T, w: 11.8,
+        colW,
+        border: { type: "solid", color: "D9DEE7", pt: 1 },
+        fontFace: FONT, valign: "middle", margin: 5, autoPage: false,
+      });
     }
   }
 
@@ -520,81 +511,115 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     });
   }
 
-  // ══ Machine detail ═════════════════════════════════════════════════════════
-  machines.forEach((m, idx) => {
+  // ══ Critical examples (not one slide per machine) ══════════════════════════
+  const critical = pickCriticalExamples(mapping, 3);
+  if (critical.length > 0) {
     page++;
-    const tag = machineTag(m, idx);
-    const s = frame(pptx, {
-      eyebrow: m.line_name ? `${m.line_name} · ${tag}` : `Equipment · ${tag}`,
-      title: m.name,
-      theme: "light",
-      pageNo: page,
-      images,
+    const s = frame(pptx, { eyebrow: "Examples · by criticality", title: "Stations That Tell the Story", theme: "light", pageNo: page, images });
+
+    s.addText("The full drawing and register cover every station. This deck does not. These are the ones that should start the conversation.", {
+      x: BODY_L, y: CONTENT_T, w: 11.7, h: 0.4,
+      fontFace: FONT, fontSize: 14, color: GREY, margin: 0,
     });
 
-    const a = assessMachine(m);
-    const specs = a.today.length ? a.today : specLine(m);
-    if (specs.length) {
-      s.addText(
-        specs.map((t, i) => ({ text: t, options: { bullet: true, breakLine: i !== specs.length - 1 } })),
-        { x: BODY_L, y: CONTENT_T, w: 5.6, h: 1.55, fontFace: FONT, fontSize: 13, color: INK, paraSpaceAfter: 6, margin: 0 }
-      );
-    } else {
-      s.addText("No control or drive equipment recorded for this machine.", {
-        x: BODY_L, y: CONTENT_T, w: 5.6, h: 0.5, fontFace: FONT, fontSize: 14, color: GREY, margin: 0,
-      });
-    }
-
-    if (a.opportunity.length) {
-      s.addShape("rect", { x: BODY_L, y: 3.35, w: 5.6, h: 0.05, fill: { color: LIME }, line: { width: 0 } });
-      s.addText("POSSIBLE", {
-        x: BODY_L, y: 3.48, w: 5.6, h: 0.22,
-        fontFace: FONT, fontSize: 9, bold: true, charSpacing: 1.2, color: GREY, margin: 0,
-      });
-      s.addText(
-        a.opportunity.map((t, i) => ({
-          text: t,
-          options: { bullet: true, breakLine: i !== a.opportunity.length - 1 },
-        })),
-        { x: BODY_L, y: 3.72, w: 5.6, h: 1.55, fontFace: FONT, fontSize: 12, color: INK, paraSpaceAfter: 5, margin: 0 }
-      );
-    } else {
-      const mFindings = register.findings.filter((f) => f.machines.some((mm) => mm.id === m.id));
-      if (mFindings.length) {
-        s.addShape("rect", { x: BODY_L, y: 3.85, w: 5.6, h: 0.05, fill: { color: LIME }, line: { width: 0 } });
-        s.addText("LIFECYCLE", {
-          x: BODY_L, y: 4.0, w: 5.6, h: 0.25,
-          fontFace: FONT, fontSize: 9, bold: true, charSpacing: 1.2, color: GREY, margin: 0,
-        });
-        s.addText(
-          mFindings.map((f, i) => ({
-            text: `${f.make} ${f.model} → ${f.successor ?? "consult vendor"}`,
-            options: { bullet: true, breakLine: i !== mFindings.length - 1 },
-          })),
-          { x: BODY_L, y: 4.28, w: 5.6, h: 1.5, fontFace: FONT, fontSize: 12.5, color: INK, paraSpaceAfter: 7, margin: 0 }
-        );
+    critical.forEach((ex, i) => {
+      const x = BODY_L + i * 4.0;
+      s.addShape("rect", { x, y: 2.2, w: 3.75, h: 4.4, fill: { color: CARD }, line: { width: 0 } });
+      const pic = photoOf(ex.machine);
+      if (pic) {
+        s.addImage({ data: pic, x: x + 0.18, y: 2.38, w: 3.4, h: 1.85, sizing: { type: "cover", w: 3.4, h: 1.85 } });
+        s.addShape("rect", { x: x + 0.18, y: 4.32, w: 3.4, h: 0.06, fill: { color: LIME }, line: { width: 0 } });
       }
-    }
+      const textY = pic ? 4.5 : 2.5;
+      s.addText(ex.tag, {
+        x: x + 0.22, y: textY, w: 3.3, h: 0.22,
+        fontFace: FONT, fontSize: 10, bold: true, charSpacing: 1.1, color: GREY, margin: 0,
+      });
+      s.addText(ex.machine.name, {
+        x: x + 0.22, y: textY + 0.22, w: 3.3, h: 0.4,
+        fontFace: FONT, fontSize: 16, bold: true, color: NAVY, margin: 0,
+      });
+      s.addText(ex.why, {
+        x: x + 0.22, y: textY + 0.64, w: 3.3, h: pic ? 0.8 : 1.6,
+        fontFace: FONT, fontSize: 12, color: INK, margin: 0,
+      });
+    });
+    s.addNotes(critical.map((ex) => `${ex.tag} ${ex.machine.name}: ${ex.why}`).join(". "));
+  }
 
-    if (m.notes) {
-      s.addText(m.notes, {
-        x: BODY_L, y: 5.95, w: 5.6, h: 0.6,
-        fontFace: FONT, fontSize: 11.5, italic: true, color: GREY, margin: 0,
+  // ══ Upgrade examples by type ═══════════════════════════════════════════════
+  {
+    const used = new Set(critical.map((c) => c.machine.id));
+    const themes = pickThemeExamples(mapping, used, 4);
+    if (themes.length > 0) {
+      page++;
+      const s = frame(pptx, { eyebrow: "Examples · by upgrade", title: "Different Problems, Same Walk", theme: "light", pageNo: page, images });
+
+      themes.forEach((theme, i) => {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const x = BODY_L + col * 6.05;
+        const y = CONTENT_T + row * 2.35;
+        s.addShape("rect", { x, y, w: 5.8, h: 2.15, fill: { color: CARD }, line: { width: 0 } });
+        s.addText(theme.title, {
+          x: x + 0.28, y: y + 0.18, w: 5.25, h: 0.36,
+          fontFace: FONT, fontSize: 16, bold: true, color: NAVY, margin: 0,
+        });
+        s.addText(theme.pitch, {
+          x: x + 0.28, y: y + 0.58, w: 5.25, h: 0.85,
+          fontFace: FONT, fontSize: 13, color: INK, margin: 0,
+        });
+        if (theme.station) {
+          s.addText(`${theme.station.tag}  ${theme.station.machine.name}`, {
+            x: x + 0.28, y: y + 1.55, w: 5.25, h: 0.32,
+            fontFace: FONT, fontSize: 12, bold: true, color: GREY, margin: 0,
+          });
+        }
       });
     }
+  }
 
-    const pics = (m.photos ?? []).map((p) => images.photos[p.id]).filter(Boolean) as string[];
-    if (pics.length === 1) {
-      imageWithRule(s, pics[0], { x: 6.95, y: CONTENT_T, w: 5.65, h: 3.4 });
-    } else if (pics.length >= 2) {
-      imageWithRule(s, pics[0], { x: 6.95, y: CONTENT_T, w: 5.65, h: 2.5 });
-      const rest = pics.slice(1, 4);
-      rest.forEach((d, i) => {
-        s.addImage({ data: d, x: 6.95 + i * 1.93, y: 4.45, w: 1.78, h: 1.3, sizing: { type: "cover", w: 1.78, h: 1.3 } });
+  // ══ Floor work beyond obsolescence ═════════════════════════════════════════
+  for (const offer of FLOOR_OFFERS) {
+    page++;
+    const s = frame(pptx, { eyebrow: offer.eyebrow, title: offer.title, theme: "dark", pageNo: page, images });
+    s.addText(offer.pitch, {
+      x: BODY_L, y: CONTENT_T, w: 11.7, h: 1.35,
+      fontFace: FONT, fontSize: 18, color: WHITE, lineSpacing: 26, margin: 0,
+    });
+    offer.bullets.forEach((b, i) => {
+      const y = 3.2 + i * 1.05;
+      s.addShape("rect", { x: BODY_L, y, w: 11.8, h: 0.9, fill: { color: "0C1550" }, line: { width: 0 } });
+      s.addText(String(i + 1).padStart(2, "0"), {
+        x: BODY_L + 0.28, y: y + 0.18, w: 0.7, h: 0.54,
+        fontFace: FONT, fontSize: 20, bold: true, color: LIME, margin: 0, valign: "middle",
       });
-    }
-    s.addNotes(`${tag} ${m.name}. ${specs.join("; ")}`);
-  });
+      s.addText(b, {
+        x: BODY_L + 1.1, y: y + 0.18, w: 10.3, h: 0.54,
+        fontFace: FONT, fontSize: 16, color: WHITE, margin: 0, valign: "middle",
+      });
+    });
+  }
+
+  {
+    page++;
+    const s = frame(pptx, { eyebrow: "On the floor", title: "What Else This Walk Covers", theme: "light", pageNo: page, images });
+    ALSO_ON_THE_FLOOR.forEach((item, i) => {
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x = BODY_L + col * 4.05;
+      const y = CONTENT_T + row * 2.4;
+      s.addShape("rect", { x, y, w: 3.85, h: 2.15, fill: { color: CARD }, line: { width: 0 } });
+      s.addText(item.title, {
+        x: x + 0.22, y: y + 0.22, w: 3.4, h: 0.5,
+        fontFace: FONT, fontSize: 16, bold: true, color: NAVY, margin: 0,
+      });
+      s.addText(item.body, {
+        x: x + 0.22, y: y + 0.8, w: 3.4, h: 1.1,
+        fontFace: FONT, fontSize: 13, color: INK, margin: 0,
+      });
+    });
+  }
 
   // ══ n+1 · Roadmap ══════════════════════════════════════════════════════════
   {
@@ -614,6 +639,7 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     if (narrative.islands || opportunities.findings.some((f) => f.key === "no_counts")) {
       steps.push(["Line project", "Station counts and a simple overview so operations can see starve/block time — line balance as a number."]);
     }
+    steps.push(["Floor work", "Illuminated e-stops, panel air conditioners, and program backups — the walk is not only about processors."]);
     steps.push(["Program", "Standard platform for the next machine that fails. One programming environment, one spare strategy, remote support possible."]);
     steps.push(["Ongoing", "Backup every programmable device. Panel access, key-switch position, and network segmentation as a standing practice."]);
 

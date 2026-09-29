@@ -52,8 +52,8 @@ function asset(
   life: LifecycleResult,
 ): AssetFinding | null {
   if (life.status === "unknown") return null;
-  const makeLabel = (make ?? "").trim();
-  const modelLabel = [model, series].filter(Boolean).join(" ").trim() || (partNo ?? "").trim();
+  const makeLabel = (life.brand || make || "").trim();
+  const modelLabel = (life.family || [model, series].filter(Boolean).join(" ").trim() || (partNo ?? "").trim());
   return { category, categoryLabel, make: makeLabel, model: modelLabel, life };
 }
 
@@ -88,6 +88,13 @@ function deriveAutoFlags(
     auto.add("trapped_modern");
   }
 
+  const text = `${machine.notes ?? ""} ${obs.known_pain ?? ""}`;
+  if (/e-?\s*stop|emergency stop|mushroom/i.test(text)) auto.add("estop_unlit");
+  if (/\b(hvac|a\/c|air\s*condit|panel\s+(ac|a\/c|cool|heat)|cabinet\s+(ac|cool|heat|temp)|overtemp|over-?temp)\b/i.test(text)) {
+    auto.add("panel_hvac");
+  }
+  if (obs.backup_on_file === "no") auto.add("no_backup");
+
   return auto;
 }
 
@@ -104,6 +111,9 @@ function opportunityLines(flags: ResolvedFlag[], assets: AssetFinding[]): string
     single_source: "Current-platform spare strategy with published lead times",
     no_counts: "Station counts in/out so line balance is a number, not an opinion",
     hardwired_safety: "Safety status on the HMI — which gate, e-stop, or relay opened",
+    estop_unlit: "Illuminated e-stops so a latched stop is obvious from across the line",
+    panel_hvac: "Replace failed panel air conditioners before heat takes a drive with them",
+    no_backup: "Image every processor so a failure is a restore, not a rewrite",
   };
   for (const f of flags) {
     const rec = recs[f.key];
@@ -116,15 +126,15 @@ export function assessMachine(machine: MappingMachine): MachineAssessment {
   const observations = parseObservations(machine.observations);
   const candidates: AssetFinding[] = [
     asset("plc", "PLC", machine.plc_make, machine.plc_model, machine.plc_series, machine.plc_part_no,
-      checkAsset("plc", { make: machine.plc_make, model: machine.plc_model, series: machine.plc_series, partNo: machine.plc_part_no })),
+      checkAsset("plc", { make: machine.plc_make, model: machine.plc_model, series: machine.plc_series, partNo: machine.plc_part_no, extra: `${machine.notes ?? ""} ${observations.known_pain ?? ""}` })),
     asset("hmi", "HMI", machine.hmi_make, machine.hmi_model, null, machine.hmi_part_no,
-      checkAsset("hmi", { make: machine.hmi_make, model: machine.hmi_model, partNo: machine.hmi_part_no })),
+      checkAsset("hmi", { make: machine.hmi_make, model: machine.hmi_model, partNo: machine.hmi_part_no, extra: machine.notes })),
     asset("drive", "VFD", machine.vfd_make, machine.vfd_model, null, null,
-      checkAsset("drive", { make: machine.vfd_make, model: machine.vfd_model })),
+      checkAsset("drive", { make: machine.vfd_make, model: machine.vfd_model, extra: machine.notes })),
     asset("servo", "Servo", machine.servo_drive_make, machine.servo_drive_model, null, null,
-      checkAsset("servo", { make: machine.servo_drive_make, model: machine.servo_drive_model })),
+      checkAsset("servo", { make: machine.servo_drive_make, model: machine.servo_drive_model, extra: machine.notes })),
     asset("servo", "Servo motor", machine.servo_motor_make, machine.servo_motor_model, null, machine.servo_motor_part_no,
-      checkAsset("servo", { make: machine.servo_motor_make, model: machine.servo_motor_model, partNo: machine.servo_motor_part_no })),
+      checkAsset("servo", { make: machine.servo_motor_make, model: machine.servo_motor_model, partNo: machine.servo_motor_part_no, extra: machine.notes })),
   ].filter((a): a is AssetFinding => a !== null);
 
   const rank: Record<LifecycleStatus | "unknown", number> = {
@@ -203,18 +213,20 @@ export function lifeFor(
     return checkAsset("plc", {
       make: machine.plc_make, model: machine.plc_model,
       series: machine.plc_series, partNo: machine.plc_part_no,
+      extra: machine.notes,
     });
   }
   if (cat === "hmi") {
-    return checkAsset("hmi", { make: machine.hmi_make, model: machine.hmi_model, partNo: machine.hmi_part_no });
+    return checkAsset("hmi", { make: machine.hmi_make, model: machine.hmi_model, partNo: machine.hmi_part_no, extra: machine.notes });
   }
   if (cat === "vfd") {
-    return checkAsset("drive", { make: machine.vfd_make, model: machine.vfd_model });
+    return checkAsset("drive", { make: machine.vfd_make, model: machine.vfd_model, extra: machine.notes });
   }
-  const drive = checkAsset("servo", { make: machine.servo_drive_make, model: machine.servo_drive_model });
+  const drive = checkAsset("servo", { make: machine.servo_drive_make, model: machine.servo_drive_model, extra: machine.notes });
   if (drive.status !== "unknown") return drive;
   return checkAsset("servo", {
     make: machine.servo_motor_make, model: machine.servo_motor_model, partNo: machine.servo_motor_part_no,
+    extra: machine.notes,
   });
 }
 
