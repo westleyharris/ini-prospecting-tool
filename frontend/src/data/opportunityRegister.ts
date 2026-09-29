@@ -2,6 +2,7 @@ import type { Mapping } from "../api/mappings";
 import { assessMachine } from "./machineAssessment";
 import { FLAG_DEFS, type FlagKey } from "./observations";
 import { buildRiskRegister } from "./riskRegister";
+import { machineTag } from "./consolidateMappings";
 
 export interface OpportunityFinding {
   key: FlagKey;
@@ -25,13 +26,14 @@ export function buildOpportunityRegister(mapping: Mapping): OpportunityRegister 
   const affected = new Set<string>();
 
   machines.forEach((machine, idx) => {
-    const tag = `M-${String(idx + 1).padStart(2, "0")}`;
+    const tag = machineTag(machine, idx);
+    const name = machine.line_name ? `${machine.line_name} · ${machine.name}` : machine.name;
     const assessment = assessMachine(machine);
     for (const flag of assessment.flags) {
       affected.add(machine.id);
       const existing = grouped.get(flag.key);
       if (existing) {
-        existing.machines.push({ id: machine.id, tag, name: machine.name });
+        existing.machines.push({ id: machine.id, tag, name });
         existing.unitCount += 1;
       } else {
         grouped.set(flag.key, {
@@ -39,7 +41,7 @@ export function buildOpportunityRegister(mapping: Mapping): OpportunityRegister 
           label: flag.label,
           short: flag.short,
           pitch: flag.pitch,
-          machines: [{ id: machine.id, tag, name: machine.name }],
+          machines: [{ id: machine.id, tag, name }],
           unitCount: 1,
         });
       }

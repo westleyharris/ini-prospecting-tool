@@ -15,6 +15,22 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+async function readJson(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text();
+  if (!text) {
+    throw new Error(
+      res.ok
+        ? "Empty response from server."
+        : "Cannot reach the API. Make sure the backend is running."
+    );
+  }
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error("Cannot reach the API. Make sure the backend is running.");
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check existing session on mount
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
+      .then(async (r) => {
+        if (!r.ok) return null;
+        const text = await r.text();
+        if (!text) return null;
+        try {
+          return JSON.parse(text) as AuthUser;
+        } catch {
+          return null;
+        }
+      })
       .then((data) => setUser(data ?? null))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
@@ -35,9 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Login failed");
-    setUser(data);
+    const data = await readJson(res);
+    if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Login failed");
+    setUser({ id: String(data.id), email: String(data.email) });
   };
 
   const register = async (email: string, password: string) => {
@@ -47,9 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Registration failed");
-    setUser(data);
+    const data = await readJson(res);
+    if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Registration failed");
+    setUser({ id: String(data.id), email: String(data.email) });
   };
 
   const logout = async () => {

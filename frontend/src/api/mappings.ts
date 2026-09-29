@@ -41,6 +41,10 @@ export interface MappingMachine {
   created_at: string;
   updated_at: string;
   photos?: MappingPhoto[];
+  /** Set only on plant-consolidated reports — which line this station belongs to. */
+  line_name?: string;
+  /** Set only on plant-consolidated reports — e.g. L01-M-01. */
+  display_tag?: string;
 }
 
 export interface Mapping {
@@ -60,6 +64,15 @@ export interface Mapping {
   // Aggregates returned by the list endpoint
   machine_count?: number;
   photo_count?: number;
+  /** Present when this mapping was assembled from every line at a plant. */
+  source_lines?: SourceLine[];
+}
+
+export interface SourceLine {
+  id: string;
+  name: string;
+  machine_count: number;
+  photo_count: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -82,6 +95,12 @@ export function listMappings(plant_id?: string): Promise<Mapping[]> {
 
 export function getMapping(id: string): Promise<Mapping> {
   return apiFetch(`${BASE}/mappings/${id}`);
+}
+
+/** Load every mapping at a plant with machines and photos nested. */
+export async function getPlantMappings(plantId: string): Promise<Mapping[]> {
+  const list = await listMappings(plantId);
+  return Promise.all(list.map((m) => getMapping(m.id)));
 }
 
 export function createMapping(data: { plant_id: string; name?: string; notes?: string }): Promise<Mapping> {

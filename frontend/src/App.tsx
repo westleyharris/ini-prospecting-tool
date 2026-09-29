@@ -26,6 +26,7 @@ import FollowUpsPage from "./pages/FollowUpsPage";
 import ContactsPage from "./pages/ContactsPage";
 import MappingsPage from "./pages/MappingsPage";
 import MappingEditorPage from "./pages/MappingEditorPage";
+import PlantReportPage from "./pages/PlantReportPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -298,6 +299,7 @@ function AppShell() {
             <Route path="/contacts" element={<RequireAuth><ContactsPage /></RequireAuth>} />
             <Route path="/commissionings" element={<RequireAuth><CommissioningsPage /></RequireAuth>} />
             <Route path="/mappings" element={<RequireAuth><MappingsPage /></RequireAuth>} />
+            <Route path="/mappings/plant/:plantId" element={<RequireAuth><PlantReportPage /></RequireAuth>} />
             <Route path="/mappings/:id" element={<RequireAuth><MappingEditorPage /></RequireAuth>} />
             <Route path="*" element={<RequireAuth><NotFoundPage /></RequireAuth>} />
           </Routes>

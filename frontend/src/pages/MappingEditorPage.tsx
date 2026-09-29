@@ -20,6 +20,7 @@ import { buildRiskRegister, RISK_META, type RiskFinding } from "../data/riskRegi
 import { buildOpportunityRegister } from "../data/opportunityRegister";
 import { downloadPresentation } from "../services/presentation";
 import { ObservationsPanel } from "../components/ObservationsPanel";
+import { machineTag, tagParts, groupMachinesByLine, drawingNumber } from "../data/consolidateMappings";
 
 // ─── Lifecycle badge ──────────────────────────────────────────────────────────
 function LifecycleBadge({ result }: { result?: LifecycleResult }) {
@@ -72,6 +73,87 @@ function FlagPills({ machine, max = 3 }: { machine: MappingMachine; max?: number
         </span>
       ))}
     </span>
+  );
+}
+
+const TAG_INK = "#00182e";
+const TAG_LIME = "#acec00";
+
+function TagBadge({
+  machine, index, large = false, print = false,
+}: {
+  machine: MappingMachine;
+  index: number;
+  large?: boolean;
+  print?: boolean;
+}) {
+  const { prefix, seq } = tagParts(machine, index);
+  if (print) {
+    return (
+      <div style={{ display: "flex", alignItems: "stretch", flexShrink: 0, border: `${large ? 2 : 1.5}px solid ${TAG_INK}` }}>
+        <div style={{
+          background: TAG_LIME, color: TAG_INK, padding: large ? "0 8px" : "0 6px",
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: large ? 10 : 9, fontWeight: 900,
+          display: "flex", alignItems: "center",
+        }}>{prefix}</div>
+        <div style={{
+          background: "#fff", color: TAG_INK, padding: large ? "0 14px" : "0 8px",
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: large ? 18 : 11, fontWeight: 700,
+          display: "flex", alignItems: "center", borderLeft: `1.5px solid ${TAG_INK}`,
+        }}>{seq}</div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-stretch shrink-0 border border-brand-navy">
+      <div className="flex items-center justify-center px-1.5 bg-brand-lime font-mono text-[10px] font-bold text-brand-navy">
+        {prefix}
+      </div>
+      <div className="flex items-center justify-center px-2 bg-white font-mono text-[11px] font-bold text-brand-navy border-l border-brand-navy">
+        {seq}
+      </div>
+    </div>
+  );
+}
+
+function LineIndexStrip({ mapping, print = false }: { mapping: Mapping; print?: boolean }) {
+  const lines = mapping.source_lines;
+  if (!lines || lines.length < 2) return null;
+  if (print) {
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", borderTop: "1px solid rgba(0,24,46,0.22)" }}>
+        {lines.map((l, i) => (
+          <div key={l.id} style={{ padding: "6px 12px", borderRight: "1px solid rgba(0,24,46,0.22)", minWidth: 120 }}>
+            <div style={{
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 7, fontWeight: 700,
+              textTransform: "uppercase", letterSpacing: "0.16em", color: TAG_INK, opacity: 0.4,
+            }}>{`L${String(i + 1).padStart(2, "0")}`}</div>
+            <div style={{
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700,
+              textTransform: "uppercase", color: TAG_INK, marginTop: 2,
+            }}>{l.name}</div>
+            <div style={{
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: TAG_INK, opacity: 0.45, marginTop: 2,
+            }}>{l.machine_count} mach · {l.photo_count} phot</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-stretch" style={{ borderTop: "1px solid rgba(0,24,46,0.22)" }}>
+      {lines.map((l, i) => (
+        <div key={l.id} className="px-3 py-1.5 min-w-[7rem]" style={{ borderRight: "1px solid rgba(0,24,46,0.22)" }}>
+          <p className="font-mono text-[7px] font-bold uppercase tracking-[0.16em]" style={{ color: TAG_INK, opacity: 0.4 }}>
+            {`L${String(i + 1).padStart(2, "0")}`}
+          </p>
+          <p className="font-mono text-[11px] font-bold uppercase" style={{ color: TAG_INK }}>{l.name}</p>
+          <p className="font-mono text-[8px]" style={{ color: TAG_INK, opacity: 0.45 }}>
+            {l.machine_count} mach · {l.photo_count} phot
+          </p>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -542,12 +624,7 @@ function MachineCard({
     <div className="bg-white border-2 border-brand-navy overflow-hidden">
       {/* Header — equipment tag strip */}
       <div className="flex items-center gap-2.5 px-3 py-2.5 bg-[#f4f6f2] border-b-2 border-brand-navy">
-        <div className="flex items-stretch shrink-0 border border-brand-navy">
-          <div className="flex items-center justify-center px-1.5 bg-brand-lime font-mono text-[10px] font-bold text-brand-navy">M</div>
-          <div className="flex items-center justify-center px-2 bg-white font-mono text-[11px] font-bold text-brand-navy border-l border-brand-navy">
-            {String(index + 1).padStart(2, "0")}
-          </div>
-        </div>
+        <TagBadge machine={machine} index={index} />
 
         {editingName ? (
           <input autoFocus value={nameVal} onChange={(e) => setNameVal(e.target.value)}
@@ -791,7 +868,7 @@ function RiskPrintSheet({
 }
 
 /** On-screen register — same content, styled to match the drafting-sheet view. */
-function RiskRegisterView({ mapping }: { mapping: Mapping }) {
+export function RiskRegisterView({ mapping }: { mapping: Mapping }) {
   const register = buildRiskRegister(mapping);
   const { findings, counts, affectedMachines, totalMachines, totalUnits } = register;
 
@@ -983,10 +1060,12 @@ function RiskFindingCard({ finding, index }: { finding: RiskFinding; index: numb
 }
 
 // Full-bleed engineering drawing sheet. Hidden on screen; revealed by @media print.
-function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "sheet" | "risk" }) {
+export function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "sheet" | "risk" }) {
   const register = buildRiskRegister(mapping);
   const opportunities = buildOpportunityRegister(mapping);
   const machines = mapping.machines ?? [];
+  const lineGroups = groupMachinesByLine(machines);
+  const lineCount = mapping.source_lines?.length ?? 0;
   const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
   const assessments = machines.map(assessMachine);
   const eolCount    = assessments.filter((a) => a.hasEol).length;
@@ -994,7 +1073,7 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
   const plcCount    = machines.filter((m) => m.plc_make || m.plc_model).length;
   const driveCount  = machines.filter((m) => m.vfd_make || m.vfd_model || m.servo_drive_make).length;
   const reportDate  = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-  const dwgNo       = `MAP-${mapping.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  const dwgNo       = drawingNumber(mapping);
 
   const INK  = "#00182e";
   const LIME = "#acec00";
@@ -1217,12 +1296,20 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
               )}
             </div>
             <div style={{ display: "flex", flexShrink: 0 }}>
-              {[
-                { n: machines.length, l: "MACH" },
-                { n: totalPhotos, l: "PHOT" },
-                { n: plcCount, l: "PLC" },
-                { n: driveCount, l: "DRV" },
-              ].map(({ n, l }, i) => (
+              {(lineCount > 1
+                ? [
+                    { n: lineCount, l: "LINE" },
+                    { n: machines.length, l: "MACH" },
+                    { n: totalPhotos, l: "PHOT" },
+                    { n: plcCount, l: "PLC" },
+                  ]
+                : [
+                    { n: machines.length, l: "MACH" },
+                    { n: totalPhotos, l: "PHOT" },
+                    { n: plcCount, l: "PLC" },
+                    { n: driveCount, l: "DRV" },
+                  ]
+              ).map(({ n, l }, i) => (
                 <div key={l} style={{
                   minWidth: 58, padding: "10px 12px", textAlign: "center",
                   borderLeft: i > 0 ? `1px solid ${HAIR}` : "none",
@@ -1287,6 +1374,7 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
               )}
             </div>
           </div>
+          <LineIndexStrip mapping={mapping} print />
         </div>
 
         {mode === "risk" ? (
@@ -1368,14 +1456,24 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
               </tr>
             </thead>
             <tbody>
-              {machines.map((m, i) => {
-                return (
+              {lineGroups.flatMap((group) => [
+                ...(group.lineName ? [(
+                  <tr key={`line-${group.lineName}`}>
+                    <td colSpan={5} style={{
+                      padding: "4px 10px", borderBottom: `1px solid ${HAIR}`,
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, fontWeight: 700,
+                      textTransform: "uppercase", letterSpacing: "0.14em",
+                      color: LIME, background: INK,
+                    }}>{group.lineName}</td>
+                  </tr>
+                )] : []),
+                ...group.machines.map(({ machine: m, index: i }) => (
                   <tr key={m.id}>
                     <td style={{
                       padding: "5px 10px", borderBottom: `1px solid ${HAIR}`,
                       fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, color: INK,
                       width: 48,
-                    }}>{String(i + 1).padStart(2, "0")}</td>
+                    }}>{tagParts(m, i).seq}</td>
                     <td style={{
                       padding: "5px 10px", borderBottom: `1px solid ${HAIR}`,
                       fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700,
@@ -1384,7 +1482,7 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
                     <td style={{
                       padding: "5px 10px", borderBottom: `1px solid ${HAIR}`,
                       fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: INK, opacity: 0.5,
-                    }}>M-{String(i + 1).padStart(2, "0")}</td>
+                    }}>{machineTag(m, i)}</td>
                     <td style={{
                       padding: "5px 10px", borderBottom: `1px solid ${HAIR}`,
                       fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: INK, opacity: 0.5,
@@ -1394,8 +1492,8 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
                       <FlagPills machine={m} max={3} />
                     </td>
                   </tr>
-                );
-              })}
+                )),
+              ])}
             </tbody>
           </table>
         </div>
@@ -1436,22 +1534,20 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
                 border: `2px solid ${INK}`, background: "rgba(0,24,46,0.03)",
               }}>
                 <div style={{ display: "flex", alignItems: "stretch", flexShrink: 0, borderRight: `2px solid ${INK}` }}>
-                  <div style={{
-                    background: LIME, color: INK, padding: "0 8px",
-                    fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 900,
-                    display: "flex", alignItems: "center",
-                  }}>M</div>
-                  <div style={{
-                    background: "#fff", color: INK, padding: "0 14px",
-                    fontFamily: "'IBM Plex Mono', monospace", fontSize: 18, fontWeight: 700,
-                    display: "flex", alignItems: "center", borderLeft: `1.5px solid ${INK}`,
-                  }}>{String(idx + 1).padStart(2, "0")}</div>
+                  <TagBadge machine={machine} index={idx} large print />
                 </div>
                 <div style={{ flex: 1, padding: "8px 12px" }}>
                   <div style={{
                     fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 700,
                     textTransform: "uppercase", letterSpacing: "0.1em", color: INK, lineHeight: 1.15,
                   }}>{machine.name}</div>
+                  {machine.line_name && (
+                    <div style={{
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700,
+                      textTransform: "uppercase", letterSpacing: "0.08em",
+                      color: INK, opacity: 0.5, marginTop: 2,
+                    }}>{machine.line_name}</div>
+                  )}
                   {machine.notes && (
                     <div style={{
                       fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
@@ -1585,7 +1681,7 @@ function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "shee
               }}>
                 <span>I&amp;I Automation · Control Engineering</span>
                 <span style={{ color: "rgba(172,236,0,0.7)" }}>Do not scale · NTS</span>
-                <span>M-{String(idx + 1).padStart(2, "0")} · {dwgNo} · Rev A</span>
+                <span>{machineTag(machine, idx)} · {dwgNo} · Rev A</span>
               </div>
             </div>
           );
@@ -1686,8 +1782,10 @@ function CropMark({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
   );
 }
 
-function MappingView({ mapping }: { mapping: Mapping }) {
+export function MappingView({ mapping }: { mapping: Mapping }) {
   const machines = mapping.machines ?? [];
+  const lineGroups = groupMachinesByLine(machines);
+  const lineCount = mapping.source_lines?.length ?? 0;
   const [lightbox, setLightbox] = useState<{ photo: MappingPhoto; list: MappingPhoto[]; idx: number } | null>(null);
   const [activeTab, setActiveTab] = useState(machines[0]?.id ?? "");
 
@@ -1793,7 +1891,7 @@ function MappingView({ mapping }: { mapping: Mapping }) {
     return groups;
   }
 
-  const dwgNo = `MAP-${mapping.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  const dwgNo = drawingNumber(mapping);
   const plcCount = machines.filter((m) => m.plc_make || m.plc_model).length;
   const driveCount = machines.filter((m) => m.vfd_make || m.servo_drive_make).length;
 
@@ -1839,12 +1937,20 @@ function MappingView({ mapping }: { mapping: Mapping }) {
 
               {/* Quantity block — like a parts count table */}
               <div className="grid grid-cols-4 shrink-0" style={{ borderTop: `1px solid ${HAIR}` }}>
-                {[
-                  { n: machines.length, l: "MACH" },
-                  { n: totalPhotos, l: "PHOT" },
-                  { n: plcCount, l: "PLC" },
-                  { n: driveCount, l: "DRV" },
-                ].map(({ n, l }, i) => (
+                {(lineCount > 1
+                  ? [
+                      { n: lineCount, l: "LINE" },
+                      { n: machines.length, l: "MACH" },
+                      { n: totalPhotos, l: "PHOT" },
+                      { n: plcCount, l: "PLC" },
+                    ]
+                  : [
+                      { n: machines.length, l: "MACH" },
+                      { n: totalPhotos, l: "PHOT" },
+                      { n: plcCount, l: "PLC" },
+                      { n: driveCount, l: "DRV" },
+                    ]
+                ).map(({ n, l }, i) => (
                   <div key={l} className="flex flex-col items-center justify-center px-3 py-2.5 min-w-[4.5rem]"
                     style={{ borderLeft: i > 0 ? `1px solid ${HAIR}` : undefined }}>
                     <div className="font-mono text-2xl font-bold tabular-nums leading-none" style={{ color: INK }}>
@@ -1880,6 +1986,8 @@ function MappingView({ mapping }: { mapping: Mapping }) {
               </div>
             </div>
 
+            <LineIndexStrip mapping={mapping} />
+
             {/* Mobile machine tabs */}
             <div className="lg:hidden overflow-x-auto" style={{ scrollbarWidth: "none", borderTop: `1px solid ${HAIR}` }}>
               <div className="flex min-w-max">
@@ -1895,7 +2003,7 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                         background: isActive ? FAINT : "transparent",
                         opacity: isActive ? 1 : 0.45,
                       }}>
-                      <span>{String(i + 1).padStart(2, "0")}</span>
+                      <span>{machineTag(m, i)}</span>
                       <span className="uppercase">{m.name}</span>
                       {assessMachine(m).hasEol && <span className="text-amber-600 text-[9px]">EOL</span>}
                     </button>
@@ -1916,32 +2024,42 @@ function MappingView({ mapping }: { mapping: Mapping }) {
               </div>
               <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                 {/* Column headers like a real BOM */}
-                <div className="grid grid-cols-[2rem_1fr_auto] gap-1 px-2.5 py-1 font-mono text-[8px] font-bold uppercase tracking-wider"
+                <div className="grid grid-cols-[2.5rem_1fr_auto] gap-1 px-2.5 py-1 font-mono text-[8px] font-bold uppercase tracking-wider"
                   style={{ color: INK, opacity: 0.4, borderBottom: `1px solid ${HAIR}` }}>
                   <span>Item</span><span>Description</span><span>Flag</span>
                 </div>
-                {machines.map((m, i) => {
-                  const isActive = activeTab === m.id;
-                  return (
-                    <button key={m.id}
-                      onClick={() => { setActiveTab(m.id); document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
-                      className="w-full grid grid-cols-[2rem_1fr_auto] gap-1 items-center px-2.5 py-2 text-left transition-colors"
-                      style={{
-                        borderBottom: `1px solid ${HAIR}`,
-                        background: isActive ? "#fff" : "transparent",
-                        boxShadow: isActive ? `inset 3px 0 0 ${LIME}` : undefined,
-                      }}>
-                      <span className="font-mono text-[10px] font-bold tabular-nums" style={{ color: INK, opacity: isActive ? 1 : 0.4 }}>
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <span className="font-mono text-[10px] font-bold uppercase truncate leading-tight"
-                        style={{ color: INK, opacity: isActive ? 1 : 0.55 }}>
-                        {m.name}
-                      </span>
-                      <FlagPills machine={m} max={2} />
-                    </button>
-                  );
-                })}
+                {lineGroups.map((group) => (
+                  <div key={group.lineName ?? "line"}>
+                    {group.lineName && (
+                      <div className="px-2.5 py-1.5 font-mono text-[8px] font-bold uppercase tracking-[0.14em]"
+                        style={{ color: LIME, background: INK, borderBottom: `1px solid ${HAIR}` }}>
+                        {group.lineName}
+                      </div>
+                    )}
+                    {group.machines.map(({ machine: m, index: i }) => {
+                      const isActive = activeTab === m.id;
+                      return (
+                        <button key={m.id}
+                          onClick={() => { setActiveTab(m.id); document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                          className="w-full grid grid-cols-[2.5rem_1fr_auto] gap-1 items-center px-2.5 py-2 text-left transition-colors"
+                          style={{
+                            borderBottom: `1px solid ${HAIR}`,
+                            background: isActive ? "#fff" : "transparent",
+                            boxShadow: isActive ? `inset 3px 0 0 ${LIME}` : undefined,
+                          }}>
+                          <span className="font-mono text-[10px] font-bold tabular-nums" style={{ color: INK, opacity: isActive ? 1 : 0.4 }}>
+                            {tagParts(m, i).seq}
+                          </span>
+                          <span className="font-mono text-[10px] font-bold uppercase truncate leading-tight"
+                            style={{ color: INK, opacity: isActive ? 1 : 0.55 }}>
+                            {m.name}
+                          </span>
+                          <FlagPills machine={m} max={2} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
               </nav>
               <div className="px-2.5 py-2.5 mt-auto" style={{ borderTop: `2px solid ${INK}`, background: "#fff" }}>
                 <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] mb-1.5" style={{ color: INK, opacity: 0.4 }}>Legend</p>
@@ -1992,20 +2110,20 @@ function MappingView({ mapping }: { mapping: Mapping }) {
                     style={{ border: `1.5px solid ${INK}` }}
                     onClick={() => setActiveTab(machine.id)}>
 
-                    {/* Machine title bar */}
+                    {/* Machine title bar — L01 / 01 when this is a plant report */}
                     <div className="flex items-center gap-2.5 px-2.5 sm:px-3 py-1.5"
                       style={{ borderBottom: `1.5px solid ${INK}`, background: FAINT }}>
-                      <div className="flex items-stretch shrink-0" style={{ border: `1.5px solid ${INK}` }}>
-                        <div className="flex items-center justify-center px-1.5 font-bold text-[10px] font-mono"
-                          style={{ background: LIME, color: INK }}>M</div>
-                        <div className="flex items-center justify-center px-2 bg-white font-bold text-[11px] font-mono"
-                          style={{ color: INK, borderLeft: `1.5px solid ${INK}` }}>
-                          {String(idx + 1).padStart(2, "0")}
-                        </div>
+                      <TagBadge machine={machine} index={idx} />
+                      <div className="flex-1 min-w-0">
+                        <h2 className="font-mono font-bold text-sm uppercase tracking-[0.12em] truncate" style={{ color: INK }}>
+                          {machine.name}
+                        </h2>
+                        {machine.line_name && (
+                          <p className="font-mono text-[9px] font-bold uppercase tracking-wider truncate" style={{ color: INK, opacity: 0.45 }}>
+                            {machine.line_name}
+                          </p>
+                        )}
                       </div>
-                      <h2 className="font-mono font-bold text-sm uppercase tracking-[0.12em] flex-1 min-w-0 truncate" style={{ color: INK }}>
-                        {machine.name}
-                      </h2>
                       {machine.notes && (
                         <span className="hidden md:block font-mono text-[10px] italic shrink-0 max-w-[200px] truncate" style={{ color: INK, opacity: 0.45 }}>
                           {machine.notes}

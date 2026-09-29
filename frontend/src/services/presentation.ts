@@ -4,6 +4,7 @@ import { buildRiskRegister, type RiskFinding } from "../data/riskRegister";
 import { buildOpportunityRegister } from "../data/opportunityRegister";
 import { assessMachine, buildPlantNarrative } from "../data/machineAssessment";
 import { FLAG_DEFS } from "../data/observations";
+import { machineTag } from "../data/consolidateMappings";
 
 /**
  * Automation Report deck generator.
@@ -177,6 +178,9 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
   const assessments = machines.map(assessMachine);
   const plant = mapping.plant_name ?? "Plant";
   const location = [mapping.city, mapping.state].filter(Boolean).join(", ");
+  const lines = mapping.source_lines;
+  const lineCount = lines?.length ?? 0;
+  const multiLine = lineCount > 1;
   const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
   const plcCount = machines.filter((m) => m.plc_make || m.plc_model).length;
   const driveCount = machines.filter((m) => m.vfd_make || m.servo_drive_make).length;
@@ -223,18 +227,57 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     if (hero) {
       s.addImage({ data: hero, x: 7.5, y: 1.35, w: 5.1, h: 3.4, sizing: { type: "cover", w: 5.1, h: 3.4 } });
       s.addShape("rect", { x: 7.5, y: 4.84, w: 5.1, h: 0.09, fill: { color: LIME }, line: { width: 0 } });
-      s.addText(`Field survey · ${machines.length} machines documented`, {
+      s.addText(
+        multiLine
+          ? `Field survey · ${lineCount} lines · ${machines.length} machines`
+          : `Field survey · ${machines.length} machines documented`,
+        {
         x: 7.5, y: 5.05, w: 5.1, h: 0.3,
         fontFace: FONT, fontSize: 12, bold: true, color: PALE, margin: 0,
       });
     }
-    s.addNotes(`Automation Report for ${plant}. Field mapping captured ${machines.length} machines and ${totalPhotos} photos.`);
+    s.addNotes(`Automation Report for ${plant}. Field mapping captured ${multiLine ? `${lineCount} lines, ` : ""}${machines.length} machines and ${totalPhotos} photos.`);
+  }
+
+  // ══ Lines surveyed (plant-consolidated decks only) ═════════════════════════
+  if (multiLine && lines) {
+    page++;
+    const s = frame(pptx, { eyebrow: "The plant", title: "Lines Surveyed", theme: "light", pageNo: page, images });
+
+    const head = ["Line", "Name", "Machines", "Photos"];
+    const rows: PptxGenJS.TableRow[] = [
+      head.map((h) => ({
+        text: h.toUpperCase(),
+        options: { bold: true, fontSize: 9, color: WHITE, fill: { color: NAVY }, margin: 6 },
+      })),
+    ];
+    for (const [i, line] of lines.entries()) {
+      rows.push([
+        { text: `L${String(i + 1).padStart(2, "0")}`, options: { bold: true, fontSize: 12, color: NAVY } },
+        { text: line.name, options: { fontSize: 13, bold: true, color: INK } },
+        { text: String(line.machine_count), options: { fontSize: 13, color: INK, align: "center" } },
+        { text: String(line.photo_count), options: { fontSize: 13, color: INK, align: "center" } },
+      ]);
+    }
+
+    s.addTable(rows, {
+      x: BODY_L, y: CONTENT_T, w: 11.8,
+      colW: [1.4, 6.6, 1.9, 1.9],
+      border: { type: "solid", color: "D9DEE7", pt: 1 },
+      fontFace: FONT, valign: "middle", margin: 8, autoPage: false,
+    });
+
+    s.addText("Each line was mapped separately on the floor. This report rolls them into one plant picture.", {
+      x: BODY_L, y: CONTENT_T + rows.length * 0.48 + 0.35, w: 11.8, h: 0.4,
+      fontFace: FONT, fontSize: 13, color: GREY, margin: 0,
+    });
+    s.addNotes(lines.map((l, i) => `L${String(i + 1).padStart(2, "0")} ${l.name}: ${l.machine_count} machines`).join(". "));
   }
 
   // ══ 2 · What we found ══════════════════════════════════════════════════════
   {
     page++;
-    const s = frame(pptx, { eyebrow: "The line", title: "What We Found", theme: "dark", pageNo: page, images });
+    const s = frame(pptx, { eyebrow: multiLine ? "The plant" : "The line", title: "What We Found", theme: "dark", pageNo: page, images });
 
     s.addText(narrative.story, {
       x: BODY_L, y: CONTENT_T, w: 11.7, h: 1.85,
@@ -259,6 +302,7 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     const eol = register.findings.filter((f) => f.status !== "mature").length;
     const auto = summary ??
       `I&I Automation completed an on-site controls survey at ${plant}${location ? ` in ${location}` : ""}. ` +
+      (multiLine ? `${lineCount} lines and ` : "") +
       `${machines.length} machine${machines.length === 1 ? "" : "s"} ${machines.length === 1 ? "was" : "were"} surveyed and ` +
       `${totalPhotos} field photograph${totalPhotos === 1 ? "" : "s"} recorded. ` +
       (eol > 0
@@ -406,7 +450,7 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
       const a = assessments[idx];
       const life = a.hasEol ? (a.worst.status === "unsupported" ? "UNSUP" : "EOL") : a.hasMature ? "MAT" : "—";
       const cells: PptxGenJS.TableCell[] = [
-        { text: `M-${String(idx + 1).padStart(2, "0")}  ${m.name}`, options: { fontSize: 10, bold: true, color: NAVY } },
+        { text: `${machineTag(m, idx)}  ${m.line_name ? `${m.line_name} · ` : ""}${m.name}`, options: { fontSize: 10, bold: true, color: NAVY } },
         { text: life, options: { fontSize: 9, bold: true, color: a.hasEol ? "B45309" : GREY } },
       ];
       for (const col of flagCols) {
@@ -416,7 +460,7 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
       rows.push(cells);
     });
 
-    const colW = [3.4, 1.15, ...flagCols.map(() => Math.min(1.4, 7.25 / Math.max(flagCols.length, 1)))];
+    const colW = [4.2, 1.15, ...flagCols.map(() => Math.min(1.4, 6.45 / Math.max(flagCols.length, 1)))];
     s.addTable(rows, {
       x: BODY_L, y: CONTENT_T, w: 11.8,
       colW,
@@ -479,8 +523,14 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
   // ══ Machine detail ═════════════════════════════════════════════════════════
   machines.forEach((m, idx) => {
     page++;
-    const tag = `M-${String(idx + 1).padStart(2, "0")}`;
-    const s = frame(pptx, { eyebrow: `Equipment · ${tag}`, title: m.name, theme: "light", pageNo: page, images });
+    const tag = machineTag(m, idx);
+    const s = frame(pptx, {
+      eyebrow: m.line_name ? `${m.line_name} · ${tag}` : `Equipment · ${tag}`,
+      title: m.name,
+      theme: "light",
+      pageNo: page,
+      images,
+    });
 
     const a = assessMachine(m);
     const specs = a.today.length ? a.today : specLine(m);
@@ -641,7 +691,8 @@ export function deckFileName(mapping: Mapping): string {
     .replace(/[^\w\s-]/g, "")
     .trim()
     .replace(/\s+/g, "-");
-  return `${base}-Automation-Report.pptx`;
+  const plantWide = (mapping.source_lines?.length ?? 0) > 1 ? "-Plant" : "";
+  return `${base}${plantWide}-Automation-Report.pptx`;
 }
 
 export const DECK_FONT_FALLBACK = FONT_FALLBACK;

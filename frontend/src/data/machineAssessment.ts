@@ -249,8 +249,14 @@ export function buildPlantNarrative(mapping: Mapping): PlantNarrative {
     })
     .slice(0, 4);
 
+  const lines = mapping.source_lines;
+  const linePhrase =
+    lines && lines.length > 1
+      ? ` surveyed ${lines.length} lines (${lines.map((l) => l.name).join(", ")}) covering ${machines.length} machine${machines.length === 1 ? "" : "s"} at ${plant}`
+      : ` surveyed ${machines.length} machine${machines.length === 1 ? "" : "s"} at ${plant}`;
+
   const story =
-    `I&I Automation surveyed ${machines.length} machine${machines.length === 1 ? "" : "s"} at ${plant}` +
+    `I&I Automation${linePhrase}` +
     `${location ? ` in ${location}` : ""}. ` +
     (eolMachines > 0
       ? `${eolMachines} station${eolMachines === 1 ? " runs" : "s run"} discontinued control hardware` +
@@ -268,6 +274,9 @@ export function buildPlantNarrative(mapping: Mapping): PlantNarrative {
     "The findings below are what operations lives with, and what a controls program can change.";
 
   const bullets: string[] = [];
+  if (lines && lines.length > 1) {
+    bullets.push(`${lines.length} lines: ${lines.map((l) => l.name).join(" · ")}`);
+  }
   if (eolMachines) bullets.push(`${eolMachines} of ${machines.length} machines on discontinued platforms`);
   if (trapped) bullets.push(`${trapped} modern drive/servo package${trapped === 1 ? "" : "s"} blocked by a legacy PLC`);
   if (noHmi) bullets.push(`${noHmi} station${noHmi === 1 ? "" : "s"} with no operator visibility`);

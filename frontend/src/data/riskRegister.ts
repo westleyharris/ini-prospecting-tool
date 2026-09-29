@@ -1,5 +1,6 @@
 import type { Mapping, MappingMachine } from "../api/mappings";
 import { checkAsset, type EquipmentCategory, type LifecycleStatus } from "./obsoleteEquipment";
+import { machineTag } from "./consolidateMappings";
 
 /**
  * Lifecycle risk register.
@@ -133,7 +134,8 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
   const affected = new Set<string>();
 
   machines.forEach((machine, idx) => {
-    const tag = `M-${String(idx + 1).padStart(2, "0")}`;
+    const tag = machineTag(machine, idx);
+    const name = machine.line_name ? `${machine.line_name} · ${machine.name}` : machine.name;
 
     for (const c of candidatesFor(machine)) {
       const result = checkAsset(c.category, {
@@ -149,7 +151,7 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
 
       const existing = grouped.get(key);
       if (existing) {
-        existing.machines.push({ id: machine.id, tag, name: machine.name });
+        existing.machines.push({ id: machine.id, tag, name });
         existing.unitCount += 1;
         if (make.length > existing.make.length) existing.make = make;
         if (model && (!existing.model || model.length < existing.model.length)) existing.model = model;
@@ -160,7 +162,7 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
           categoryLabel: c.categoryLabel,
           make,
           model,
-          machines: [{ id: machine.id, tag, name: machine.name }],
+          machines: [{ id: machine.id, tag, name }],
           unitCount: 1,
           eolYear: result.eolYear,
           note: result.note ?? "",

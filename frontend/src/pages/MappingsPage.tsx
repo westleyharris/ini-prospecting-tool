@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   HiPlus, HiMagnifyingGlass, HiTrash, HiChevronRight,
-  HiMap, HiCheckCircle, HiClock, HiXMark,
+  HiMap, HiCheckCircle, HiClock, HiXMark, HiDocumentChartBar,
 } from "react-icons/hi2";
 import { listMappings, createMapping, deleteMapping, type Mapping } from "../api/mappings";
 import EmptyState from "../components/EmptyState";
@@ -201,7 +201,7 @@ export default function MappingsPage() {
   // Group by plant
   const grouped: Record<string, Mapping[]> = {};
   for (const m of filtered) {
-    const key = m.plant_name ?? m.plant_id;
+    const key = m.plant_id;
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(m);
   }
@@ -305,8 +305,10 @@ export default function MappingsPage() {
         />
       ) : (
         <div className="space-y-6">
-          {Object.entries(grouped).map(([plantName, items]) => (
-            <div key={plantName} className="bg-white"
+          {Object.entries(grouped).map(([plantId, items]) => {
+            const plantName = items[0].plant_name ?? plantId;
+            return (
+            <div key={plantId} className="bg-white"
               style={{ border: `2px solid ${INK}`, boxShadow: "4px 4px 0 rgba(0,24,46,0.12)" }}>
               {/* Plant header — register title bar */}
               <div className="flex items-center gap-2.5 px-3 sm:px-4 py-2"
@@ -318,6 +320,20 @@ export default function MappingsPage() {
                 <span className="font-mono text-[10px] font-bold shrink-0" style={{ color: INK, opacity: 0.45 }}>
                   {items.length} mapping{items.length !== 1 ? "s" : ""}
                 </span>
+                {items.length >= 2 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/mappings/plant/${plantId}`);
+                    }}
+                    className="flex items-center gap-1 shrink-0 font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-1 border hover:bg-brand-lime"
+                    style={{ color: INK, borderColor: INK }}
+                    title="Consolidated drawing, register, and deck for every line at this plant"
+                  >
+                    <HiDocumentChartBar className="w-3.5 h-3.5" />
+                    Plant report
+                  </button>
+                )}
               </div>
 
               {items.map((m, i) => {
@@ -362,7 +378,8 @@ export default function MappingsPage() {
                 );
               })}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
