@@ -7,6 +7,7 @@ import {
   HiCpuChip, HiComputerDesktop, HiBolt, HiPhoto,
   HiBuildingOffice2, HiDocumentText, HiXMark, HiCog8Tooth,
   HiEye, HiPencilSquare, HiExclamationTriangle, HiShieldCheck, HiPresentationChartBar,
+  HiArrowUp,
 } from "react-icons/hi2";
 import {
   getMapping, updateMapping, createMachine, updateMachine,
@@ -21,6 +22,7 @@ import { buildOpportunityRegister } from "../data/opportunityRegister";
 import { downloadPresentation } from "../services/presentation";
 import { usePrintReport } from "../hooks/usePrintReport";
 import { ShareLinkButton } from "../components/ShareLinkButton";
+import { BackToTop } from "../components/BackToTop";
 import { ObservationsPanel } from "../components/ObservationsPanel";
 import { machineTag, tagParts, groupMachinesByLine, drawingNumber } from "../data/consolidateMappings";
 
@@ -1785,13 +1787,21 @@ function CropMark({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
   );
 }
 
-export function MappingView({ mapping }: { mapping: Mapping }) {
+export function MappingView({ mapping, chrome = "app" }: { mapping: Mapping; chrome?: "app" | "share" }) {
   const machines = mapping.machines ?? [];
   const lineGroups = groupMachinesByLine(machines);
   const lineCount = mapping.source_lines?.length ?? 0;
   const [lightbox, setLightbox] = useState<{ photo: MappingPhoto; list: MappingPhoto[]; idx: number } | null>(null);
   const [activeTab, setActiveTab] = useState(machines[0]?.id ?? "");
+  const bomNavRef = useRef<HTMLElement>(null);
 
+  function jumpToMachine(id: string) {
+    setActiveTab(id);
+    document.getElementById(`mv-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function jumpToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   function openLightbox(list: MappingPhoto[], idx: number) {
     setLightbox({ photo: list[idx], list, idx });
   }
@@ -1816,13 +1826,24 @@ export function MappingView({ mapping }: { mapping: Mapping }) {
       if (!el) continue;
       const obs = new IntersectionObserver(
         ([entry]) => { if (entry.isIntersecting) setActiveTab(m.id); },
-        { threshold: 0, rootMargin: "-5% 0px -60% 0px" }
+        { threshold: 0, rootMargin: "-18% 0px -55% 0px" }
       );
       obs.observe(el);
       observers.push(obs);
     }
     return () => observers.forEach((o) => o.disconnect());
   }, [machines]);
+
+  useEffect(() => {
+    const nav = bomNavRef.current;
+    if (!nav || !activeTab) return;
+    const row = nav.querySelector<HTMLElement>(`[data-bom="${activeTab}"]`);
+    if (!row) return;
+    const rowRect = row.getBoundingClientRect();
+    const navRect = nav.getBoundingClientRect();
+    if (rowRect.top < navRect.top + 8) nav.scrollTop -= navRect.top - rowRect.top + 8;
+    else if (rowRect.bottom > navRect.bottom - 8) nav.scrollTop += rowRect.bottom - navRect.bottom + 8;
+  }, [activeTab]);
 
   const totalPhotos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
   const assessments = machines.map(assessMachine);
@@ -1894,6 +1915,7 @@ export function MappingView({ mapping }: { mapping: Mapping }) {
     return groups;
   }
 
+  const bomOffset = chrome === "share" ? "5.75rem" : "4.5rem";
   const dwgNo = drawingNumber(mapping);
   const plcCount = machines.filter((m) => m.plc_make || m.plc_model).length;
   const driveCount = machines.filter((m) => m.vfd_make || m.servo_drive_make).length;
@@ -1990,42 +2012,72 @@ export function MappingView({ mapping }: { mapping: Mapping }) {
             </div>
 
             <LineIndexStrip mapping={mapping} />
+          </div>
 
-            {/* Mobile machine tabs */}
-            <div className="lg:hidden overflow-x-auto" style={{ scrollbarWidth: "none", borderTop: `1px solid ${HAIR}` }}>
-              <div className="flex min-w-max">
-                {machines.map((m, i) => {
-                  const isActive = activeTab === m.id;
-                  return (
-                    <button key={m.id}
-                      onClick={() => { setActiveTab(m.id); document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
-                      className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold border-b-2 whitespace-nowrap font-mono"
-                      style={{
-                        borderColor: isActive ? LIME : "transparent",
-                        color: INK,
-                        background: isActive ? FAINT : "transparent",
-                        opacity: isActive ? 1 : 0.45,
-                      }}>
-                      <span>{machineTag(m, i)}</span>
-                      <span className="uppercase">{m.name}</span>
-                      {assessMachine(m).hasEol && <span className="text-amber-600 text-[9px]">EOL</span>}
-                    </button>
-                  );
-                })}
-              </div>
+          {/* Mobile machine tabs — sibling of the tall drawing so sticky can persist */}
+          <div
+            className={`lg:hidden sticky z-20 overflow-x-auto bg-white ${chrome === "app" ? "top-14" : "top-[5.75rem]"}`}
+            style={{ scrollbarWidth: "none", borderBottom: `1px solid ${HAIR}` }}
+          >
+            <div className="flex min-w-max">
+              <button
+                type="button"
+                onClick={jumpToTop}
+                className="flex items-center gap-1 px-3 py-2 text-[11px] font-bold border-b-2 whitespace-nowrap font-mono"
+                style={{ borderColor: "transparent", color: INK, opacity: 0.45 }}
+              >
+                <HiArrowUp className="w-3.5 h-3.5" />
+                Top
+              </button>
+              {machines.map((m, i) => {
+                const isActive = activeTab === m.id;
+                return (
+                  <button key={m.id}
+                    onClick={() => jumpToMachine(m.id)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold border-b-2 whitespace-nowrap font-mono"
+                    style={{
+                      borderColor: isActive ? LIME : "transparent",
+                      color: INK,
+                      background: isActive ? FAINT : "transparent",
+                      opacity: isActive ? 1 : 0.45,
+                    }}>
+                    <span>{machineTag(m, i)}</span>
+                    <span className="uppercase">{m.name}</span>
+                    {assessMachine(m).hasEol && <span className="text-amber-600 text-[9px]">EOL</span>}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* ── BOM index + sheets ── */}
-          <div className="flex items-stretch">
-            {/* Parts-list / BOM column */}
-            <aside className="hidden lg:flex flex-col shrink-0 w-56"
-              style={{ borderRight: `2px solid ${INK}`, background: FAINT }}>
-              <div className="px-2.5 py-2 flex items-center justify-between" style={{ borderBottom: `1px solid ${HAIR}`, background: INK }}>
+          <div className="flex items-start">
+            {/* Parts-list / BOM column — sticks in the viewport so it does not scroll away */}
+            <div
+              className="hidden lg:flex flex-col shrink-0 w-56 self-start sticky z-20"
+              style={{
+                top: bomOffset,
+                borderRight: `2px solid ${INK}`,
+                background: FAINT,
+                maxHeight: `calc(100dvh - ${bomOffset})`,
+              }}
+            >
+              <div className="px-2.5 py-2 flex items-center justify-between shrink-0" style={{ borderBottom: `1px solid ${HAIR}`, background: INK }}>
                 <p className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-brand-lime">BOM / Index</p>
                 <p className="font-mono text-[9px] text-white/40">{machines.length}</p>
               </div>
-              <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+              <nav ref={bomNavRef} className="flex-1 overflow-y-auto min-h-0" style={{ scrollbarWidth: "thin" }}>
+                <button
+                  type="button"
+                  onClick={jumpToTop}
+                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left transition-colors"
+                  style={{ borderBottom: `1px solid ${HAIR}`, color: INK }}
+                >
+                  <HiArrowUp className="w-3 h-3 shrink-0 opacity-50" />
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ opacity: 0.55 }}>
+                    Drawing title
+                  </span>
+                </button>
                 {/* Column headers like a real BOM */}
                 <div className="grid grid-cols-[2.5rem_1fr_auto] gap-1 px-2.5 py-1 font-mono text-[8px] font-bold uppercase tracking-wider"
                   style={{ color: INK, opacity: 0.4, borderBottom: `1px solid ${HAIR}` }}>
@@ -2043,7 +2095,8 @@ export function MappingView({ mapping }: { mapping: Mapping }) {
                       const isActive = activeTab === m.id;
                       return (
                         <button key={m.id}
-                          onClick={() => { setActiveTab(m.id); document.getElementById(`mv-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                          data-bom={m.id}
+                          onClick={() => jumpToMachine(m.id)}
                           className="w-full grid grid-cols-[2.5rem_1fr_auto] gap-1 items-center px-2.5 py-2 text-left transition-colors"
                           style={{
                             borderBottom: `1px solid ${HAIR}`,
@@ -2064,7 +2117,7 @@ export function MappingView({ mapping }: { mapping: Mapping }) {
                   </div>
                 ))}
               </nav>
-              <div className="px-2.5 py-2.5 mt-auto" style={{ borderTop: `2px solid ${INK}`, background: "#fff" }}>
+              <div className="px-2.5 py-2.5 shrink-0" style={{ borderTop: `2px solid ${INK}`, background: "#fff" }}>
                 <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] mb-1.5" style={{ color: INK, opacity: 0.4 }}>Legend</p>
                 {[
                   { dot: "#1d4ed8", label: "PLC" },
@@ -2086,7 +2139,7 @@ export function MappingView({ mapping }: { mapping: Mapping }) {
                   <span className="font-mono text-[9px]" style={{ color: INK, opacity: 0.55 }}>Flags = opportunities</span>
                 </div>
               </div>
-            </aside>
+            </div>
 
             {/* Machine detail sheets */}
             <div className="flex-1 min-w-0 p-2 sm:p-3 space-y-3 eng-grid">
@@ -2109,7 +2162,7 @@ export function MappingView({ mapping }: { mapping: Mapping }) {
                 const servoLife  = lifeFor(machine, "servo");
 
                 return (
-                  <div id={`mv-${machine.id}`} key={machine.id} className="bg-white scroll-mt-3 relative"
+                  <div id={`mv-${machine.id}`} key={machine.id} className="bg-white scroll-mt-24 lg:scroll-mt-20 relative"
                     style={{ border: `1.5px solid ${INK}` }}
                     onClick={() => setActiveTab(machine.id)}>
 
@@ -2429,6 +2482,7 @@ export default function MappingEditorPage() {
       <div className={`mapping-screen-only space-y-3 pb-24 ${viewMode ? "" : "max-w-2xl mx-auto"}`}>
 
         {/* Technical toolbar */}
+        <div className="lg:sticky lg:top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 px-3 sm:px-6 lg:px-8 py-2 bg-[#f0f2ef]">
         <div className="flex flex-wrap items-stretch gap-0 border-2 border-brand-navy bg-white">
           <button onClick={() => navigate("/mappings")}
             className="px-2.5 flex items-center justify-center border-r-2 border-brand-navy text-brand-navy/50 hover:bg-brand-lime hover:text-brand-navy transition-colors shrink-0"
@@ -2514,6 +2568,7 @@ export default function MappingEditorPage() {
             </button>
           </div>
         </div>
+        </div>
 
         {/* View mode */}
         {mode === "view" && <MappingView mapping={mapping} />}
@@ -2584,6 +2639,7 @@ export default function MappingEditorPage() {
           </div>
         )}
       </div>
+      {viewMode && <BackToTop />}
     </>
   );
 }

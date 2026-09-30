@@ -6,6 +6,7 @@ import { consolidateMappings } from "../data/consolidateMappings";
 import { downloadPresentation } from "../services/presentation";
 import { MappingView, PrintView, RiskRegisterView } from "./MappingEditorPage";
 import { usePrintReport } from "../hooks/usePrintReport";
+import { BackToTop } from "../components/BackToTop";
 
 export default function ShareReportPage() {
   const { token } = useParams<{ token: string }>();
@@ -75,6 +76,7 @@ export default function ShareReportPage() {
       <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady} />
 
       <div className="mapping-screen-only max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-3 pb-24">
+        <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 px-3 sm:px-6 py-2 bg-[#f0f2ef]">
         <div className="flex flex-wrap items-stretch gap-0 border-2 border-brand-navy bg-white">
           <div className="flex-1 min-w-0 px-3 py-2">
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-brand-navy/40">
@@ -129,10 +131,12 @@ export default function ShareReportPage() {
             </button>
           </div>
         </div>
+        </div>
 
-        {mode === "view" && <MappingView mapping={mapping} />}
+        {mode === "view" && <MappingView mapping={mapping} chrome="share" />}
         {mode === "risk" && <RiskRegisterView mapping={mapping} />}
       </div>
+      <BackToTop />
     </div>
   );
 }

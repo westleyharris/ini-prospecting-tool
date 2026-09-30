@@ -9,6 +9,7 @@ import { downloadPresentation } from "../services/presentation";
 import { MappingView, PrintView, RiskRegisterView } from "./MappingEditorPage";
 import { usePrintReport } from "../hooks/usePrintReport";
 import { ShareLinkButton } from "../components/ShareLinkButton";
+import { BackToTop } from "../components/BackToTop";
 
 export default function PlantReportPage() {
   const { plantId } = useParams<{ plantId: string }>();
@@ -76,6 +77,7 @@ export default function PlantReportPage() {
       <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady} />
 
       <div className="mapping-screen-only space-y-3 pb-24">
+        <div className="lg:sticky lg:top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 px-3 sm:px-6 lg:px-8 py-2 bg-[#f0f2ef]">
         <div className="flex flex-wrap items-stretch gap-0 border-2 border-brand-navy bg-white">
           <button onClick={() => navigate("/mappings")}
             className="px-2.5 flex items-center justify-center border-r-2 border-brand-navy text-brand-navy/50 hover:bg-brand-lime hover:text-brand-navy transition-colors shrink-0"
@@ -136,6 +138,7 @@ export default function PlantReportPage() {
             </button>
           </div>
         </div>
+        </div>
 
         {lines.length > 1 && (
           <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-white border-2 border-brand-navy">
@@ -157,6 +160,7 @@ export default function PlantReportPage() {
         {mode === "view" && <MappingView mapping={mapping} />}
         {mode === "risk" && <RiskRegisterView mapping={mapping} />}
       </div>
+      <BackToTop />
     </>
   );
 }
