@@ -27,6 +27,7 @@ import ContactsPage from "./pages/ContactsPage";
 import MappingsPage from "./pages/MappingsPage";
 import MappingEditorPage from "./pages/MappingEditorPage";
 import PlantReportPage from "./pages/PlantReportPage";
+import ShareReportPage from "./pages/ShareReportPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -82,6 +83,10 @@ function TitleSync() {
   useEffect(() => {
     const seg = location.pathname.split("/")[1] ?? "";
     const page = ROUTE_TITLES[seg];
+    if (seg === "s") {
+      document.title = "Shared Report · I&I Automation";
+      return;
+    }
     document.title = page ? `${page} · I&I Internal` : "I&I Internal";
   }, [location.pathname]);
   return null;
@@ -318,6 +323,7 @@ function App() {
         {/* Public auth routes — no shell */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/s/:token" element={<ShareReportPage />} />
         {/* Everything else goes through the app shell */}
         <Route path="/*" element={<AppShell />} />
       </Routes>

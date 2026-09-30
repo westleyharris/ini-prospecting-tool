@@ -103,6 +103,23 @@ export async function getPlantMappings(plantId: string): Promise<Mapping[]> {
   return Promise.all(list.map((m) => getMapping(m.id)));
 }
 
+export function createShareLink(
+  kind: "mapping" | "plant",
+  id: string
+): Promise<{ token: string; path: string }> {
+  return apiFetch(`${BASE}/share/${kind}/${id}`, { method: "POST" });
+}
+
+export interface SharedReport {
+  kind: "mapping" | "plant";
+  mapping?: Mapping;
+  mappings?: Mapping[];
+}
+
+export function getSharedReport(token: string): Promise<SharedReport> {
+  return apiFetch(`${BASE}/share/${token}`);
+}
+
 export function createMapping(data: { plant_id: string; name?: string; notes?: string }): Promise<Mapping> {
   return apiFetch(`${BASE}/mappings`, {
     method: "POST",
@@ -185,17 +202,18 @@ export function rerunOcr(photoId: string): Promise<MappingPhoto> {
 
 /**
  * Resolve a mapping photo URL.
- *   "thumb" → 480px WebP  (thumbnail grids, filmstrip)
- *   "print" → original file (full-bleed print sheets need max detail)
- *   undefined → original  (lightbox main view)
+ *   "thumb" → 480px WebP   (grids, filmstrip)
+ *   "view"  → 1280px WebP  (lightbox)
+ *   "print" → 1280px WebP  (PDF / letter — sharp enough, not the original)
+ *   "deck"  → 1400px JPEG  (PowerPoint cannot embed WebP)
+ *   undefined → 1280px WebP (lightbox default)
  */
 export function photoUrl(
   machineId: string,
   filename: string,
-  size?: "thumb" | "print"
+  size?: "thumb" | "view" | "print" | "deck"
 ): string {
   if (size === "thumb") return `/thumb/mappings/${machineId}/${filename}?s=sm`;
-  // Print uses the original so large 1–2-up sheets stay sharp on letter/PDF
-  if (size === "print") return `/uploads/mappings/${machineId}/${filename}`;
-  return `/uploads/mappings/${machineId}/${filename}`;
+  if (size === "deck") return `/thumb/mappings/${machineId}/${filename}?s=deck`;
+  return `/thumb/mappings/${machineId}/${filename}?s=md`;
 }

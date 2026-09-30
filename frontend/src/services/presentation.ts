@@ -1,5 +1,6 @@
 import PptxGenJS from "pptxgenjs";
 import type { Mapping, MappingMachine } from "../api/mappings";
+import { photoUrl } from "../api/mappings";
 import { buildRiskRegister, type RiskFinding } from "../data/riskRegister";
 import { buildOpportunityRegister } from "../data/opportunityRegister";
 import { assessMachine, buildPlantNarrative } from "../data/machineAssessment";
@@ -749,6 +750,17 @@ async function toDataUri(url: string): Promise<string | undefined> {
  * returns WebP, which older PowerPoint builds will not render, and full-size
  * field photos would push the deck past what anyone wants to email.
  */
+async function blobToJpegData(blob: Blob): Promise<string | undefined> {
+  const dataUri = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+  if (!dataUri) return undefined;
+  return dataUri.replace(/^data:/, "");
+}
+
 async function fetchImageAsJpeg(
   url: string,
   maxPx = 1400,
@@ -757,7 +769,12 @@ async function fetchImageAsJpeg(
   try {
     const res = await fetch(url, { credentials: "include" });
     if (!res.ok) return undefined;
-    const bmp = await createImageBitmap(await res.blob());
+    const blob = await res.blob();
+    const type = blob.type || "";
+    if (type === "image/jpeg" || url.includes("s=deck")) {
+      return blobToJpegData(blob);
+    }
+    const bmp = await createImageBitmap(blob);
     const scale = Math.min(1, maxPx / Math.max(bmp.width, bmp.height));
     const w = Math.max(1, Math.round(bmp.width * scale));
     const h = Math.max(1, Math.round(bmp.height * scale));
@@ -776,23 +793,39 @@ async function fetchImageAsJpeg(
   }
 }
 
+function photosNeededForDeck(mapping: Mapping) {
+  const seen = new Set<string>();
+  const out: { id: string; machine_id: string; filename: string }[] = [];
+  const addFirst = (machine?: MappingMachine) => {
+    const photo = machine?.photos?.[0];
+    if (!photo || seen.has(photo.id)) return;
+    seen.add(photo.id);
+    out.push(photo);
+  };
+  for (const machine of mapping.machines ?? []) {
+    if ((machine.photos ?? []).length > 0) {
+      addFirst(machine);
+      break;
+    }
+  }
+  for (const example of pickCriticalExamples(mapping, 3)) {
+    addFirst(example.machine);
+  }
+  return out;
+}
+
 /**
  * Build the Automation Report for a mapping and hand it to the browser as a
  * .pptx download.
  */
-export async function downloadPresentation(
-  mapping: Mapping,
-  photoSrc: (machineId: string, filename: string) => string,
-): Promise<void> {
+export async function downloadPresentation(mapping: Mapping): Promise<void> {
   const photos: Record<string, string> = {};
 
   await Promise.all(
-    (mapping.machines ?? []).flatMap((m) =>
-      (m.photos ?? []).map(async (p) => {
-        const data = await fetchImageAsJpeg(photoSrc(p.machine_id, p.filename));
-        if (data) photos[p.id] = data;
-      })
-    )
+    photosNeededForDeck(mapping).map(async (p) => {
+      const data = await fetchImageAsJpeg(photoUrl(p.machine_id, p.filename, "deck"));
+      if (data) photos[p.id] = data;
+    })
   );
 
   const [logoWhite, logoDark] = await Promise.all([

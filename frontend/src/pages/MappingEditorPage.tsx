@@ -19,6 +19,8 @@ import { assessMachine, lifeFor } from "../data/machineAssessment";
 import { buildRiskRegister, RISK_META, type RiskFinding } from "../data/riskRegister";
 import { buildOpportunityRegister } from "../data/opportunityRegister";
 import { downloadPresentation } from "../services/presentation";
+import { usePrintReport } from "../hooks/usePrintReport";
+import { ShareLinkButton } from "../components/ShareLinkButton";
 import { ObservationsPanel } from "../components/ObservationsPanel";
 import { machineTag, tagParts, groupMachinesByLine, drawingNumber } from "../data/consolidateMappings";
 
@@ -571,7 +573,7 @@ function PhotoSection({
             </div>
           </div>
           <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-            <img src={photoUrl(lightbox.machine_id, lightbox.filename)} alt={lightbox.original_name}
+            <img src={photoUrl(lightbox.machine_id, lightbox.filename, "view")} alt={lightbox.original_name}
               className="max-w-full max-h-full object-contain rounded-xl" onClick={(e) => e.stopPropagation()} />
           </div>
         </div>
@@ -1060,7 +1062,8 @@ function RiskFindingCard({ finding, index }: { finding: RiskFinding; index: numb
 }
 
 // Full-bleed engineering drawing sheet. Hidden on screen; revealed by @media print.
-export function PrintView({ mapping, mode = "sheet" }: { mapping: Mapping; mode?: "sheet" | "risk" }) {
+export function PrintView({ mapping, mode = "sheet", active = false }: { mapping: Mapping; mode?: "sheet" | "risk"; active?: boolean }) {
+  if (!active) return null;
   const register = buildRiskRegister(mapping);
   const opportunities = buildOpportunityRegister(mapping);
   const machines = mapping.machines ?? [];
@@ -2275,7 +2278,7 @@ export function MappingView({ mapping }: { mapping: Mapping }) {
           {/* Image area */}
           <div className="flex-1 flex items-center justify-center p-4 sm:p-10 min-h-0"
             onClick={(e) => e.stopPropagation()}>
-            <img src={photoUrl(lightbox.photo.machine_id, lightbox.photo.filename)}
+            <img src={photoUrl(lightbox.photo.machine_id, lightbox.photo.filename, "view")}
               alt={lightbox.photo.original_name}
               className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
           </div>
@@ -2331,6 +2334,7 @@ export default function MappingEditorPage() {
   // Open on the read-only report; editing is opt-in via the Edit toggle
   const [mode, setMode] = useState<"edit" | "view" | "risk">("view");
   const [buildingDeck, setBuildingDeck] = useState(false);
+  const { printReady, printBusy, startPrint } = usePrintReport();
   const viewMode = mode !== "edit";
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -2419,7 +2423,7 @@ export default function MappingEditorPage() {
   return (
     <>
       {/* Print view — lives outside the screen wrapper so display:none doesn't block it */}
-      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} />
+      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady} />
 
       {/* Screen UI — view mode full-bleed; edit mode narrow for field entry */}
       <div className={`mapping-screen-only space-y-3 pb-24 ${viewMode ? "" : "max-w-2xl mx-auto"}`}>
@@ -2487,7 +2491,7 @@ export default function MappingEditorPage() {
                 if (!mapping) return;
                 setBuildingDeck(true);
                 try {
-                  await downloadPresentation(mapping, (mid, f) => photoUrl(mid, f, "print"));
+                  await downloadPresentation(mapping);
                 } catch (err) {
                   console.error(err);
                   alert("Could not build the presentation.");
@@ -2501,9 +2505,11 @@ export default function MappingEditorPage() {
               <HiPresentationChartBar className="w-4 h-4" />
               <span className="hidden sm:inline">{buildingDeck ? "Building…" : "Deck"}</span>
             </button>
-            <button onClick={() => window.print()}
-              className="px-3 flex items-center justify-center text-brand-navy/40 hover:bg-brand-lime hover:text-brand-navy transition-colors"
-              title="Print / Export PDF">
+            {mapping && <ShareLinkButton kind="mapping" id={mapping.id} />}
+            <button onClick={startPrint}
+              disabled={printBusy}
+              className="px-3 flex items-center justify-center text-brand-navy/40 hover:bg-brand-lime hover:text-brand-navy transition-colors disabled:opacity-50"
+              title={printBusy ? "Preparing photos…" : "Print / Export PDF"}>
               <HiPrinter className="w-4 h-4" />
             </button>
           </div>

@@ -167,6 +167,16 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
+  CREATE TABLE IF NOT EXISTS mapping_shares (
+    token TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    mapping_id TEXT,
+    plant_id TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_mapping_shares_mapping ON mapping_shares(mapping_id);
+  CREATE INDEX IF NOT EXISTS idx_mapping_shares_plant ON mapping_shares(plant_id);
+
   CREATE TABLE IF NOT EXISTS follow_up_history (
     id TEXT PRIMARY KEY,
     plant_id TEXT NOT NULL REFERENCES plants(id) ON DELETE CASCADE,

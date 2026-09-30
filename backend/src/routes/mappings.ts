@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { randomUUID } from "crypto";
 import multer from "multer";
-import { join } from "path";
-import { existsSync, unlinkSync } from "fs";
+import { basename, extname, join } from "path";
+import { existsSync, unlinkSync, renameSync } from "fs";
 import { db } from "../db.js";
 import { getMappingPhotosPath, getUploadsPath } from "../services/uploads.js";
 import { ocrPhoto } from "../services/ocr.js";
+import { deletePhotoFiles, normalizeUpload, warmDerivatives } from "../services/imageResize.js";
 
 export const mappingsRouter = Router();
 
@@ -32,6 +33,58 @@ const upload = multer({
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function now() {
   return new Date().toISOString();
+}
+
+/** Nested mapping payload used by the editor, plant report, and public shares. */
+export function loadMapping(id: string) {
+  const mapping = db
+    .prepare(
+      `SELECT m.*, p.name as plant_name, p.city, p.state, p.formatted_address
+       FROM mappings m
+       JOIN plants p ON p.id = m.plant_id
+       WHERE m.id = ?`
+    )
+    .get(id);
+
+  if (!mapping) return null;
+
+  const machines = db
+    .prepare(
+      `SELECT * FROM mapping_machines WHERE mapping_id = ? ORDER BY sort_order ASC, created_at ASC`
+    )
+    .all(id);
+
+  const machineIds = (machines as { id: string }[]).map((m) => m.id);
+  let photos: unknown[] = [];
+  if (machineIds.length > 0) {
+    const placeholders = machineIds.map(() => "?").join(",");
+    photos = db
+      .prepare(
+        `SELECT * FROM mapping_photos WHERE machine_id IN (${placeholders}) ORDER BY sort_order ASC, created_at ASC`
+      )
+      .all(...machineIds);
+  }
+
+  const photosByMachine: Record<string, unknown[]> = {};
+  for (const p of photos as { machine_id: string }[]) {
+    if (!photosByMachine[p.machine_id]) photosByMachine[p.machine_id] = [];
+    photosByMachine[p.machine_id].push(p);
+  }
+
+  return {
+    ...(mapping as object),
+    machines: (machines as { id: string }[]).map((m) => ({
+      ...m,
+      photos: photosByMachine[m.id] ?? [],
+    })),
+  };
+}
+
+export function loadPlantMappings(plantId: string) {
+  const rows = db
+    .prepare("SELECT id FROM mappings WHERE plant_id = ? ORDER BY created_at ASC, name ASC")
+    .all(plantId) as { id: string }[];
+  return rows.map((r) => loadMapping(r.id)).filter((m) => m !== null);
 }
 
 // ─── MAPPINGS CRUD ────────────────────────────────────────────────────────────
@@ -73,49 +126,8 @@ mappingsRouter.get("/", (req, res) => {
 
 // GET /api/mappings/:id   — single mapping with machines + photos
 mappingsRouter.get("/:id", (req, res) => {
-  const mapping = db
-    .prepare(
-      `SELECT m.*, p.name as plant_name, p.city, p.state, p.formatted_address
-       FROM mappings m
-       JOIN plants p ON p.id = m.plant_id
-       WHERE m.id = ?`
-    )
-    .get(req.params.id);
-
-  if (!mapping) return res.status(404).json({ error: "Not found" });
-
-  const machines = db
-    .prepare(
-      `SELECT * FROM mapping_machines WHERE mapping_id = ? ORDER BY sort_order ASC, created_at ASC`
-    )
-    .all(req.params.id);
-
-  const machineIds = (machines as { id: string }[]).map((m) => m.id);
-  let photos: unknown[] = [];
-  if (machineIds.length > 0) {
-    const placeholders = machineIds.map(() => "?").join(",");
-    photos = db
-      .prepare(
-        `SELECT * FROM mapping_photos WHERE machine_id IN (${placeholders}) ORDER BY sort_order ASC, created_at ASC`
-      )
-      .all(...machineIds);
-  }
-
-  // Nest photos under their machines
-  const photosByMachine: Record<string, unknown[]> = {};
-  for (const p of photos as { machine_id: string }[]) {
-    if (!photosByMachine[p.machine_id]) photosByMachine[p.machine_id] = [];
-    photosByMachine[p.machine_id].push(p);
-  }
-
-  const result = {
-    ...(mapping as object),
-    machines: (machines as { id: string }[]).map((m) => ({
-      ...m,
-      photos: photosByMachine[m.id] ?? [],
-    })),
-  };
-
+  const result = loadMapping(req.params.id);
+  if (!result) return res.status(404).json({ error: "Not found" });
   res.json(result);
 });
 
@@ -178,8 +190,7 @@ mappingsRouter.delete("/:id", (req, res) => {
       .prepare("SELECT filename FROM mapping_photos WHERE machine_id = ?")
       .all(machine.id) as { filename: string }[];
     for (const photo of photos) {
-      const fp = join(getMappingPhotosPath(machine.id), photo.filename);
-      if (existsSync(fp)) unlinkSync(fp);
+      deletePhotoFiles(machine.id, photo.filename);
     }
   }
 
@@ -292,8 +303,7 @@ mappingsRouter.delete("/machines/:machineId", (req, res) => {
     .all(machine.id) as { filename: string }[];
 
   for (const photo of photos) {
-    const fp = join(getMappingPhotosPath(machine.id), photo.filename);
-    if (existsSync(fp)) unlinkSync(fp);
+    deletePhotoFiles(machine.id, photo.filename);
   }
 
   db.prepare("DELETE FROM mapping_machines WHERE id = ?").run(req.params.machineId);
@@ -320,11 +330,21 @@ mappingsRouter.post(
 
     const { category = "other", sort_order = 0, label } = req.body;
 
-    // Move file to machine-specific folder
     const destDir = getMappingPhotosPath(machine.id);
-    const destPath = join(destDir, req.file.filename);
-    const { renameSync } = await import("fs");
-    renameSync(req.file.path, destPath);
+    const stem = basename(req.file.filename, extname(req.file.filename));
+    let destName = `${stem}.jpg`;
+    let destPath = join(destDir, destName);
+
+    try {
+      await normalizeUpload(req.file.path, destPath);
+      unlinkSync(req.file.path);
+    } catch (err) {
+      console.error("Image normalize failed, storing original:", err);
+      if (existsSync(destPath)) unlinkSync(destPath);
+      destName = req.file.filename;
+      destPath = join(destDir, destName);
+      renameSync(req.file.path, destPath);
+    }
 
     const id = randomUUID();
     const ts = now();
@@ -332,14 +352,16 @@ mappingsRouter.post(
     db.prepare(
       `INSERT INTO mapping_photos (id, machine_id, category, label, filename, original_name, sort_order, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, machine.id, category, label ?? null, req.file.filename, req.file.originalname, sort_order, ts);
+    ).run(id, machine.id, category, label ?? null, destName, req.file.originalname, sort_order, ts);
 
     const photo = db.prepare("SELECT * FROM mapping_photos WHERE id = ?").get(id);
 
-    // Run OCR asynchronously — respond immediately, update when done
     res.status(201).json({ ...photo as object, ocr_status: "pending" });
 
-    // Run OCR in background
+    warmDerivatives(machine.id, destName).catch((err) => {
+      console.error("Thumb warm failed:", err);
+    });
+
     ocrPhoto(destPath, category)
       .then((result) => {
         db.prepare("UPDATE mapping_photos SET ocr_raw = ? WHERE id = ?").run(
@@ -429,8 +451,7 @@ mappingsRouter.delete("/photos/:photoId", (req, res) => {
 
   if (!photo) return res.status(404).json({ error: "Not found" });
 
-  const fp = join(getMappingPhotosPath(photo.machine_id), photo.filename);
-  if (existsSync(fp)) unlinkSync(fp);
+  deletePhotoFiles(photo.machine_id, photo.filename);
 
   db.prepare("DELETE FROM mapping_photos WHERE id = ?").run(req.params.photoId);
   res.json({ ok: true });

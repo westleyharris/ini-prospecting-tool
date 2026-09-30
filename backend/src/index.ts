@@ -37,6 +37,7 @@ import { projectsRouter } from "./routes/projects.js";
 import { commissioningsRouter } from "./routes/commissionings.js";
 import { authRouter } from "./routes/auth.js";
 import { mappingsRouter } from "./routes/mappings.js";
+import { shareRouter } from "./routes/share.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import "./db.js";
 import "./services/uploads.js";
@@ -52,6 +53,7 @@ app.use(cookieParser());
 
 // Public — no auth required
 app.use("/api/auth", authRouter);
+app.use("/api/share", shareRouter);
 
 // Protected — all other API routes require a valid session
 app.use("/api/plants", requireAuth, plantsRouter);
@@ -62,12 +64,13 @@ app.use("/api/projects", requireAuth, projectsRouter);
 app.use("/api/commissionings", requireAuth, commissioningsRouter);
 app.use("/api/mappings", requireAuth, mappingsRouter);
 
-// On-demand thumbnail endpoint — generates a WebP thumbnail and caches it to disk.
-// /thumb/mappings/:machineId/:filename?s=sm|md
-// sm = 480px wide (grids, filmstrip)   md = 1200px wide (print report)
+// On-demand derivatives — generated once, then served from disk.
+// /thumb/mappings/:machineId/:filename?s=sm|md|deck
+// sm = 480 WebP (grids)  md = 1280 WebP (lightbox/print)  deck = 1400 JPEG (PowerPoint)
 app.get("/thumb/mappings/:machineId/:filename", async (req, res) => {
   const { machineId, filename } = req.params;
-  const size: ThumbSize = req.query.s === "md" ? "md" : "sm";
+  const raw = String(req.query.s ?? "sm");
+  const size: ThumbSize = raw === "md" || raw === "deck" ? raw : "sm";
   try {
     const thumb = await getOrCreateThumb(machineId, filename, size);
     res.setHeader("Content-Type", thumb.contentType);
