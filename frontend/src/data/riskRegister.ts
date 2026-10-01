@@ -74,9 +74,13 @@ function candidatesFor(m: MappingMachine): Candidate[] {
 
 /**
  * Risk score, 2–7. Deliberately simple so it can be explained on the printed sheet:
- *   age       how long ago the vendor discontinued it (mature platforms score 1)
+ *   age       years since the vendor last-ship / discontinued date
+ *             (mature platforms score 1; unsupported score 3)
  *   exposure  how many units in this plant depend on it
  *   migration whether a documented successor exists
+ *
+ * Age uses last-ship year, not announcement year. That is why PLC-5 (2017)
+ * ranks older/higher than SLC 500 (2024) at the same unit count.
  */
 function scoreOf(
   status: LifecycleStatus,
@@ -174,6 +178,7 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
     (a, b) =>
       levelRank[b.level] - levelRank[a.level] ||
       b.score - a.score ||
+      (a.eolYear ?? 9999) - (b.eolYear ?? 9999) ||
       b.unitCount - a.unitCount ||
       a.categoryLabel.localeCompare(b.categoryLabel)
   );

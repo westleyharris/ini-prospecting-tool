@@ -41,7 +41,7 @@ function LifecycleBadge({ result }: { result?: LifecycleResult }) {
       <div className="absolute bottom-full left-0 mb-2 z-20 w-60 bg-gray-950 text-white rounded-xl p-3 text-xs shadow-xl opacity-0 pointer-events-none group-hover/eol:opacity-100 transition-opacity duration-150"
         style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
         <p className="font-semibold mb-1 leading-snug" style={{ color: meta.border }}>{result.note}</p>
-        {result.eolYear && <p className="text-gray-400 text-[10px]">Discontinued: {result.eolYear}</p>}
+        {result.eolYear && <p className="text-gray-400 text-[10px]">Last ship: {result.eolYear}</p>}
         {result.successor && (
           <div className="mt-1.5 pt-1.5 border-t border-white/10">
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">Recommended replacement</p>
@@ -802,7 +802,7 @@ function RiskPrintSheet({
               <th style={th}>Installed equipment</th>
               <th style={{ ...th, width: 96 }}>Location</th>
               <th style={{ ...th, width: 40 }}>Qty</th>
-              <th style={{ ...th, width: 40 }}>EOL</th>
+              <th style={{ ...th, width: 40 }}>Last ship</th>
               <th style={{ ...th, width: 120 }}>Recommended replacement</th>
             </tr>
           </thead>
@@ -854,8 +854,9 @@ function RiskPrintSheet({
         }}>Scoring method</div>
         <div style={{ fontSize: 8, lineHeight: 1.5, color: REG_INK, opacity: 0.75 }}>
           Each finding scores 2–7 across three factors: <strong>age</strong> (years since the vendor
-          discontinued the product; mature platforms score 1), <strong>exposure</strong> (units of that asset installed at this
+          last-ship / discontinued date; mature platforms score 1), <strong>exposure</strong> (units of that asset installed at this
           facility), and <strong>migration path</strong> (whether the vendor names a direct successor).
+          Older last-ship dates rank above newer ones when scores tie.
           Critical ≥ 6 · High 4–5 · Moderate ≤ 3 · Watch = mature / still shipping. Lifecycle data reflects published vendor
           declarations and should be confirmed against the manufacturer's current lifecycle
           statement before procurement.
@@ -936,8 +937,9 @@ export function RiskRegisterView({ mapping }: { mapping: Mapping }) {
         </p>
         <p className="text-[11px] leading-relaxed text-brand-navy/65">
           Each finding scores 2–7 across three factors: <strong>age</strong> (years since the vendor
-          discontinued it; mature platforms score 1), <strong>exposure</strong> (units installed at this facility), and{" "}
+          last-ship / discontinued date; mature platforms score 1), <strong>exposure</strong> (units installed at this facility), and{" "}
           <strong>migration path</strong> (whether a direct successor is published).
+          Older last-ship dates rank above newer ones when scores tie.
           Critical ≥ 6 · High 4–5 · Moderate ≤ 3 · Watch = mature / still shipping. Confirm lifecycle
           status with the manufacturer before procurement.
         </p>
@@ -1036,7 +1038,7 @@ function RiskFindingCard({ finding, index }: { finding: RiskFinding; index: numb
           </div>
           <div>
             <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">
-              {finding.status === "mature" ? "Status" : "Discontinued"}
+              {finding.status === "mature" ? "Status" : "Last ship"}
             </p>
             <p className="font-mono text-sm font-bold text-brand-navy">
               {finding.status === "mature" ? "Mature" : (finding.eolYear ?? "—")}

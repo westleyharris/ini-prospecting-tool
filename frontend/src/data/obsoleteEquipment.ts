@@ -10,6 +10,10 @@
  *   discontinued  — no new, limited repair, replacement is the conversation
  *   unsupported   — repair closed, broker-only
  *
+ * eolYear is the vendor last-ship year (not announcement year). Age scoring
+ * in the risk register uses that date, so PLC-5 (2017) outranks SLC 500 (2024)
+ * at the same unit count.
+ *
  * Dates move. Confirm against the vendor's current lifecycle page before a
  * register built from this table goes to a customer.
  */
@@ -178,7 +182,7 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     catalogPrefixes: ["1785"],
     status: "discontinued",
     eolYear: 2017,
-    note: "Allen-Bradley PLC-5 discontinued by Rockwell Automation (2017). DH+ / RIO platform.",
+    note: "Allen-Bradley PLC-5 last ship June 2017 (Rockwell 1785). Companion software RSLogix 5 reached final lifecycle phase 31 Dec 2025 — no new activations. DH+ / RIO platform.",
     successor: "ControlLogix 5580",
   },
   {
@@ -188,7 +192,7 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     catalogPrefixes: ["1771"],
     status: "discontinued",
     eolYear: 2017,
-    note: "1771 I/O is the PLC-5 chassis family, discontinued with the PLC-5 platform.",
+    note: "1771 I/O is the PLC-5 chassis family, last ship with the PLC-5 platform in 2017.",
     successor: "1756 ControlLogix I/O",
   },
   {
@@ -197,8 +201,8 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     modelParts: ["slc 5", "slc5", "slc-5", "slc 500", "slc500", "slc-500"],
     catalogPrefixes: ["1746", "1747"],
     status: "discontinued",
-    eolYear: 2015,
-    note: "SLC 500 series discontinued by Rockwell Automation.",
+    eolYear: 2024,
+    note: "Allen-Bradley SLC 500 last ship 31 Mar 2024 for remaining 5/03–5/05 processors and 1746 I/O (some 5/01, 5/02, and 5/03 8K SKUs ended earlier). Programmed with RSLogix 500, not RSLogix 5.",
     successor: "CompactLogix 5380",
   },
   {
@@ -207,7 +211,8 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     modelParts: ["micrologix 1000"],
     catalogPrefixes: ["1761"],
     status: "discontinued",
-    note: "MicroLogix 1000 discontinued by Rockwell Automation.",
+    eolYear: 2017,
+    note: "MicroLogix 1000 last ship May 2017.",
     successor: "Micro870",
   },
   {
@@ -216,7 +221,8 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     modelParts: ["micrologix 1100"],
     catalogPrefixes: ["1763"],
     status: "discontinued",
-    note: "MicroLogix 1100 discontinued by Rockwell Automation.",
+    eolYear: 2022,
+    note: "MicroLogix 1100 last ship 30 Apr 2022.",
     successor: "Micro820",
   },
   {
@@ -225,7 +231,8 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     modelParts: ["micrologix 1200"],
     catalogPrefixes: ["1762"],
     status: "discontinued",
-    note: "MicroLogix 1200 discontinued by Rockwell Automation.",
+    eolYear: 2021,
+    note: "MicroLogix 1200 last ship 31 Oct 2021.",
     successor: "CompactLogix 5380",
   },
   {
@@ -243,8 +250,8 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     modelParts: ["micrologix 1500"],
     catalogPrefixes: ["1764"],
     status: "discontinued",
-    eolYear: 2022,
-    note: "MicroLogix 1500 discontinued by Rockwell Automation (2022).",
+    eolYear: 2017,
+    note: "MicroLogix 1500 last ship 30 June 2017.",
     successor: "CompactLogix 5380",
   },
   {
@@ -485,8 +492,10 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     category: "hmi",
     makeParts: ["allen", "rockwell"],
     modelParts: ["panelview plus compact"],
+    catalogPrefixes: ["2711pc"],
     status: "discontinued",
-    note: "PanelView Plus Compact discontinued by Rockwell Automation.",
+    eolYear: 2021,
+    note: "PanelView Plus Compact last ship 30 Sep 2021 (2711PC).",
     successor: "PanelView Plus 7 Standard",
   },
   {
@@ -505,7 +514,8 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     makeParts: ["allen", "rockwell"],
     modelParts: ["panelview plus 6", "plus 6", "pv plus 6"],
     status: "discontinued",
-    note: "PanelView Plus 6 discontinued by Rockwell Automation. Successor is PanelView Plus 7.",
+    eolYear: 2021,
+    note: "PanelView Plus 6 last ship 30 Sep 2021 for Compact and most 700–1500 terminals (some SKUs 2022). Successor is PanelView Plus 7.",
     successor: "PanelView Plus 7",
   },
 
