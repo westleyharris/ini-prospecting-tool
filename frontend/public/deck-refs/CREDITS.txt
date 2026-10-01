@@ -1,0 +1,9 @@
+Reference photos used in Automation Report decks. Caption in the deck:
+"Reference — typical installation, not this plant."
+
+estop.jpg     Unsplash, photo-1755547721614 (control panel with emergency stop)
+utilities.jpg Unsplash, photo-1710661184714 (process piping and valves)
+cabinet.jpg   Unsplash, photo-1775519519950 (480 V panel, gauges, LOTO)
+scada.jpg     Generated control-room reference (P&ID / trends / alarms)
+
+Unsplash License: https://unsplash.com/license

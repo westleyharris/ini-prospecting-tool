@@ -93,7 +93,18 @@ function deriveAutoFlags(
   if (/\b(hvac|a\/c|air\s*condit|panel\s+(ac|a\/c|cool|heat)|cabinet\s+(ac|cool|heat|temp)|overtemp|over-?temp)\b/i.test(text)) {
     auto.add("panel_hvac");
   }
+  if (/\bno\s+(scada|overview|plant\s+view|control\s*room)\b/i.test(text)) auto.add("no_scada");
+  if (/\bno\s+(gas|water|steam|air|utility|utilities|kwh|energy)\b|\bunmetered\b/i.test(text)) {
+    auto.add("no_utilities");
+  }
+  if (/\bno\s+(historian|trend)/i.test(text)) auto.add("no_historian");
+  if (/\bno\s+(andon|downtime\s+reason)/i.test(text)) auto.add("no_andon");
+  if (/\bno\s+(lot|batch|trace|cip)\b/i.test(text)) auto.add("no_traceability");
+  if (/\bno\s+recipe|paper\s+recipe|tribal\s+changeover/i.test(text)) auto.add("no_recipe");
+  if (/\bno\s+remote|truck\s*roll/i.test(text)) auto.add("no_remote");
   if (obs.backup_on_file === "no") auto.add("no_backup");
+  if (obs.changeover === "high") auto.add("no_recipe");
+  if (obs.bottleneck === "starving" || obs.bottleneck === "blocked") auto.add("no_counts");
 
   return auto;
 }
@@ -112,6 +123,13 @@ function opportunityLines(flags: ResolvedFlag[], assets: AssetFinding[]): string
     no_counts: "Station counts in/out so line balance is a number, not an opinion",
     hardwired_safety: "Safety status on the HMI — which gate, e-stop, or relay opened",
     estop_unlit: "Illuminated e-stops so a latched stop is obvious from across the line",
+    no_scada: "Plant SCADA overview — one picture of running, starved, down, and why",
+    no_utilities: "Meter gas, water, steam, compressed air, and kWh at the line",
+    no_historian: "Historian so yesterday's downtime is a trend, not a memory",
+    no_andon: "Andon and downtime reason codes for first-hour production",
+    no_traceability: "Lot / batch / CIP records from the controller, not a clipboard",
+    no_recipe: "Recipes on the HMI/SCADA so changeover is not tribal knowledge",
+    no_remote: "Managed remote path so the next call is not a truck roll",
     panel_hvac: "Replace failed panel air conditioners before heat takes a drive with them",
     no_backup: "Image every processor so a failure is a restore, not a rewrite",
   };
@@ -251,6 +269,8 @@ export function buildPlantNarrative(mapping: Mapping): PlantNarrative {
   const trapped = assessments.filter((a) => a.flags.some((f) => f.key === "trapped_modern")).length;
   const noHmi = assessments.filter((a) => a.flags.some((f) => f.key === "no_visibility")).length;
   const islands = assessments.filter((a) => a.flags.some((f) => f.key === "island")).length;
+  const noScada = assessments.filter((a) => a.flags.some((f) => f.key === "no_scada")).length;
+  const noUtils = assessments.filter((a) => a.flags.some((f) => f.key === "no_utilities")).length;
   const flagCount = assessments.reduce((s, a) => s + a.flags.length, 0);
 
   const worstNames = assessments
@@ -283,6 +303,12 @@ export function buildPlantNarrative(mapping: Mapping): PlantNarrative {
     (islands > 0
       ? `${islands} station${islands === 1 ? " is" : "s are"} isolated from the rest of the line. `
       : "") +
+    (noScada > 0
+      ? `${noScada} station${noScada === 1 ? " has" : "s have"} no plant SCADA visibility. `
+      : "") +
+    (noUtils > 0
+      ? `${noUtils} station${noUtils === 1 ? " has" : "s have"} no gas/water/air/power visibility. `
+      : "") +
     "The findings below are what operations lives with, and what a controls program can change.";
 
   const bullets: string[] = [];
@@ -293,6 +319,8 @@ export function buildPlantNarrative(mapping: Mapping): PlantNarrative {
   if (trapped) bullets.push(`${trapped} modern drive/servo package${trapped === 1 ? "" : "s"} blocked by a legacy PLC`);
   if (noHmi) bullets.push(`${noHmi} station${noHmi === 1 ? "" : "s"} with no operator visibility`);
   if (islands) bullets.push(`${islands} control island${islands === 1 ? "" : "s"} — no station-to-station data`);
+  if (noScada) bullets.push(`${noScada} station${noScada === 1 ? "" : "s"} with no plant SCADA overview`);
+  if (noUtils) bullets.push(`${noUtils} station${noUtils === 1 ? "" : "s"} with no utility (gas/water/air/power) visibility`);
   const laptop = assessments.filter((a) => a.observations.recoverability === "laptop_required").length;
   if (laptop) bullets.push(`${laptop} station${laptop === 1 ? "" : "s"} where recovery requires a laptop`);
   if (bullets.length === 0) {

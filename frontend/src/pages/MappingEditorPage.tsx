@@ -20,6 +20,7 @@ import { assessMachine, lifeFor } from "../data/machineAssessment";
 import { buildRiskRegister, RISK_META, type RiskFinding } from "../data/riskRegister";
 import { buildOpportunityRegister } from "../data/opportunityRegister";
 import { downloadPresentation } from "../services/presentation";
+import { FLOOR_OFFERS, SCADA_PAYOFFS } from "../data/deckOffers";
 import { usePrintReport } from "../hooks/usePrintReport";
 import { ShareLinkButton } from "../components/ShareLinkButton";
 import { BackToTop } from "../components/BackToTop";
@@ -946,6 +947,58 @@ export function RiskRegisterView({ mapping }: { mapping: Mapping }) {
       </div>
 
       <OpportunityRegisterView mapping={mapping} />
+      <PlantSystemsPitch />
+    </div>
+  );
+}
+
+function PlantSystemsPitch() {
+  return (
+    <div className="space-y-3 pt-4">
+      <div className="border-2 border-brand-navy bg-white">
+        <div className="flex items-center justify-between px-3 py-2 bg-brand-navy">
+          <span className="font-mono text-[11px] font-bold text-brand-lime uppercase tracking-[0.16em]">
+            What SCADA puts on the screen
+          </span>
+          <span className="font-mono text-[10px] text-white/40 uppercase tracking-wider">
+            Gas · water · air · power · production · safety
+          </span>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 divide-x divide-y divide-brand-navy/10">
+          {SCADA_PAYOFFS.map((item) => (
+            <div key={item.title} className="px-3 py-3">
+              <p className="font-mono text-xs font-bold text-brand-navy">{item.title}</p>
+              <p className="text-[11px] leading-relaxed text-brand-navy/65 mt-1">{item.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        {FLOOR_OFFERS.map((offer) => (
+          <div key={offer.key} className="border-2 border-brand-navy bg-white overflow-hidden">
+            {offer.photo && (
+              <img
+                src={`/deck-refs/${offer.photo}.jpg`}
+                alt={offer.title}
+                className="w-full h-36 object-cover"
+              />
+            )}
+            <div className="px-3 py-2.5">
+              <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">
+                {offer.eyebrow}
+              </p>
+              <p className="font-mono text-sm font-bold text-brand-navy mt-0.5">{offer.title}</p>
+              <p className="text-[11px] leading-relaxed text-brand-navy/65 mt-1.5">{offer.pitch}</p>
+              {offer.photo && (
+                <p className="font-mono text-[8px] text-brand-navy/35 mt-2 uppercase tracking-wider">
+                  Reference — typical installation, not this plant
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -976,8 +1029,8 @@ function OpportunityRegisterView({ mapping }: { mapping: Mapping }) {
             No opportunity flags yet
           </p>
           <p className="text-xs text-brand-navy/45 mt-1.5 max-w-md mx-auto">
-            In Edit mode, record operator interface, diagnostics, and network on each machine.
-            Flags such as no HMI, trapped modern hardware, and control islands appear here.
+            In Edit mode, record operator interface, diagnostics, network, and SCADA / utility flags on each machine.
+            Flags such as no HMI, no plant overview, unmetered gas/water, and control islands appear here.
           </p>
         </div>
       ) : (
@@ -1430,6 +1483,32 @@ export function PrintView({ mapping, mode = "sheet", active = false }: { mapping
                   </tbody>
                 </table>
               )}
+            </div>
+            <div style={{ marginBottom: 14, border: `1.5px solid ${INK}` }} className="print-avoid-break">
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "5px 10px", background: INK,
+              }}>
+                <span style={{
+                  fontFamily: MONO, fontSize: 9, fontWeight: 700,
+                  letterSpacing: "0.18em", color: LIME, textTransform: "uppercase",
+                }}>What SCADA puts on the screen</span>
+                <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.4)" }}>
+                  Gas · water · air · power · production · safety
+                </span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
+                {SCADA_PAYOFFS.map((item, i) => (
+                  <div key={item.title} style={{
+                    padding: "10px 10px",
+                    borderRight: i % 3 === 2 ? "none" : `1px solid ${HAIR}`,
+                    borderBottom: i < 6 ? `1px solid ${HAIR}` : "none",
+                  }}>
+                    <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: INK, marginBottom: 4 }}>{item.title}</div>
+                    <div style={{ fontSize: 8, lineHeight: 1.4, color: INK, opacity: 0.7 }}>{item.body}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         ) : (

@@ -74,6 +74,8 @@ export function pickCriticalExamples(mapping: Mapping, limit = 4): StationExampl
 
 const THEMES: { key: FlagKey; title: string; pitch: string }[] = [
   { key: "trapped_modern", title: "Unlock hardware already paid for", pitch: "Modern drives sitting behind a legacy PLC. Replace the processor and the data they bought is finally on the screen." },
+  { key: "no_scada", title: "One picture of the plant", pitch: "A SCADA overview is running, starved, down, and why — not a radio call to the floor." },
+  { key: "no_utilities", title: "See the gas, water, and air you pay for", pitch: "Unmetered utilities are a blank check. Line-level flow and kWh turn a leak into a trend." },
   { key: "no_visibility", title: "Operator can see why it stopped", pitch: "Pushbuttons and a blinking light are not a recovery plan. Fault text on an HMI is." },
   { key: "island", title: "The line as one picture", pitch: "Stations that cannot talk cannot be balanced. Ethernet into a simple overview is the first measurement." },
   { key: "hardwired_safety", title: "Safety status, not a guess", pitch: "When the circuit drops, the crew should see which gate or e-stop opened — not walk the line." },
@@ -111,14 +113,41 @@ export interface FloorOffer {
   title: string;
   pitch: string;
   bullets: string[];
+  /** Key into /deck-refs/{photo}.jpg */
+  photo?: string;
 }
 
 /** Always-on plant work that is not just obsolescence — shown even when untagged. */
 export const FLOOR_OFFERS: FloorOffer[] = [
   {
+    key: "scada",
+    eyebrow: "Plant systems",
+    title: "SCADA — one picture of the plant",
+    photo: "scada",
+    pitch: "Most plants still run on radios and whiteboards. A SCADA overview is the difference between knowing the filler is down and walking the line to find out. It is also the only way gas, water, and production become the same conversation.",
+    bullets: [
+      "Every station reports running, starved, blocked, or down — and why.",
+      "Alarms go to the right person instead of a horn nobody owns.",
+      "Counts, OEE, and first-hour production become a number, not a whiteboard.",
+    ],
+  },
+  {
+    key: "utilities",
+    eyebrow: "Energy & utilities",
+    title: "See the gas, water, and air you already pay for",
+    photo: "utilities",
+    pitch: "The meter house knows what the plant used. The line does not. A leak, a stuck valve, a CIP that never ends, or a compressor running all weekend is invisible until the invoice.",
+    bullets: [
+      "Natural gas / CO2, city water, wastewater, steam, and compressed air at the line — not only at the fence.",
+      "kWh per unit and demand peaks. Energy is a process number, not a facilities surprise.",
+      "CIP water, chemical, rinse time, and return temperature — quality and the utility bill on one trend.",
+    ],
+  },
+  {
     key: "estop",
     eyebrow: "Safety",
     title: "Illuminated e-stops",
+    photo: "estop",
     pitch: "Most lines still have a dark mushroom somewhere. When it is latched, nobody can see it from the other end of the cell. The crew spends the next twenty minutes walking e-stops instead of running product.",
     bullets: [
       "Replace incandescent or unlit mushrooms with LED illuminated actuators.",
@@ -130,6 +159,7 @@ export const FLOOR_OFFERS: FloorOffer[] = [
     key: "hvac",
     eyebrow: "Panel climate",
     title: "Cabinet air conditioner replacement",
+    photo: "cabinet",
     pitch: "A sealed panel with a dead air conditioner is a slow failure. Drives derate, processors trip on overtemp, and it always happens on the hottest afternoon of the year.",
     bullets: [
       "Failed or undersized panel HVAC is a one-day swap, not a controls project.",
@@ -140,10 +170,23 @@ export const FLOOR_OFFERS: FloorOffer[] = [
 ];
 
 export const ALSO_ON_THE_FLOOR: { title: string; body: string }[] = [
-  { title: "Program backups", body: "Image every processor and drive. A failure becomes a restore, not a rewrite from memory." },
-  { title: "Safety status on the HMI", body: "Which gate, e-stop, or relay opened. The circuit drop stops being a scavenger hunt." },
+  { title: "Historian & trends", body: "Yesterday’s downtime is a memory until speed, flow, and faults live in a historian operations can pull." },
+  { title: "Andon & reason codes", body: "First-hour production stops being a guess. The supervisor sees mechanical vs material vs quality." },
+  { title: "Lot / CIP traceability", body: "Which batch ran at 2 a.m., which CIP cycle, which recipe. Quality should not need a clipboard." },
+  { title: "Recipes on the HMI", body: "Changeover lives in someone’s head until it is a recipe. SKU swaps stop being off-spec nights." },
   { title: "Remote support", body: "A current platform plus a managed path in means we can be on the machine without a plane ticket." },
-  { title: "Panel lighting & labels", body: "You cannot troubleshoot what you cannot see. Wire numbers and a working light are still the cheapest hours we sell." },
-  { title: "24 V power & MCCs", body: "Aging supplies and buckets take the cell down as surely as a dead PLC. We catch them in the same walk." },
-  { title: "One spare strategy", body: "The next machine that fails should land on the plant standard — one software, one spare, one support call." },
+  { title: "Program backups", body: "Image every processor and drive. A failure becomes a restore, not a rewrite from memory." },
+];
+
+/** What a plant SCADA actually puts on the screen — used as a justification grid. */
+export const SCADA_PAYOFFS: { title: string; body: string }[] = [
+  { title: "Gas & CO2", body: "Burner, oven, and carbonation use as a trend. A stuck valve is a number, not a month-end surprise." },
+  { title: "Water & wastewater", body: "Make-up, rinse, and discharge by line. CIP that never ends shows up before the city meter does." },
+  { title: "Steam", body: "Trap leaks and idle headers cost steam all shift. Flow at the user is the only honest number." },
+  { title: "Compressed air", body: "The most expensive utility most plants never meter. Weekend leaks are a compressor that never sleeps." },
+  { title: "Electricity", body: "kWh per unit and demand peaks. Energy becomes a process KPI, not a facilities invoice." },
+  { title: "Production & OEE", body: "Counts in/out, starve, block, and reject. Line balance stops being an opinion." },
+  { title: "Alarms", body: "The right person, the first time. Not a horn on the wall that everyone has learned to ignore." },
+  { title: "Safety status", body: "Which gate, e-stop, or relay opened. The circuit drop stops being a scavenger hunt." },
+  { title: "Lot, CIP, recipes", body: "Batch, cycle, and SKU on the record. Quality and changeover stop living on paper." },
 ];

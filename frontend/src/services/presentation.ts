@@ -7,7 +7,7 @@ import { assessMachine, buildPlantNarrative } from "../data/machineAssessment";
 import { FLAG_DEFS } from "../data/observations";
 import { machineTag } from "../data/consolidateMappings";
 import {
-  pickCriticalExamples, pickThemeExamples, FLOOR_OFFERS, ALSO_ON_THE_FLOOR,
+  pickCriticalExamples, pickThemeExamples, FLOOR_OFFERS, ALSO_ON_THE_FLOOR, SCADA_PAYOFFS,
 } from "../data/deckOffers";
 
 /**
@@ -52,6 +52,8 @@ export interface DeckImages {
   logoDark?: string;
   /** Mapping photo id → base64 data URI */
   photos: Record<string, string>;
+  /** Reference stock photos keyed by deck-refs filename stem (estop, scada, …) */
+  refs?: Record<string, string>;
 }
 
 export interface DeckOptions {
@@ -287,7 +289,7 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
         ? `${eol} discontinued platform${eol === 1 ? "" : "s"} ${eol === 1 ? "was" : "were"} identified across ${register.totalUnits} installed unit${register.totalUnits === 1 ? "" : "s"}. `
         : `No discontinued control or drive equipment was identified in the surveyed scope. `) +
       (opportunities.findings.length > 0
-        ? `${opportunities.findings.length} operational opportunit${opportunities.findings.length === 1 ? "y" : "ies"} ${opportunities.findings.length === 1 ? "is" : "are"} on the table — visibility, diagnostics, line data, and trapped modern hardware.`
+        ? `${opportunities.findings.length} operational opportunit${opportunities.findings.length === 1 ? "y" : "ies"} ${opportunities.findings.length === 1 ? "is" : "are"} on the table — visibility, SCADA, utilities, diagnostics, and trapped modern hardware.`
         : `Floor observations are recorded per station so the next conversation is about the process, not only the parts list.`);
 
     s.addText(auto, {
@@ -483,12 +485,12 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
       ["Corporate", [
         ["Parts", "Discontinued platforms depend on brokered or salvaged spares, with no guaranteed lead time."],
         ["Knowledge", "PLC-5 / DH+ skill is walking out the door. Recovery waits on one person."],
-        ["Spend", "Modern drives are already on the floor. The legacy processor is what keeps that spend from paying off."],
+        ["Spend", "Modern drives are already on the floor. Unmetered gas, water, and air are the same story — spend with no return."],
       ]],
       ["Operations", [
-        ["Visibility", "The operator should see why it stopped — not a blinking light and a guess."],
+        ["Visibility", "The operator and the control room should see why it stopped — not a blinking light and a radio call."],
         ["Recovery", "Mechanics restore from the panel. A laptop and a 1990s cable is not a maintenance plan."],
-        ["Balance", "Starve/block time becomes a number. Line balance stops being an opinion."],
+        ["Numbers", "Starve/block time, OEE, and utility use become numbers. Line balance and the gas bill stop being opinions."],
       ]],
     ];
     cols.forEach((col, ci) => {
@@ -512,7 +514,30 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     });
   }
 
-  // ══ Critical examples (not one slide per machine) ══════════════════════════
+  // ══ What SCADA actually shows ══════════════════════════════════════════════
+  {
+    page++;
+    const s = frame(pptx, { eyebrow: "Plant systems", title: "What SCADA Puts on the Screen", theme: "light", pageNo: page, images });
+    s.addText("This is the justification in one slide. Gas, water, air, power, production, and safety — the same system, not a science project.", {
+      x: BODY_L, y: CONTENT_T, w: 11.7, h: 0.38,
+      fontFace: FONT, fontSize: 14, color: GREY, margin: 0,
+    });
+    SCADA_PAYOFFS.forEach((item, i) => {
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x = BODY_L + col * 4.05;
+      const y = 2.15 + row * 1.55;
+      s.addShape("rect", { x, y, w: 3.85, h: 1.42, fill: { color: CARD }, line: { width: 0 } });
+      s.addText(item.title, {
+        x: x + 0.18, y: y + 0.14, w: 3.5, h: 0.32,
+        fontFace: FONT, fontSize: 14, bold: true, color: NAVY, margin: 0,
+      });
+      s.addText(item.body, {
+        x: x + 0.18, y: y + 0.48, w: 3.5, h: 0.8,
+        fontFace: FONT, fontSize: 12, color: INK, margin: 0,
+      });
+    });
+  }
   const critical = pickCriticalExamples(mapping, 3);
   if (critical.length > 0) {
     page++;
@@ -584,22 +609,36 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
   for (const offer of FLOOR_OFFERS) {
     page++;
     const s = frame(pptx, { eyebrow: offer.eyebrow, title: offer.title, theme: "dark", pageNo: page, images });
+    const pic = offer.photo ? images.refs?.[offer.photo] : undefined;
+    const textW = pic ? 6.55 : 11.7;
     s.addText(offer.pitch, {
-      x: BODY_L, y: CONTENT_T, w: 11.7, h: 1.35,
-      fontFace: FONT, fontSize: 18, color: WHITE, lineSpacing: 26, margin: 0,
+      x: BODY_L, y: CONTENT_T, w: textW, h: pic ? 1.55 : 1.35,
+      fontFace: FONT, fontSize: pic ? 15 : 18, color: WHITE, lineSpacing: 22, margin: 0,
     });
     offer.bullets.forEach((b, i) => {
-      const y = 3.2 + i * 1.05;
-      s.addShape("rect", { x: BODY_L, y, w: 11.8, h: 0.9, fill: { color: "0C1550" }, line: { width: 0 } });
+      const y = (pic ? 3.35 : 3.2) + i * (pic ? 1.0 : 1.05);
+      s.addShape("rect", { x: BODY_L, y, w: textW, h: pic ? 0.88 : 0.9, fill: { color: "0C1550" }, line: { width: 0 } });
       s.addText(String(i + 1).padStart(2, "0"), {
-        x: BODY_L + 0.28, y: y + 0.18, w: 0.7, h: 0.54,
-        fontFace: FONT, fontSize: 20, bold: true, color: LIME, margin: 0, valign: "middle",
+        x: BODY_L + 0.22, y: y + 0.16, w: 0.65, h: 0.56,
+        fontFace: FONT, fontSize: 18, bold: true, color: LIME, margin: 0, valign: "middle",
       });
       s.addText(b, {
-        x: BODY_L + 1.1, y: y + 0.18, w: 10.3, h: 0.54,
-        fontFace: FONT, fontSize: 16, color: WHITE, margin: 0, valign: "middle",
+        x: BODY_L + 0.95, y: y + 0.14, w: textW - 1.2, h: 0.6,
+        fontFace: FONT, fontSize: pic ? 13 : 16, color: WHITE, margin: 0, valign: "middle",
       });
     });
+    if (pic) {
+      s.addImage({
+        data: pic,
+        x: 7.7, y: CONTENT_T, w: 4.85, h: 4.55,
+        sizing: { type: "cover", w: 4.85, h: 4.55 },
+      });
+      s.addShape("rect", { x: 7.7, y: 6.17, w: 4.85, h: 0.08, fill: { color: LIME }, line: { width: 0 } });
+      s.addText("Reference — typical installation, not this plant", {
+        x: 7.7, y: 6.28, w: 4.85, h: 0.28,
+        fontFace: FONT, fontSize: 10, color: PALE, margin: 0,
+      });
+    }
   }
 
   {
@@ -637,15 +676,16 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     if (register.findings.some((f) => f.status !== "mature")) {
       steps.push(["Near term", "Legacy PLC / HMI migration plan with vendor-recommended successors and a common spare strategy."]);
     }
-    if (narrative.islands || opportunities.findings.some((f) => f.key === "no_counts")) {
-      steps.push(["Line project", "Station counts and a simple overview so operations can see starve/block time — line balance as a number."]);
+    if (narrative.islands || opportunities.findings.some((f) => f.key === "no_counts" || f.key === "no_scada")) {
+      steps.push(["Line project", "Station counts and a SCADA overview so operations can see starve/block time — line balance as a number."]);
     }
+    steps.push(["Plant systems", "SCADA plus gas, water, steam, compressed air, and kWh at the line — visibility operations and finance can share."]);
     steps.push(["Floor work", "Illuminated e-stops, panel air conditioners, and program backups — the walk is not only about processors."]);
     steps.push(["Program", "Standard platform for the next machine that fails. One programming environment, one spare strategy, remote support possible."]);
     steps.push(["Ongoing", "Backup every programmable device. Panel access, key-switch position, and network segmentation as a standing practice."]);
 
-    steps.slice(0, 5).forEach(([when, what], i) => {
-      const y = CONTENT_T + i * 0.98;
+    steps.slice(0, 6).forEach(([when, what], i) => {
+      const y = CONTENT_T + i * 0.84;
       s.addShape("rect", { x: BODY_L, y, w: 11.8, h: 0.82, fill: { color: CARD }, line: { width: 0 } });
       s.addText(String(i + 1).padStart(2, "0"), {
         x: BODY_L + 0.25, y: y + 0.1, w: 0.6, h: 0.62,
@@ -765,13 +805,14 @@ async function fetchImageAsJpeg(
   url: string,
   maxPx = 1400,
   quality = 0.82,
+  forceResize = false,
 ): Promise<string | undefined> {
   try {
     const res = await fetch(url, { credentials: "include" });
     if (!res.ok) return undefined;
     const blob = await res.blob();
     const type = blob.type || "";
-    if (type === "image/jpeg" || url.includes("s=deck")) {
+    if (!forceResize && (type === "image/jpeg" || url.includes("s=deck"))) {
       return blobToJpegData(blob);
     }
     const bmp = await createImageBitmap(blob);
@@ -833,6 +874,14 @@ export async function downloadPresentation(mapping: Mapping): Promise<void> {
     toDataUri("/brand/deck-logo-dark.png"),
   ]);
 
-  const pptx = await buildPresentation({ mapping, images: { logoWhite, logoDark, photos } });
+  const refs: Record<string, string> = {};
+  await Promise.all(
+    FLOOR_OFFERS.filter((o) => o.photo).map(async (o) => {
+      const data = await fetchImageAsJpeg(`/deck-refs/${o.photo}.jpg`, 1100, 0.78, true);
+      if (data && o.photo) refs[o.photo] = data;
+    })
+  );
+
+  const pptx = await buildPresentation({ mapping, images: { logoWhite, logoDark, photos, refs } });
   await pptx.writeFile({ fileName: deckFileName(mapping) });
 }

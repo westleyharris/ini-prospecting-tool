@@ -5,6 +5,7 @@ import { updateMachine } from "../api/mappings";
 import { assessMachine } from "../data/machineAssessment";
 import {
   FLAG_DEFS,
+  FLAG_GROUPS,
   OBS_CHOICES,
   parseObservations,
   stringifyObservations,
@@ -87,7 +88,8 @@ export function ObservationsPanel({
         {saving && <span className="ml-auto font-mono text-[9px] text-brand-navy/40 uppercase">Saving</span>}
       </div>
       <p className="text-[11px] text-gray-500 leading-snug">
-        What the operator and mechanic actually live with. These flags show up on the drawing and in the deck.
+        What the operator and mechanic actually live with — including SCADA, utilities, and safety.
+        These flags show up on the drawing and in the deck.
       </p>
 
       <div className="space-y-3">
@@ -122,36 +124,45 @@ export function ObservationsPanel({
           <HiFlag className="w-4 h-4 text-gray-500" />
           <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-brand-navy/45">Opportunity flags</span>
         </div>
-        <div className="space-y-1">
-          {FLAG_DEFS.map((def) => {
-            const checked = Boolean(obs.flags[def.key]) || autoKeys.has(def.key);
-            const auto = autoKeys.has(def.key) && !obs.flags[def.key];
-            return (
-              <label
-                key={def.key}
-                className={`flex items-start gap-2 px-2 py-1.5 border cursor-pointer ${
-                  checked ? "bg-brand-navy/5 border-brand-navy/20" : "bg-white border-transparent hover:bg-gray-50"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={auto}
-                  onChange={() => toggleFlag(def.key)}
-                  className="mt-0.5 accent-[#00182e]"
-                />
-                <span className="flex-1 min-w-0">
-                  <span className="text-xs font-semibold text-gray-800">{def.label}</span>
-                  {auto && (
-                    <span className="ml-1.5 font-mono text-[8px] font-bold uppercase tracking-wider text-brand-navy/45">
-                      auto
-                    </span>
-                  )}
-                  <span className="block text-[10px] text-gray-500 leading-snug">{def.pitch}</span>
-                </span>
-              </label>
-            );
-          })}
+        <div className="space-y-3">
+          {FLAG_GROUPS.map((group) => (
+            <div key={group.id}>
+              <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-brand-navy/45 mb-1">
+                {group.label}
+              </p>
+              <div className="space-y-1">
+                {FLAG_DEFS.filter((d) => d.group === group.id).map((def) => {
+                  const checked = Boolean(obs.flags[def.key]) || autoKeys.has(def.key);
+                  const auto = autoKeys.has(def.key) && !obs.flags[def.key];
+                  return (
+                    <label
+                      key={def.key}
+                      className={`flex items-start gap-2 px-2 py-1.5 border cursor-pointer ${
+                        checked ? "bg-brand-navy/5 border-brand-navy/20" : "bg-white border-transparent hover:bg-gray-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={auto}
+                        onChange={() => toggleFlag(def.key)}
+                        className="mt-0.5 accent-[#00182e]"
+                      />
+                      <span className="flex-1 min-w-0">
+                        <span className="text-xs font-semibold text-gray-800">{def.label}</span>
+                        {auto && (
+                          <span className="ml-1.5 font-mono text-[8px] font-bold uppercase tracking-wider text-brand-navy/45">
+                            auto
+                          </span>
+                        )}
+                        <span className="block text-[10px] text-gray-500 leading-snug">{def.pitch}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
