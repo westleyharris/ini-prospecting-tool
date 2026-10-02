@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   HiArrowLeft, HiPrinter, HiEye, HiExclamationTriangle, HiPresentationChartBar,
+  HiClipboardDocumentList,
 } from "react-icons/hi2";
 import { getPlantMappings, type Mapping } from "../api/mappings";
+import { fetchPlant } from "../api/plants";
 import { consolidateMappings } from "../data/consolidateMappings";
 import { downloadPresentation } from "../services/presentation";
 import { MappingView, PrintView, RiskRegisterView } from "./MappingEditorPage";
+import { ExecutiveView } from "../components/ExecutiveView";
 import { usePrintReport } from "../hooks/usePrintReport";
 import { ShareLinkButton } from "../components/ShareLinkButton";
 import { BackToTop } from "../components/BackToTop";
@@ -15,9 +18,10 @@ export default function PlantReportPage() {
   const { plantId } = useParams<{ plantId: string }>();
   const navigate = useNavigate();
   const [mapping, setMapping] = useState<Mapping | null>(null);
+  const [brief, setBrief] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"view" | "risk">("view");
+  const [mode, setMode] = useState<"exec" | "view" | "risk">("exec");
   const [buildingDeck, setBuildingDeck] = useState(false);
   const { printReady, printBusy, startPrint } = usePrintReport();
 
@@ -26,8 +30,8 @@ export default function PlantReportPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getPlantMappings(plantId)
-      .then((list) => {
+    Promise.all([getPlantMappings(plantId), fetchPlant(plantId).catch(() => null)])
+      .then(([list, plant]) => {
         if (cancelled) return;
         if (list.length === 0) {
           setError("No mappings at this plant yet.");
@@ -35,6 +39,7 @@ export default function PlantReportPage() {
           return;
         }
         setMapping(consolidateMappings(list));
+        setBrief(plant?.executive_brief ?? null);
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : "Could not load plant mappings.");
@@ -74,7 +79,7 @@ export default function PlantReportPage() {
 
   return (
     <>
-      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady} />
+      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady && mode !== "exec"} />
 
       <div className="mapping-screen-only space-y-3 pb-24">
         <div className="lg:sticky lg:top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 px-3 sm:px-6 lg:px-8 py-2 bg-[#f0f2ef]">
@@ -97,12 +102,19 @@ export default function PlantReportPage() {
           </div>
 
           <div className="flex items-stretch shrink-0 w-full sm:w-auto border-t-2 sm:border-t-0 sm:border-l-2 border-brand-navy">
+            <button onClick={() => setMode("exec")}
+              className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
+                mode === "exec" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
+              }`}>
+              <HiClipboardDocumentList className="w-3.5 h-3.5" />
+              Summary
+            </button>
             <button onClick={() => setMode("view")}
               className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
                 mode === "view" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
               }`}>
               <HiEye className="w-3.5 h-3.5" />
-              View
+              Drawing
             </button>
             <button onClick={() => setMode("risk")}
               className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
@@ -140,7 +152,7 @@ export default function PlantReportPage() {
         </div>
         </div>
 
-        {lines.length > 1 && (
+        {lines.length > 1 && mode !== "exec" && (
           <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-white border-2 border-brand-navy">
             <span className="font-mono text-[10px] font-bold text-brand-navy/50 uppercase tracking-wider">
               Open a line to edit
@@ -160,6 +172,12 @@ export default function PlantReportPage() {
         {mode === "view" && <MappingView mapping={mapping} />}
         {mode === "risk" && <RiskRegisterView mapping={mapping} />}
       </div>
+
+      {mode === "exec" && (
+        <div className="exec-print-root mt-3 pb-24">
+          <ExecutiveView mapping={mapping} initialBrief={brief} plantId={plantId} editable />
+        </div>
+      )}
       <BackToTop />
     </>
   );

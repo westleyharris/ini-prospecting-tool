@@ -1,19 +1,22 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { HiPrinter, HiPresentationChartBar } from "react-icons/hi2";
+import { HiPrinter, HiPresentationChartBar, HiClipboardDocumentList, HiEye, HiExclamationTriangle } from "react-icons/hi2";
 import { getSharedReport, type Mapping } from "../api/mappings";
 import { consolidateMappings } from "../data/consolidateMappings";
 import { downloadPresentation } from "../services/presentation";
 import { MappingView, PrintView, RiskRegisterView } from "./MappingEditorPage";
+import { ExecutiveView } from "../components/ExecutiveView";
 import { usePrintReport } from "../hooks/usePrintReport";
 import { BackToTop } from "../components/BackToTop";
 
 export default function ShareReportPage() {
   const { token } = useParams<{ token: string }>();
   const [mapping, setMapping] = useState<Mapping | null>(null);
+  const [brief, setBrief] = useState<string | null>(null);
+  const [kind, setKind] = useState<"mapping" | "plant">("mapping");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"view" | "risk">("view");
+  const [mode, setMode] = useState<"exec" | "view" | "risk">("view");
   const [buildingDeck, setBuildingDeck] = useState(false);
   const { printReady, printBusy, startPrint } = usePrintReport();
 
@@ -30,6 +33,9 @@ export default function ShareReportPage() {
             setError("No mappings are available for this plant.");
             return;
           }
+          setKind("plant");
+          setBrief(data.executive_brief ?? null);
+          setMode("exec");
           setMapping(consolidateMappings(list));
           return;
         }
@@ -37,6 +43,8 @@ export default function ShareReportPage() {
           setError("This mapping is no longer available.");
           return;
         }
+        setKind("mapping");
+        setMode("view");
         setMapping(data.mapping);
       })
       .catch((e) => {
@@ -73,7 +81,7 @@ export default function ShareReportPage() {
 
   return (
     <div className="min-h-screen bg-[#f0f2ef]">
-      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady} />
+      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady && mode !== "exec"} />
 
       <div className="mapping-screen-only max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-3 pb-24">
         <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 px-3 sm:px-6 py-2 bg-[#f0f2ef]">
@@ -93,16 +101,27 @@ export default function ShareReportPage() {
           </div>
 
           <div className="flex items-stretch shrink-0 w-full sm:w-auto border-t-2 sm:border-t-0 sm:border-l-2 border-brand-navy">
+            {kind === "plant" && (
+              <button onClick={() => setMode("exec")}
+                className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
+                  mode === "exec" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
+                }`}>
+                <HiClipboardDocumentList className="w-3.5 h-3.5" />
+                Summary
+              </button>
+            )}
             <button onClick={() => setMode("view")}
               className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
                 mode === "view" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
               }`}>
-              View
+              <HiEye className="w-3.5 h-3.5" />
+              {kind === "plant" ? "Drawing" : "View"}
             </button>
             <button onClick={() => setMode("risk")}
               className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
                 mode === "risk" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
               }`}>
+              <HiExclamationTriangle className="w-3.5 h-3.5" />
               Risk
             </button>
             <button
@@ -136,6 +155,12 @@ export default function ShareReportPage() {
         {mode === "view" && <MappingView mapping={mapping} chrome="share" />}
         {mode === "risk" && <RiskRegisterView mapping={mapping} />}
       </div>
+
+      {mode === "exec" && (
+        <div className="exec-print-root max-w-6xl mx-auto px-3 sm:px-6 pb-24">
+          <ExecutiveView mapping={mapping} initialBrief={brief} />
+        </div>
+      )}
       <BackToTop />
     </div>
   );

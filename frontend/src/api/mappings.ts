@@ -114,6 +114,7 @@ export interface SharedReport {
   kind: "mapping" | "plant";
   mapping?: Mapping;
   mappings?: Mapping[];
+  executive_brief?: string | null;
 }
 
 export function getSharedReport(token: string): Promise<SharedReport> {

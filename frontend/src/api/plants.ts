@@ -35,6 +35,7 @@ export interface Plant {
   follow_up_notes: string | null;
   not_icp: number;
   notes: string | null;
+  executive_brief: string | null;
   created_at: string;
   updated_at: string;
   visit_count?: number;
@@ -99,6 +100,12 @@ export async function fetchMetrics(): Promise<Metrics> {
   return res.json();
 }
 
+export async function fetchPlant(id: string): Promise<Plant> {
+  const res = await fetch(`/api/plants/${id}`, { credentials: "include" });
+  if (!res.ok) throw new Error("Failed to fetch plant");
+  return res.json();
+}
+
 export interface FollowUpHistoryEntry {
   id: string;
   plant_id: string;
@@ -120,11 +127,13 @@ export async function updatePlant(
     follow_up_notes?: string | null;
     not_icp?: boolean;
     notes?: string | null;
+    executive_brief?: string | null;
   }
 ): Promise<Plant> {
   const res = await fetch(`/api/plants/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(updates),
   });
   if (!res.ok) throw new Error("Failed to update plant");

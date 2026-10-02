@@ -29,7 +29,14 @@ shareRouter.get("/:token", (req, res) => {
     if (mappings.length === 0) {
       return res.status(404).json({ error: "No mappings are available for this plant." });
     }
-    return res.json({ kind: "plant", mappings });
+    const plant = db
+      .prepare("SELECT executive_brief FROM plants WHERE id = ?")
+      .get(row.plant_id) as { executive_brief: string | null } | undefined;
+    return res.json({
+      kind: "plant",
+      mappings,
+      executive_brief: plant?.executive_brief ?? null,
+    });
   }
 
   if (!row.mapping_id) return res.status(404).json({ error: "This share link is not valid." });
