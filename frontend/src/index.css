@@ -38,4 +38,30 @@
     background: #fff !important;
     margin: 0 !important;
   }
+
+  .coverage-map-scroll {
+    overflow: visible !important;
+  }
+  .coverage-schematic {
+    min-width: 0 !important;
+    width: 100% !important;
+    border: 1px solid #d4d4d4 !important;
+  }
+  .coverage-grid {
+    grid-template-columns: 3.2rem repeat(var(--map-cols, 1), minmax(0, 1fr)) !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .coverage-pill {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    overflow: hidden;
+    text-overflow: clip;
+    font-size: 7.5px !important;
+    line-height: 1.15 !important;
+    padding: 3px 4px !important;
+    letter-spacing: 0.02em !important;
+  }
 }
