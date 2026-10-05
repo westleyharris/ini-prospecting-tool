@@ -16,6 +16,11 @@ export interface ExecNote {
   body: string;
 }
 
+export interface MapColumn {
+  id: string;
+  label: string;
+}
+
 export interface ExecutiveBrief {
   version: 1;
   hiddenLineIds: string[];
@@ -23,6 +28,7 @@ export interface ExecutiveBrief {
   lineOrder: string[];
   machineOrder: Record<string, string[]>;
   processByMachine: Record<string, string>;
+  mapColumns: MapColumn[] | null;
   hiddenSections: string[];
   hiddenCharts: string[];
   hiddenOffers: string[];
@@ -39,6 +45,7 @@ export const EMPTY_BRIEF: ExecutiveBrief = {
   lineOrder: [],
   machineOrder: {},
   processByMachine: {},
+  mapColumns: null,
   hiddenSections: [],
   hiddenCharts: [],
   hiddenOffers: [],
@@ -49,7 +56,7 @@ export const EMPTY_BRIEF: ExecutiveBrief = {
 };
 
 export function parseBrief(raw: string | null | undefined): ExecutiveBrief {
-  if (!raw) return { ...EMPTY_BRIEF, machineOrder: {}, processByMachine: {} };
+  if (!raw) return { ...EMPTY_BRIEF, machineOrder: {}, processByMachine: {}, mapColumns: null };
   try {
     const p = JSON.parse(raw) as Partial<ExecutiveBrief>;
     return {
@@ -59,6 +66,7 @@ export function parseBrief(raw: string | null | undefined): ExecutiveBrief {
       lineOrder: p.lineOrder ?? [],
       machineOrder: p.machineOrder ?? {},
       processByMachine: p.processByMachine ?? {},
+      mapColumns: p.mapColumns ?? null,
       hiddenSections: p.hiddenSections ?? [],
       hiddenCharts: p.hiddenCharts ?? [],
       hiddenOffers: p.hiddenOffers ?? [],
@@ -68,7 +76,7 @@ export function parseBrief(raw: string | null | undefined): ExecutiveBrief {
       intro: p.intro ?? null,
     };
   } catch {
-    return { ...EMPTY_BRIEF, machineOrder: {}, processByMachine: {} };
+    return { ...EMPTY_BRIEF, machineOrder: {}, processByMachine: {}, mapColumns: null };
   }
 }
 
@@ -153,6 +161,13 @@ export function applyBriefLayout(mapping: Mapping, brief: ExecutiveBrief): ExecL
 }
 
 export function processColumns(lines: ExecLine[], brief: ExecutiveBrief): ProcessType[] {
+  if (brief.mapColumns?.length) {
+    return brief.mapColumns.map((c) => ({
+      id: c.id,
+      label: c.label,
+      match: PROCESS_TYPES.find((p) => p.id === c.id)?.match ?? /.*/,
+    }));
+  }
   const seen = new Set<string>();
   for (const line of lines) {
     for (const m of line.machines) {
@@ -162,6 +177,32 @@ export function processColumns(lines: ExecLine[], brief: ExecutiveBrief): Proces
   const cols = PROCESS_TYPES.filter((p) => seen.has(p.id));
   if (seen.has("other")) cols.push(OTHER_PROCESS);
   return cols.length ? cols : [OTHER_PROCESS];
+}
+
+export function snapshotMapColumns(brief: ExecutiveBrief, lines: ExecLine[]): ExecutiveBrief {
+  if (brief.mapColumns?.length) return brief;
+  return {
+    ...brief,
+    mapColumns: processColumns(lines, brief).map((c) => ({ id: c.id, label: c.label })),
+  };
+}
+
+/** Resolve which coverage-map column a station belongs to. */
+export function columnFor(
+  machine: MappingMachine,
+  brief: ExecutiveBrief,
+  columns: ProcessType[],
+): ProcessType {
+  const override = brief.processByMachine[machine.id];
+  if (override) {
+    const hit = columns.find((c) => c.id === override);
+    if (hit) return hit;
+  }
+  const auto = classifyProcess(machine.name);
+  return columns.find((c) => c.id === auto.id)
+    ?? columns.find((c) => c.id === "other")
+    ?? columns[columns.length - 1]
+    ?? OTHER_PROCESS;
 }
 
 export type MachineTone = "ok" | "mature" | "eol" | "empty";

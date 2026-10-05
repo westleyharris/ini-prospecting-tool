@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  HiArrowLeft, HiPrinter, HiPlus, HiTrash, HiPencil,
-  HiChevronDown, HiCheckCircle, HiClock, HiCamera,
+  HiPlus, HiTrash, HiPencil,
+  HiChevronDown, HiCamera,
   HiCpuChip, HiComputerDesktop, HiBolt, HiPhoto,
   HiBuildingOffice2, HiDocumentText, HiXMark, HiCog8Tooth,
-  HiEye, HiPencilSquare, HiExclamationTriangle, HiShieldCheck, HiPresentationChartBar,
+  HiExclamationTriangle, HiShieldCheck,
   HiArrowUp,
 } from "react-icons/hi2";
 import {
@@ -22,7 +22,7 @@ import { buildOpportunityRegister } from "../data/opportunityRegister";
 import { downloadPresentation } from "../services/presentation";
 import { FLOOR_OFFERS, SCADA_PAYOFFS } from "../data/deckOffers";
 import { usePrintReport } from "../hooks/usePrintReport";
-import { ShareLinkButton } from "../components/ShareLinkButton";
+import { ReportChrome } from "../components/ReportChrome";
 import { BackToTop } from "../components/BackToTop";
 import { ObservationsPanel } from "../components/ObservationsPanel";
 import { machineTag, tagParts, groupMachinesByLine, drawingNumber } from "../data/consolidateMappings";
@@ -1996,7 +1996,7 @@ export function MappingView({ mapping, chrome = "app" }: { mapping: Mapping; chr
     return groups;
   }
 
-  const bomOffset = chrome === "share" ? "5.75rem" : "4.5rem";
+  const bomOffset = chrome === "share" ? "6.25rem" : "5.25rem";
   const dwgNo = drawingNumber(mapping);
   const plcCount = machines.filter((m) => m.plc_make || m.plc_model).length;
   const driveCount = machines.filter((m) => m.vfd_make || m.servo_drive_make).length;
@@ -2097,7 +2097,7 @@ export function MappingView({ mapping, chrome = "app" }: { mapping: Mapping; chr
 
           {/* Mobile machine tabs — sibling of the tall drawing so sticky can persist */}
           <div
-            className={`lg:hidden sticky z-20 overflow-x-auto bg-white ${chrome === "app" ? "top-14" : "top-[5.75rem]"}`}
+            className={`lg:hidden sticky z-20 overflow-x-auto bg-white ${chrome === "app" ? "top-[8.75rem]" : "top-[5.75rem]"}`}
             style={{ scrollbarWidth: "none", borderBottom: `1px solid ${HAIR}` }}
           >
             <div className="flex min-w-max">
@@ -2463,8 +2463,6 @@ export default function MappingEditorPage() {
   const [addingMachine, setAddingMachine] = useState(false);
   const [newMachineName, setNewMachineName] = useState("");
   const [showAddMachine, setShowAddMachine] = useState(false);
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleVal, setTitleVal] = useState("");
   // Open on the read-only report; editing is opt-in via the Edit toggle
   const [mode, setMode] = useState<"edit" | "view" | "risk">("view");
   const [buildingDeck, setBuildingDeck] = useState(false);
@@ -2478,7 +2476,6 @@ export default function MappingEditorPage() {
     try {
       const data = await getMapping(id);
       setMapping(data);
-      setTitleVal(data.name);
     } catch (e) {
       console.error(e);
     } finally {
@@ -2522,11 +2519,10 @@ export default function MappingEditorPage() {
     );
   }
 
-  async function saveTitle() {
-    if (!mapping || !titleVal.trim()) { setEditingTitle(false); return; }
-    const updated = await updateMapping(mapping.id, { name: titleVal.trim() });
+  async function handleRename(name: string) {
+    if (!mapping) return;
+    const updated = await updateMapping(mapping.id, { name });
     setMapping((m) => m ? { ...m, name: updated.name } : m);
-    setEditingTitle(false);
   }
 
   async function toggleStatus() {
@@ -2559,98 +2555,46 @@ export default function MappingEditorPage() {
       {/* Print view — lives outside the screen wrapper so display:none doesn't block it */}
       <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady} />
 
-      {/* Screen UI — view mode full-bleed; edit mode narrow for field entry */}
-      <div className={`mapping-screen-only space-y-3 pb-24 ${viewMode ? "" : "max-w-2xl mx-auto"}`}>
+      {/* Screen UI — toolbar always full-bleed; edit mode narrows the form */}
+      <div className="mapping-screen-only pb-24">
+        <ReportChrome
+          onBack={() => navigate("/mappings")}
+          title={mapping.name}
+          onRename={handleRename}
+          subtitle={[
+            mapping.plant_name,
+            mapping.city && mapping.state ? `${mapping.city}, ${mapping.state}` : null,
+          ].filter(Boolean).join(" · ")}
+          modes={[
+            { id: "view", label: "Drawing" },
+            { id: "risk", label: "Risk" },
+            { id: "edit", label: "Edit" },
+          ]}
+          mode={mode}
+          onMode={(id) => setMode(id as "edit" | "view" | "risk")}
+          status={{
+            label: isComplete ? "Complete" : "In progress",
+            tone: isComplete ? "ok" : "warn",
+            onClick: toggleStatus,
+          }}
+          share={{ kind: "mapping", id: mapping.id }}
+          onDeck={async () => {
+            setBuildingDeck(true);
+            try {
+              await downloadPresentation(mapping);
+            } catch (err) {
+              console.error(err);
+              alert("Could not build the presentation.");
+            } finally {
+              setBuildingDeck(false);
+            }
+          }}
+          deckBusy={buildingDeck}
+          onPrint={startPrint}
+          printBusy={printBusy}
+        />
 
-        {/* Technical toolbar */}
-        <div className="lg:sticky lg:top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 px-3 sm:px-6 lg:px-8 py-2 bg-[#f0f2ef]">
-        <div className="flex flex-wrap items-stretch gap-0 border-2 border-brand-navy bg-white">
-          <button onClick={() => navigate("/mappings")}
-            className="px-2.5 flex items-center justify-center border-r-2 border-brand-navy text-brand-navy/50 hover:bg-brand-lime hover:text-brand-navy transition-colors shrink-0"
-            title="Back to mappings">
-            <HiArrowLeft className="w-4 h-4" />
-          </button>
-
-          <div className="flex-1 min-w-0 px-3 py-2">
-            {editingTitle ? (
-              <input autoFocus value={titleVal} onChange={(e) => setTitleVal(e.target.value)}
-                onBlur={saveTitle}
-                onKeyDown={(e) => { if (e.key === "Enter") saveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
-                className="w-full font-mono text-base font-bold bg-transparent border-b-2 border-brand-lime focus:outline-none uppercase" />
-            ) : (
-              <button onClick={() => { setTitleVal(mapping.name); setEditingTitle(true); }} className="text-left w-full group">
-                <h1 className="font-mono text-base font-bold text-brand-navy uppercase tracking-wide flex items-center gap-1.5 min-w-0">
-                  <span className="truncate">{mapping.name}</span>
-                  <HiPencil className="w-3.5 h-3.5 text-brand-navy/25 group-hover:text-brand-navy/60 shrink-0" />
-                </h1>
-              </button>
-            )}
-            <p className="font-mono text-[10px] text-brand-navy/40 mt-0.5 truncate uppercase tracking-wider">
-              {mapping.plant_name}{mapping.city && mapping.state ? ` · ${mapping.city}, ${mapping.state}` : ""}
-            </p>
-          </div>
-
-          <div className="flex items-stretch shrink-0 w-full sm:w-auto border-t-2 sm:border-t-0 sm:border-l-2 border-brand-navy">
-            <button onClick={() => setMode("edit")}
-              className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
-                mode === "edit" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
-              }`}>
-              <HiPencilSquare className="w-3.5 h-3.5" />
-              Edit
-            </button>
-            <button onClick={() => setMode("view")}
-              className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
-                mode === "view" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
-              }`}>
-              <HiEye className="w-3.5 h-3.5" />
-              View
-            </button>
-            <button onClick={() => setMode("risk")}
-              className={`flex items-center gap-1 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
-                mode === "risk" ? "bg-brand-navy text-white" : "text-brand-navy/50 hover:bg-brand-navy/5"
-              }`}>
-              <HiExclamationTriangle className="w-3.5 h-3.5" />
-              Risk
-            </button>
-            <button onClick={toggleStatus}
-              className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 transition-colors ${
-                isComplete
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-amber-50 text-amber-800"
-              }`}>
-              {isComplete ? <HiCheckCircle className="w-3.5 h-3.5" /> : <HiClock className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{isComplete ? "Complete" : "In progress"}</span>
-            </button>
-            <button
-              onClick={async () => {
-                if (!mapping) return;
-                setBuildingDeck(true);
-                try {
-                  await downloadPresentation(mapping);
-                } catch (err) {
-                  console.error(err);
-                  alert("Could not build the presentation.");
-                } finally {
-                  setBuildingDeck(false);
-                }
-              }}
-              disabled={buildingDeck}
-              className="px-3 flex items-center justify-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 text-brand-navy/50 hover:bg-brand-lime hover:text-brand-navy transition-colors disabled:opacity-50"
-              title="Download Automation Report (PowerPoint)">
-              <HiPresentationChartBar className="w-4 h-4" />
-              <span className="hidden sm:inline">{buildingDeck ? "Building…" : "Deck"}</span>
-            </button>
-            {mapping && <ShareLinkButton kind="mapping" id={mapping.id} />}
-            <button onClick={startPrint}
-              disabled={printBusy}
-              className="px-3 flex items-center justify-center text-brand-navy/40 hover:bg-brand-lime hover:text-brand-navy transition-colors disabled:opacity-50"
-              title={printBusy ? "Preparing photos…" : "Print / Export PDF"}>
-              <HiPrinter className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-        </div>
-
+        <div className={`space-y-3 mt-3 ${viewMode ? "" : "max-w-2xl mx-auto"}`}>
         {/* View mode */}
         {mode === "view" && <MappingView mapping={mapping} />}
         {mode === "risk" && <RiskRegisterView mapping={mapping} />}
@@ -2719,6 +2663,7 @@ export default function MappingEditorPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
       {viewMode && <BackToTop />}
     </>

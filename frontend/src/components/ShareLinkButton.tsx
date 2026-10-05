@@ -5,9 +5,11 @@ import { createShareLink } from "../api/mappings";
 export function ShareLinkButton({
   kind,
   id,
+  quiet = false,
 }: {
   kind: "mapping" | "plant";
   id: string;
+  quiet?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -32,7 +34,11 @@ export function ShareLinkButton({
     <button
       onClick={copy}
       disabled={busy}
-      className="px-3 flex items-center justify-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 text-brand-navy/50 hover:bg-brand-lime hover:text-brand-navy transition-colors disabled:opacity-50"
+      className={
+        quiet
+          ? "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium text-slate-600 hover:text-brand-navy hover:bg-slate-100 disabled:opacity-50"
+          : "px-3 flex items-center justify-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider border-r border-brand-navy/20 text-brand-navy/50 hover:bg-brand-lime hover:text-brand-navy transition-colors disabled:opacity-50"
+      }
       title={copied ? "Link copied" : "Copy a read-only link anyone can open"}
     >
       {copied ? <HiCheckCircle className="w-4 h-4" /> : <HiLink className="w-4 h-4" />}

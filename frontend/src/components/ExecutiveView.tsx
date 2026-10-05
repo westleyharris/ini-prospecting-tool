@@ -8,12 +8,11 @@ import { photoUrl } from "../api/mappings";
 import { updatePlant } from "../api/plants";
 import { assessMachine, buildPlantNarrative, lifeFor } from "../data/machineAssessment";
 import { LIFECYCLE_META } from "../data/obsoleteEquipment";
-import { FLOOR_OFFERS } from "../data/deckOffers";
 import {
   applyBriefLayout,
   activeDeliverables,
   CHART_DEFS,
-  classifyProcess,
+  columnFor,
   documentedSlices,
   flagSlices,
   interfaceSlices,
@@ -25,8 +24,8 @@ import {
   parseBrief,
   photoSlices,
   processColumns,
+  snapshotMapColumns,
   suggestDeliverables,
-  visibleOffers,
   type ChartId,
   type ChartSlice,
   type ExecDeliverable,
@@ -35,12 +34,14 @@ import {
   type ProcessType,
 } from "../data/executiveBrief";
 
-const TONE: Record<ReturnType<typeof machineTone>, { bg: string; border: string; ink: string }> = {
-  ok: { bg: "#dcfce7", border: "#16a34a", ink: "#14532d" },
-  mature: { bg: "#fef9c3", border: "#ca8a04", ink: "#713f12" },
-  eol: { bg: "#fde8e0", border: "#e07a5f", ink: "#7c2d12" },
-  empty: { bg: "#f1f5f9", border: "#94a3b8", ink: "#475569" },
+const PILL: Record<ReturnType<typeof machineTone>, { bg: string; ink: string }> = {
+  ok: { bg: "#22c55e", ink: "#ffffff" },
+  mature: { bg: "#ca8a04", ink: "#ffffff" },
+  eol: { bg: "#e07a5f", ink: "#ffffff" },
+  empty: { bg: "#94a3b8", ink: "#ffffff" },
 };
+
+const FLOW = "bg-neutral-700";
 
 const LINE_RAIL = ["#6d28d9", "#1d4ed8", "#15803d", "#c2410c", "#0f766e", "#7c3aed"];
 
@@ -86,7 +87,6 @@ export function ExecutiveView({
   const narrative = buildPlantNarrative(mapping);
   const intro = brief.intro ?? narrative.story;
   const deliverables = activeDeliverables(mapping, brief);
-  const offers = visibleOffers(mapping, brief);
   const reportDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const location = [mapping.city, mapping.state].filter(Boolean).join(", ");
 
@@ -156,7 +156,7 @@ export function ExecutiveView({
 
       {editing && brief.hiddenSections.length > 0 && (
         <div className="flex flex-wrap gap-2 px-1">
-          {brief.hiddenSections.map((s) => (
+          {brief.hiddenSections.filter((s) => s !== "offers").map((s) => (
             <button
               key={s}
               type="button"
@@ -204,16 +204,6 @@ export function ExecutiveView({
           editing={editing}
           onChange={persist}
           onHide={() => hideSection("charts")}
-        />
-      )}
-
-      {show("offers") && offers.length > 0 && (
-        <OffersCard
-          offers={offers}
-          editing={editing}
-          brief={brief}
-          onChange={persist}
-          onHide={() => hideSection("offers")}
         />
       )}
 
@@ -296,7 +286,12 @@ function CoverageMap({
   const plant = mapping.plant_name ?? mapping.name;
   const location = [mapping.city, mapping.state].filter(Boolean).join(", ");
   const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
-  const useGrid = columns.length >= 2;
+  const cols = columns.length ? columns : [{ id: "other", label: "Stations", match: /.*/ }];
+  const gridCols = `6.5rem repeat(${cols.length}, minmax(8.5rem, 1fr))`;
+
+  function mutate(patch: (b: ExecutiveBrief) => ExecutiveBrief) {
+    onChange(patch(snapshotMapColumns(brief, layout)));
+  }
 
   function dropOn(line: ExecLine, processId: string | null, beforeId?: string) {
     if (!dragId) return;
@@ -305,27 +300,75 @@ function CoverageMap({
       setDragId(null);
       return;
     }
-    const next = { ...brief, processByMachine: { ...brief.processByMachine }, machineOrder: { ...brief.machineOrder } };
-    if (processId) next.processByMachine[dragId] = processId;
-    const ids = [...(next.machineOrder[line.id] ?? line.machines.map((m) => m.id))];
-    const without = ids.filter((id) => id !== dragId);
-    const at = beforeId ? without.indexOf(beforeId) : -1;
-    if (at >= 0) without.splice(at, 0, dragId);
-    else without.push(dragId);
-    next.machineOrder[line.id] = without;
-    onChange(next);
+    mutate((b) => {
+      const next = { ...b, processByMachine: { ...b.processByMachine }, machineOrder: { ...b.machineOrder } };
+      if (processId) next.processByMachine[dragId] = processId;
+      const ids = [...(next.machineOrder[line.id] ?? line.machines.map((m) => m.id))];
+      const without = ids.filter((id) => id !== dragId);
+      const at = beforeId ? without.indexOf(beforeId) : -1;
+      if (at >= 0) without.splice(at, 0, dragId);
+      else without.push(dragId);
+      next.machineOrder[line.id] = without;
+      return next;
+    });
     setDragId(null);
+  }
+
+  function renameCol(id: string, label: string) {
+    mutate((b) => ({
+      ...b,
+      mapColumns: (b.mapColumns ?? []).map((c) => c.id === id ? { ...c, label } : c),
+    }));
+  }
+
+  function moveCol(i: number, dir: number) {
+    mutate((b) => {
+      const list = [...(b.mapColumns ?? [])];
+      const j = i + dir;
+      if (j < 0 || j >= list.length) return b;
+      const [item] = list.splice(i, 1);
+      list.splice(j, 0, item);
+      return { ...b, mapColumns: list };
+    });
+  }
+
+  function deleteCol(id: string) {
+    mutate((b) => {
+      const remaining = (b.mapColumns ?? []).filter((c) => c.id !== id);
+      const fallback = remaining[remaining.length - 1]?.id;
+      const processByMachine = { ...b.processByMachine };
+      for (const [mid, pid] of Object.entries(processByMachine)) {
+        if (pid === id) {
+          if (fallback) processByMachine[mid] = fallback;
+          else delete processByMachine[mid];
+        }
+      }
+      return { ...b, mapColumns: remaining.length ? remaining : null, processByMachine };
+    });
+  }
+
+  function addCol() {
+    mutate((b) => ({
+      ...b,
+      mapColumns: [...(b.mapColumns ?? []), { id: crypto.randomUUID(), label: "New section" }],
+    }));
   }
 
   return (
     <SectionChrome
       title="Coverage map"
-      subtitle="Click a station to open it. Colors: green = documented, yellow = mature, coral = discontinued."
+      subtitle="Each row is a line. Conveyors run in and out of stations; extra machines in a section branch off."
       editing={editing}
       onHide={onHide}
+      extra={editing ? (
+        <button type="button" onClick={addCol}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-brand-navy/55 hover:text-brand-navy">
+          <HiPlus className="w-3.5 h-3.5" /> Add header
+        </button>
+      ) : undefined}
     >
       <div className="overflow-x-auto">
-        <div className="min-w-[640px]">
+        <div className="min-w-[720px] border border-neutral-300">
           <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-brand-navy text-white">
             <div className="flex items-center gap-3 min-w-0">
               <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-lime shrink-0">I&amp;I</span>
@@ -336,30 +379,49 @@ function CoverageMap({
             <span className="text-[11px] uppercase tracking-wider text-white/50 shrink-0">Updated {date}</span>
           </div>
 
-          {useGrid && (
-            <div
-              className="grid bg-slate-100"
-              style={{ gridTemplateColumns: `7rem repeat(${columns.length}, minmax(7rem, 1fr))` }}
-            >
-              <div className="px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-200">
-                Line
-              </div>
-              {columns.map((c) => (
-                <div key={c.id} className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-b border-l border-slate-200">
-                  {c.label}
-                </div>
-              ))}
+          <div className="grid bg-neutral-100 border-b border-neutral-300" style={{ gridTemplateColumns: gridCols }}>
+            <div className="px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 flex items-end">
+              Line
             </div>
-          )}
+            {cols.map((c, i) => (
+              <div key={c.id} className="px-1.5 py-1.5 text-center border-l border-neutral-300 min-w-0">
+                {editing ? (
+                  <div className="flex items-center gap-0.5">
+                    <input
+                      value={c.label}
+                      onChange={(e) => renameCol(c.id, e.target.value)}
+                      className="flex-1 min-w-0 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-600 bg-white border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:border-brand-navy"
+                    />
+                    <button type="button" title="Move left" disabled={i === 0} onClick={() => moveCol(i, -1)}
+                      className="p-0.5 text-slate-400 hover:text-brand-navy disabled:opacity-20">
+                      <HiArrowUp className="w-3 h-3 -rotate-90" />
+                    </button>
+                    <button type="button" title="Move right" disabled={i === cols.length - 1} onClick={() => moveCol(i, 1)}
+                      className="p-0.5 text-slate-400 hover:text-brand-navy disabled:opacity-20">
+                      <HiArrowDown className="w-3 h-3 -rotate-90" />
+                    </button>
+                    <button type="button" title="Remove section" onClick={() => deleteCol(c.id)}
+                      className="p-0.5 text-slate-400 hover:text-red-700">
+                      <HiXMark className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 leading-tight py-1">
+                    {c.label}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
 
           {layout.map((line, li) => (
             <div
               key={line.id}
-              className={useGrid ? "grid border-t border-slate-200" : "flex border-t border-slate-200"}
-              style={useGrid ? { gridTemplateColumns: `7rem repeat(${columns.length}, minmax(7rem, 1fr))` } : undefined}
+              className="grid border-b border-neutral-300 bg-white"
+              style={{ gridTemplateColumns: gridCols }}
             >
               <div
-                className="flex items-center justify-between gap-1 px-2 py-3 text-white text-[11px] font-bold uppercase tracking-wider"
+                className="flex items-center justify-between gap-1 px-2.5 py-3 text-white text-[11px] font-bold uppercase tracking-wider"
                 style={{ background: LINE_RAIL[li % LINE_RAIL.length] }}
               >
                 <span className="leading-tight">{line.name.replace(/ - mapping$/i, "")}</span>
@@ -371,51 +433,22 @@ function CoverageMap({
                 )}
               </div>
 
-              {useGrid ? columns.map((col) => {
-                const cell = line.machines.filter((m) => classifyProcess(m.name, brief.processByMachine[m.id]).id === col.id);
+              {cols.map((col) => {
+                const cell = line.machines.filter((m) => columnFor(m, brief, cols).id === col.id);
                 return (
-                  <div
+                  <FlowCell
                     key={col.id}
-                    onDragOver={(e) => { if (editing) e.preventDefault(); }}
-                    onDrop={() => dropOn(line, col.id)}
-                    className="flex flex-wrap items-center justify-center gap-1.5 px-2 py-2.5 border-l border-slate-200 min-h-[3.25rem] bg-white"
-                  >
-                    {cell.map((m) => (
-                      <MachinePill
-                        key={m.id}
-                        machine={m}
-                        editing={editing}
-                        dragging={dragId === m.id}
-                        onOpen={() => onOpen(m)}
-                        onDragStart={() => setDragId(m.id)}
-                        onDropBefore={() => dropOn(line, col.id, m.id)}
-                        onHide={() => onChange({ ...brief, hiddenMachineIds: [...brief.hiddenMachineIds, m.id] })}
-                      />
-                    ))}
-                  </div>
+                    machines={cell}
+                    editing={editing}
+                    dragId={dragId}
+                    onDropCell={() => dropOn(line, col.id)}
+                    onOpen={onOpen}
+                    onDragStart={setDragId}
+                    onDropBefore={(id) => dropOn(line, col.id, id)}
+                    onHide={(id) => onChange({ ...brief, hiddenMachineIds: [...brief.hiddenMachineIds, id] })}
+                  />
                 );
-              }) : (
-                <div
-                  className="flex flex-wrap items-center gap-2 px-3 py-2.5 flex-1 bg-white"
-                  onDragOver={(e) => { if (editing) e.preventDefault(); }}
-                  onDrop={() => dropOn(line, null)}
-                >
-                  {line.machines.map((m, i) => (
-                    <div key={m.id} className="flex items-center gap-2">
-                      {i > 0 && <span className="text-slate-300 text-lg leading-none">›</span>}
-                      <MachinePill
-                        machine={m}
-                        editing={editing}
-                        dragging={dragId === m.id}
-                        onOpen={() => onOpen(m)}
-                        onDragStart={() => setDragId(m.id)}
-                        onDropBefore={() => dropOn(line, null, m.id)}
-                        onHide={() => onChange({ ...brief, hiddenMachineIds: [...brief.hiddenMachineIds, m.id] })}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+              })}
             </div>
           ))}
 
@@ -425,10 +458,19 @@ function CoverageMap({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 px-5 py-2.5 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500">
-        <span className="inline-flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm inline-block" style={{ background: TONE.ok.bg, border: `1px solid ${TONE.ok.border}` }} /> Documented</span>
-        <span className="inline-flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm inline-block" style={{ background: TONE.mature.bg, border: `1px solid ${TONE.mature.border}` }} /> Mature platform</span>
-        <span className="inline-flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm inline-block" style={{ background: TONE.eol.bg, border: `1px solid ${TONE.eol.border}` }} /> Discontinued</span>
+      {editing && (
+        <div className="px-5 py-2.5 border-t border-slate-100 bg-white">
+          <button type="button" onClick={addCol}
+            className="inline-flex items-center gap-1 text-sm font-semibold text-brand-navy/60 hover:text-brand-navy">
+            <HiPlus className="w-4 h-4" /> Add a section header
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-4 px-5 py-2.5 bg-neutral-50 border-t border-neutral-300 text-[11px] text-neutral-500">
+        <span className="inline-flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm inline-block" style={{ background: PILL.ok.bg }} /> Documented</span>
+        <span className="inline-flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm inline-block" style={{ background: PILL.mature.bg }} /> Mature platform</span>
+        <span className="inline-flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm inline-block" style={{ background: PILL.eol.bg }} /> Discontinued</span>
         <span className="ml-auto">{visibleCount(layout)} stations shown</span>
       </div>
 
@@ -461,31 +503,107 @@ function visibleCount(layout: ExecLine[]) {
   return layout.reduce((s, l) => s + l.machines.length, 0);
 }
 
+function FlowLine() {
+  return <span aria-hidden className={`block flex-1 h-[2px] ${FLOW} min-w-[0.5rem]`} />;
+}
+
+function FlowStub() {
+  return <span aria-hidden className={`block w-3 h-[2px] shrink-0 ${FLOW}`} />;
+}
+
+function FlowCell({
+  machines, editing, dragId, onDropCell, onOpen, onDragStart, onDropBefore, onHide,
+}: {
+  machines: MappingMachine[];
+  editing: boolean;
+  dragId: string | null;
+  onDropCell: () => void;
+  onOpen: (m: MappingMachine) => void;
+  onDragStart: (id: string) => void;
+  onDropBefore: (id: string) => void;
+  onHide: (id: string) => void;
+}) {
+  const branched = machines.length > 1;
+  return (
+    <div
+      onDragOver={(e) => { if (editing) e.preventDefault(); }}
+      onDrop={() => onDropCell()}
+      className="flex items-center border-l border-neutral-300 min-h-[4.5rem] bg-white py-3"
+    >
+      {machines.length === 0 ? (
+        <FlowLine />
+      ) : branched ? (
+        <>
+          <FlowLine />
+          <span aria-hidden className={`w-[2px] self-stretch ${FLOW} my-[11px] shrink-0`} />
+          <div className="flex flex-col gap-2.5">
+            {machines.map((m) => (
+              <div key={m.id} className="flex items-center">
+                <FlowStub />
+                <MachinePill
+                  machine={m}
+                  editing={editing}
+                  dragging={dragId === m.id}
+                  fill
+                  onOpen={() => onOpen(m)}
+                  onDragStart={() => onDragStart(m.id)}
+                  onDropBefore={() => onDropBefore(m.id)}
+                  onHide={() => onHide(m.id)}
+                />
+                <FlowStub />
+              </div>
+            ))}
+          </div>
+          <span aria-hidden className={`w-[2px] self-stretch ${FLOW} my-[11px] shrink-0`} />
+          <FlowLine />
+        </>
+      ) : (
+        <>
+          <FlowLine />
+          <MachinePill
+            machine={machines[0]}
+            editing={editing}
+            dragging={dragId === machines[0].id}
+            onOpen={() => onOpen(machines[0])}
+            onDragStart={() => onDragStart(machines[0].id)}
+            onDropBefore={() => onDropBefore(machines[0].id)}
+            onHide={() => onHide(machines[0].id)}
+          />
+          <FlowLine />
+        </>
+      )}
+    </div>
+  );
+}
+
 function MachinePill({
-  machine, editing, dragging, onOpen, onDragStart, onDropBefore, onHide,
+  machine, editing, dragging, fill, onOpen, onDragStart, onDropBefore, onHide,
 }: {
   machine: MappingMachine;
   editing: boolean;
   dragging: boolean;
+  fill?: boolean;
   onOpen: () => void;
   onDragStart: () => void;
   onDropBefore?: () => void;
   onHide: () => void;
 }) {
-  const tone = TONE[machineTone(machine)];
+  const tone = PILL[machineTone(machine)];
   return (
     <div
       draggable={editing}
       onDragStart={onDragStart}
       onDragOver={(e) => { if (editing) e.preventDefault(); }}
       onDrop={(e) => { e.stopPropagation(); onDropBefore?.(); }}
-      className={`relative group ${dragging ? "opacity-40" : ""}`}
+      className={`relative group z-10 ${fill ? "flex-1 min-w-0" : "shrink-0"} ${dragging ? "opacity-40" : ""}`}
     >
       <button
         type="button"
         onClick={onOpen}
-        className="px-2.5 py-1.5 text-[12px] font-semibold uppercase tracking-wide rounded-sm shadow-sm hover:shadow transition-shadow"
-        style={{ background: tone.bg, color: tone.ink, border: `1.5px solid ${tone.border}` }}
+        className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide rounded-sm whitespace-nowrap truncate ${
+          fill ? "w-full" : "max-w-[9.5rem]"
+        }`}
+        style={{ background: tone.bg, color: tone.ink }}
       >
         {machine.name}
       </button>
@@ -708,68 +826,6 @@ function DonutChart({ slices }: { slices: ChartSlice[] }) {
         ))}
       </ul>
     </div>
-  );
-}
-
-function OffersCard({
-  offers, editing, brief, onChange, onHide,
-}: {
-  offers: typeof FLOOR_OFFERS;
-  editing: boolean;
-  brief: ExecutiveBrief;
-  onChange: (b: ExecutiveBrief) => void;
-  onHide: () => void;
-}) {
-  const hidden = FLOOR_OFFERS.filter((o) => !offers.some((x) => x.key === o.key));
-  return (
-    <SectionChrome
-      title="What the plant still cannot see"
-      subtitle="Reference photos — typical installations, not this plant. Hide any topic that does not belong."
-      editing={editing}
-      onHide={onHide}
-    >
-      <div className="grid sm:grid-cols-2 gap-px bg-slate-100">
-        {offers.map((o) => (
-          <article key={o.key} className="bg-white relative group">
-            {o.photo && (
-              <img src={`/deck-refs/${o.photo}.jpg`} alt="" className="w-full h-40 object-cover" />
-            )}
-            <div className="px-5 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-navy/40">{o.eyebrow}</p>
-              <h3 className="text-base font-semibold text-brand-navy mt-0.5">{o.title}</h3>
-              <p className="text-sm text-brand-navy/70 mt-2 leading-relaxed">{o.pitch}</p>
-              <ul className="mt-3 space-y-1.5">
-                {o.bullets.map((b) => (
-                  <li key={b} className="text-[13px] text-brand-navy/75 pl-3 border-l-2 border-brand-lime leading-snug">{b}</li>
-                ))}
-              </ul>
-            </div>
-            {editing && (
-              <button type="button" title="Remove"
-                onClick={() => onChange({ ...brief, hiddenOffers: [...brief.hiddenOffers, o.key] })}
-                className="absolute top-2 right-2 p-1 bg-white/90 border border-slate-200 text-slate-500 opacity-0 group-hover:opacity-100">
-                <HiXMark className="w-4 h-4" />
-              </button>
-            )}
-          </article>
-        ))}
-      </div>
-      {editing && hidden.length > 0 && (
-        <div className="px-5 py-3 border-t border-slate-100 flex flex-wrap gap-2">
-          {hidden.map((o) => (
-            <button key={o.key} type="button"
-              onClick={() => onChange({
-                ...brief,
-                hiddenOffers: brief.hiddenOffers.filter((k) => k !== o.key),
-                extraOffers: brief.extraOffers.includes(o.key) ? brief.extraOffers : [...brief.extraOffers, o.key],
-              })}
-              className="text-xs px-2 py-1 border border-dashed border-slate-300 text-slate-600">
-              Add {o.title}
-            </button>
-          ))}
-        </div>
-      )}
-    </SectionChrome>
   );
 }
 
