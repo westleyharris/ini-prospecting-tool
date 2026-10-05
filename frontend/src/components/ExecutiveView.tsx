@@ -287,7 +287,8 @@ function CoverageMap({
   const location = [mapping.city, mapping.state].filter(Boolean).join(", ");
   const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
   const cols = columns.length ? columns : [{ id: "other", label: "Stations", match: /.*/ }];
-  const gridCols = `6.5rem repeat(${cols.length}, minmax(8.5rem, 1fr))`;
+  const gridCols = `5.75rem repeat(${cols.length}, minmax(7rem, 1fr))`;
+  const schematicMin = Math.max(720, 92 + cols.length * 112);
 
   function mutate(patch: (b: ExecutiveBrief) => ExecutiveBrief) {
     onChange(patch(snapshotMapColumns(brief, layout)));
@@ -378,7 +379,10 @@ function CoverageMap({
       />
 
       <div className="hidden md:block print:block overflow-x-auto coverage-map-scroll">
-        <div className="coverage-schematic min-w-[720px] border-y md:border border-neutral-300 print:min-w-0 print:w-full">
+        <div
+          className="coverage-schematic border-y md:border border-neutral-300 print:min-w-0 print:w-full"
+          style={{ minWidth: schematicMin }}
+        >
           <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-brand-navy text-white min-w-0 overflow-hidden print:px-2 print:py-1.5">
             <div className="flex items-center gap-3 min-w-0">
               <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-lime shrink-0">I&amp;I</span>
@@ -418,7 +422,7 @@ function CoverageMap({
                     </button>
                   </div>
                 ) : (
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 leading-tight py-1 print:text-[7px] print:py-0.5 print:leading-tight">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 leading-tight py-1 truncate print:text-[7px] print:py-0.5 print:leading-tight">
                     {c.label}
                   </p>
                 )}
@@ -603,7 +607,7 @@ function FlowLine() {
 }
 
 function FlowStub() {
-  return <span aria-hidden className={`block w-3 h-[2px] shrink-0 ${FLOW}`} />;
+  return <span aria-hidden className={`block w-2 h-[2px] shrink-0 ${FLOW}`} />;
 }
 
 function FlowCell({
@@ -623,7 +627,7 @@ function FlowCell({
     <div
       onDragOver={(e) => { if (editing) e.preventDefault(); }}
       onDrop={() => onDropCell()}
-      className="flex items-center border-l border-neutral-300 min-h-[4.5rem] min-w-0 bg-white py-3 print:min-h-[2.35rem] print:py-1"
+      className="flex items-center border-l border-neutral-300 min-h-[4.5rem] min-w-0 overflow-hidden bg-white py-3 print:min-h-[2.35rem] print:py-1"
     >
       {machines.length === 0 ? (
         <FlowLine />
@@ -631,9 +635,9 @@ function FlowCell({
         <>
           <FlowLine />
           <span aria-hidden className={`w-[2px] self-stretch ${FLOW} my-[11px] shrink-0`} />
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-1.5 min-w-0 flex-1">
             {machines.map((m) => (
-              <div key={m.id} className="flex items-center">
+              <div key={m.id} className="flex items-center min-w-0 w-full">
                 <FlowStub />
                 <MachinePill
                   machine={m}
@@ -690,14 +694,13 @@ function MachinePill({
       onDragStart={onDragStart}
       onDragOver={(e) => { if (editing) e.preventDefault(); }}
       onDrop={(e) => { e.stopPropagation(); onDropBefore?.(); }}
-      className={`relative group z-10 ${fill ? "flex-1 min-w-0" : "shrink-0"} ${dragging ? "opacity-40" : ""}`}
+      className={`relative group z-10 min-w-0 max-w-full ${fill ? "flex-1" : ""} ${dragging ? "opacity-40" : ""}`}
     >
       <button
         type="button"
         onClick={onOpen}
-        className={`coverage-pill px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide rounded-sm ${
-          fill ? "w-full whitespace-nowrap truncate" : "max-w-[9.5rem] whitespace-nowrap truncate"
-        }`}
+        title={machine.name}
+        className="coverage-pill w-full px-1.5 py-1 text-[10px] font-bold uppercase tracking-normal rounded-sm text-center leading-tight line-clamp-2 break-words print:line-clamp-none"
         style={{ background: tone.bg, color: tone.ink }}
       >
         {machine.name}
