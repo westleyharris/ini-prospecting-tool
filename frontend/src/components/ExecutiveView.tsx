@@ -287,8 +287,8 @@ function CoverageMap({
   const location = [mapping.city, mapping.state].filter(Boolean).join(", ");
   const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
   const cols = columns.length ? columns : [{ id: "other", label: "Stations", match: /.*/ }];
-  const gridCols = `5.75rem repeat(${cols.length}, minmax(7rem, 1fr))`;
-  const schematicMin = Math.max(720, 92 + cols.length * 112);
+  const gridCols = `5.75rem repeat(${cols.length}, minmax(11.5rem, 1fr))`;
+  const schematicMin = Math.max(720, 92 + cols.length * 184);
 
   function mutate(patch: (b: ExecutiveBrief) => ExecutiveBrief) {
     onChange(patch(snapshotMapColumns(brief, layout)));
@@ -607,7 +607,7 @@ function FlowLine() {
 }
 
 function FlowStub() {
-  return <span aria-hidden className={`block w-2 h-[2px] shrink-0 ${FLOW}`} />;
+  return <span aria-hidden className={`block w-2.5 h-[2px] shrink-0 ${FLOW}`} />;
 }
 
 function FlowCell({
@@ -635,9 +635,9 @@ function FlowCell({
         <>
           <FlowLine />
           <span aria-hidden className={`w-[2px] self-stretch ${FLOW} my-[11px] shrink-0`} />
-          <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+          <div className="flex flex-col gap-1.5 min-w-0 max-w-full">
             {machines.map((m) => (
-              <div key={m.id} className="flex items-center min-w-0 w-full">
+              <div key={m.id} className="flex items-center min-w-0">
                 <FlowStub />
                 <MachinePill
                   machine={m}
@@ -700,7 +700,7 @@ function MachinePill({
         type="button"
         onClick={onOpen}
         title={machine.name}
-        className="coverage-pill w-full px-1.5 py-1 text-[10px] font-bold uppercase tracking-normal rounded-sm text-center leading-tight line-clamp-2 break-words print:line-clamp-none"
+        className="coverage-pill w-full px-2 py-1 text-[11px] font-bold uppercase tracking-normal rounded-sm text-center leading-snug line-clamp-2 print:line-clamp-none"
         style={{ background: tone.bg, color: tone.ink }}
       >
         {machine.name}
