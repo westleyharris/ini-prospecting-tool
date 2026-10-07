@@ -721,6 +721,36 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     successor: "Lenze i500 / i700",
   },
 
+  // ─── Drives · AutomationDirect ──────────────────────────────────────────────
+  // GS4 / GS10 / GS20 / GS21 / GS23 are current. Token match is exact (gs2 ≠ gs20).
+  {
+    category: "drive",
+    makeParts: ["automationdirect"],
+    modelParts: ["gs2", "gs2 drive"],
+    status: "discontinued",
+    eolYear: 2021,
+    note: "AutomationDirect GS2 AC micro drive is discontinued (ADC retired the series 2020–2021). Replacement is DURApulse GS20 / GS21.",
+    successor: "DURApulse GS20 / GS21",
+  },
+  {
+    category: "drive",
+    makeParts: ["automationdirect"],
+    modelParts: ["gs1", "gs1 drive"],
+    status: "discontinued",
+    eolYear: 2022,
+    note: "AutomationDirect GS1 AC micro drive is discontinued (retired 2022). Replacement is DURApulse GS10 / GS11.",
+    successor: "DURApulse GS10 / GS11",
+  },
+  {
+    category: "drive",
+    makeParts: ["automationdirect"],
+    modelParts: ["gs3", "gs3 drive"],
+    status: "discontinued",
+    eolYear: 2023,
+    note: "AutomationDirect DURApulse GS3 is discontinued (retired 2023). Replacement is GS20 / GS33 depending on rating.",
+    successor: "DURApulse GS20 / GS33",
+  },
+
   // ─── Servo · Allen-Bradley ──────────────────────────────────────────────────
   {
     category: "servo",
@@ -873,6 +903,7 @@ function entryFamily(entry: ObsoleteEntry): string {
   if (tokens[0] === "plc" && tokens[1]) return `PLC-${tokens[1].toUpperCase()}`;
   if (tokens[0] === "slc") return ["SLC", ...tokens.slice(1).map((t) => t.toUpperCase())].join(" ");
   if (tokens[0] === "p3" && tokens[1]) return `P3-${tokens[1].toUpperCase()}`;
+  if (/^gs[123]$/.test(tokens[0] ?? "")) return tokens[0].toUpperCase();
   if (tokens.length === 0) return (entry.catalogPrefixes?.[0] ?? "").toUpperCase();
   return tokens.map((t) => (/\d/.test(t) ? t.toUpperCase() : titleCase(t))).join(" ");
 }
