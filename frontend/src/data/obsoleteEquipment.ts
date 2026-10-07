@@ -625,6 +625,15 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
   {
     category: "drive",
     makeParts: ["allen", "rockwell"],
+    modelParts: ["powerflex 40p", "powerflex40p", "pf 40p", "40p", "22d"],
+    status: "discontinued",
+    eolYear: 2025,
+    note: "Allen-Bradley PowerFlex 40P (catalog 22D) last ship 30 June 2025. Successor is PowerFlex 525.",
+    successor: "PowerFlex 525",
+  },
+  {
+    category: "drive",
+    makeParts: ["allen", "rockwell"],
     modelParts: ["powerflex 70", "powerflex 700", "powerflex 700h", "powerflex 700s"],
     status: "discontinued",
     note: "PowerFlex 70 / 700 / 700H / 700S discontinued by Rockwell Automation.",
