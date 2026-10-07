@@ -5,7 +5,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "seed:downey": "tsx scripts/seed-downey.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

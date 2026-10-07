@@ -128,7 +128,7 @@ export default function ShareReportPage() {
       </div>
 
       {mode === "exec" && (
-        <div className="exec-print-root max-w-6xl mx-auto px-3 sm:px-6 pb-24">
+        <div className="exec-print-root max-w-6xl mx-auto px-3 sm:px-6 pb-24 print:max-w-none print:px-0 print:pb-0">
           <ExecutiveView mapping={mapping} initialBrief={brief} />
         </div>
       )}

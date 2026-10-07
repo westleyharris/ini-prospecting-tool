@@ -9,6 +9,7 @@
     "build:frontend": "cd frontend && npm install && npm run build",
     "start": "node backend/dist/index.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "seed:test-plant": "cd backend && npx tsx scripts/seed-downey.ts",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev"
   },

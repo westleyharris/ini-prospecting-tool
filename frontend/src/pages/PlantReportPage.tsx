@@ -129,7 +129,7 @@ export default function PlantReportPage() {
       </div>
 
       {mode === "exec" && (
-        <div className="exec-print-root mt-3 pb-24">
+        <div className="exec-print-root mt-3 pb-24 print:mt-0 print:pb-0">
           <ExecutiveView mapping={mapping} initialBrief={brief} plantId={plantId} editable />
         </div>
       )}

@@ -248,10 +248,10 @@ function SectionChrome({
 }) {
   return (
     <section className="bg-white border border-brand-navy/15 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-5 sm:px-7 py-3 border-b border-brand-navy/10">
+      <div className="flex items-center justify-between gap-3 px-5 sm:px-7 py-3 border-b border-brand-navy/10 print:px-3 print:py-1.5">
         <div>
-          <h2 className="text-base font-semibold text-brand-navy">{title}</h2>
-          {subtitle && <p className="text-xs text-brand-navy/45 mt-0.5">{subtitle}</p>}
+          <h2 className="text-base font-semibold text-brand-navy print:text-sm">{title}</h2>
+          {subtitle && <p className="text-xs text-brand-navy/45 mt-0.5 print:hidden">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-2">
           {extra}
@@ -380,7 +380,7 @@ function CoverageMap({
 
       <div className="hidden md:block print:block overflow-x-auto coverage-map-scroll">
         <div
-          className="coverage-schematic border-y md:border border-neutral-300 print:min-w-0 print:w-full"
+          className="coverage-schematic border-y md:border border-neutral-300"
           style={{ minWidth: schematicMin }}
         >
           <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-brand-navy text-white min-w-0 overflow-hidden print:px-2 print:py-1.5">
@@ -422,7 +422,7 @@ function CoverageMap({
                     </button>
                   </div>
                 ) : (
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 leading-tight py-1 truncate print:text-[7px] print:py-0.5 print:leading-tight">
+                  <p className="coverage-col-label text-[10px] font-semibold uppercase tracking-wider text-slate-500 leading-tight py-1">
                     {c.label}
                   </p>
                 )}
@@ -603,11 +603,11 @@ function visibleCount(layout: ExecLine[]) {
 }
 
 function FlowLine() {
-  return <span aria-hidden className={`block flex-1 h-[2px] ${FLOW} min-w-[0.5rem]`} />;
+  return <span aria-hidden className={`flow-line block flex-1 h-[2px] ${FLOW} min-w-[0.5rem]`} />;
 }
 
 function FlowStub() {
-  return <span aria-hidden className={`block w-2.5 h-[2px] shrink-0 ${FLOW}`} />;
+  return <span aria-hidden className={`flow-stub block w-2.5 h-[2px] shrink-0 print:w-1 ${FLOW}`} />;
 }
 
 function FlowCell({
@@ -700,7 +700,7 @@ function MachinePill({
         type="button"
         onClick={onOpen}
         title={machine.name}
-        className="coverage-pill w-full px-2 py-1 text-[11px] font-bold uppercase tracking-normal rounded-sm text-center leading-snug line-clamp-2 print:line-clamp-none"
+        className="coverage-pill w-full px-2 py-1 text-[11px] font-bold uppercase tracking-normal rounded-sm text-center leading-snug line-clamp-2"
         style={{ background: tone.bg, color: tone.ink }}
       >
         {machine.name}

@@ -39,29 +39,68 @@
     margin: 0 !important;
   }
 
+  /* Landscape unless a mounted PrintView overrides with portrait drawing sheets. */
+  @page {
+    size: landscape;
+    margin: 0.28in;
+  }
+  .exec-print-root {
+    page: plant-report;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  @page plant-report {
+    size: landscape;
+    margin: 0.28in;
+  }
+
   .coverage-map-scroll {
     overflow: visible !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   .coverage-schematic {
     min-width: 0 !important;
     width: 100% !important;
     border: 1px solid #d4d4d4 !important;
   }
+  .exec-print-root section {
+    overflow: visible !important;
+    break-inside: avoid;
+  }
   .coverage-grid {
-    grid-template-columns: 3.2rem repeat(var(--map-cols, 1), minmax(0, 1fr)) !important;
+    grid-template-columns: 2.55rem repeat(var(--map-cols, 1), minmax(0, 1fr)) !important;
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .coverage-pill {
-    display: block;
-    width: 100% !important;
-    max-width: 100% !important;
+  .coverage-col-label {
+    font-size: 7px !important;
+    letter-spacing: 0 !important;
+    line-height: 1.15 !important;
     white-space: normal !important;
     overflow: hidden;
-    text-overflow: clip;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .coverage-pill {
     font-size: 7.5px !important;
     line-height: 1.15 !important;
-    padding: 3px 4px !important;
-    letter-spacing: 0.02em !important;
+    padding: 2px 3px !important;
+    letter-spacing: 0 !important;
+    white-space: normal !important;
+    overflow: hidden;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .flow-stub {
+    width: 3px !important;
+  }
+  .flow-line {
+    min-width: 2px !important;
   }
 }
