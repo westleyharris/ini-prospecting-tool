@@ -99,6 +99,8 @@ const MAKE_ALIASES: Record<string, string> = {
   adc: "automationdirect",
   "automation direct": "automationdirect",
   automationdirect: "automationdirect",
+  magnetek: "magnetek",
+  "magne tek": "magnetek",
 };
 
 function tokenize(value: string): string[] {
@@ -707,6 +709,15 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
   },
   {
     category: "drive",
+    makeParts: ["magnetek", "yaskawa"],
+    modelParts: ["gpd515", "gpd 515", "gpd515c"],
+    catalogPrefixes: ["gpd515"],
+    status: "discontinued",
+    note: "Magnetek GPD515 is the Yaskawa G5 platform. Yaskawa lists it as legacy and no longer promoted in the Americas. Current replacement is GA800.",
+    successor: "Yaskawa GA800",
+  },
+  {
+    category: "drive",
     makeParts: ["schneider"],
     modelParts: ["altivar 28", "altivar 31", "altivar 58", "altivar 61", "altivar 71", "atv28", "atv31", "atv58", "atv61", "atv71"],
     status: "discontinued",
@@ -922,6 +933,7 @@ function entryBrand(entry: ObsoleteEntry): string {
   if (parts.some((p) => p === "ge")) return "GE";
   if (parts.some((p) => p === "bosch" || p === "rexroth")) return "Bosch Rexroth";
   if (parts.some((p) => p === "automationdirect")) return "AutomationDirect";
+  if (parts.some((p) => p === "magnetek")) return "Magnetek";
   if (parts[0]) return titleCase(parts[0]);
   return "";
 }
@@ -932,6 +944,7 @@ function entryFamily(entry: ObsoleteEntry): string {
   if (tokens[0] === "plc" && tokens[1]) return `PLC-${tokens[1].toUpperCase()}`;
   if (tokens[0] === "slc") return ["SLC", ...tokens.slice(1).map((t) => t.toUpperCase())].join(" ");
   if (tokens[0] === "p3" && tokens[1]) return `P3-${tokens[1].toUpperCase()}`;
+  if (tokens[0] === "gpd" && tokens[1]) return `GPD ${tokens[1].toUpperCase()}`;
   if (/^gs[123]$/.test(tokens[0] ?? "")) return tokens[0].toUpperCase();
   if (tokens.length === 0) return (entry.catalogPrefixes?.[0] ?? "").toUpperCase();
   return tokens.map((t) => (/\d/.test(t) ? t.toUpperCase() : titleCase(t))).join(" ");
