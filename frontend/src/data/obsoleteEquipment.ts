@@ -96,6 +96,9 @@ const MAKE_ALIASES: Record<string, string> = {
   rexroth: "bosch",
   "sew eurodrive": "sew",
   "fanuc robotics": "fanuc",
+  adc: "automationdirect",
+  "automation direct": "automationdirect",
+  automationdirect: "automationdirect",
 };
 
 function tokenize(value: string): string[] {
@@ -466,6 +469,34 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     successor: "CX series / EK series",
   },
 
+  // ─── PLC · AutomationDirect ─────────────────────────────────────────────────
+  // Productivity3000 as a family is still shipping (P3-622). Only retired CPUs.
+  {
+    category: "plc",
+    makeParts: ["automationdirect"],
+    modelParts: ["p3 550", "p3550"],
+    status: "discontinued",
+    eolYear: 2023,
+    note: "AutomationDirect Productivity3000 P3-550 retired June 2023. P3-550E was the drop-in; P3-622 is the current CPU.",
+    successor: "Productivity3000 P3-622",
+  },
+  {
+    category: "plc",
+    makeParts: ["automationdirect"],
+    modelParts: ["p3 550e", "p3550e"],
+    status: "mature",
+    note: "AutomationDirect Productivity3000 P3-550E is last-time-buy (discontinued once stock is gone). P3-622 is the current CPU.",
+    successor: "Productivity3000 P3-622",
+  },
+  {
+    category: "plc",
+    makeParts: ["automationdirect"],
+    modelParts: ["p3 530", "p3530"],
+    status: "mature",
+    note: "AutomationDirect Productivity3000 P3-530 is last-time-buy (discontinued once stock is gone).",
+    successor: "Productivity3000 P3-622",
+  },
+
   // ─── HMI · Allen-Bradley ────────────────────────────────────────────────────
   {
     category: "hmi",
@@ -831,6 +862,7 @@ function entryBrand(entry: ObsoleteEntry): string {
   if (parts.some((p) => p === "allen" || p === "rockwell")) return "Allen-Bradley";
   if (parts.some((p) => p === "ge")) return "GE";
   if (parts.some((p) => p === "bosch" || p === "rexroth")) return "Bosch Rexroth";
+  if (parts.some((p) => p === "automationdirect")) return "AutomationDirect";
   if (parts[0]) return titleCase(parts[0]);
   return "";
 }
@@ -840,6 +872,7 @@ function entryFamily(entry: ObsoleteEntry): string {
   const tokens = tokenize(parts[0] ?? "");
   if (tokens[0] === "plc" && tokens[1]) return `PLC-${tokens[1].toUpperCase()}`;
   if (tokens[0] === "slc") return ["SLC", ...tokens.slice(1).map((t) => t.toUpperCase())].join(" ");
+  if (tokens[0] === "p3" && tokens[1]) return `P3-${tokens[1].toUpperCase()}`;
   if (tokens.length === 0) return (entry.catalogPrefixes?.[0] ?? "").toUpperCase();
   return tokens.map((t) => (/\d/.test(t) ? t.toUpperCase() : titleCase(t))).join(" ");
 }
