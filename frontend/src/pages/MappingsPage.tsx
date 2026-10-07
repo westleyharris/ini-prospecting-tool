@@ -320,20 +320,18 @@ export default function MappingsPage() {
                 <span className="font-mono text-[10px] font-bold shrink-0" style={{ color: INK, opacity: 0.45 }}>
                   {items.length} mapping{items.length !== 1 ? "s" : ""}
                 </span>
-                {items.length >= 2 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/mappings/plant/${plantId}`);
-                    }}
-                    className="flex items-center gap-1 shrink-0 font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-1 border hover:bg-brand-lime"
-                    style={{ color: INK, borderColor: INK }}
-                    title="Consolidated drawing, register, and deck for every line at this plant"
-                  >
-                    <HiDocumentChartBar className="w-3.5 h-3.5" />
-                    Plant report
-                  </button>
-                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/mappings/plant/${plantId}`);
+                  }}
+                  className="flex items-center gap-1 shrink-0 font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-1 border hover:bg-brand-lime"
+                  style={{ color: INK, borderColor: INK }}
+                  title="Coverage map, drawing, and deck for this plant"
+                >
+                  <HiDocumentChartBar className="w-3.5 h-3.5" />
+                  Plant report
+                </button>
               </div>
 
               {items.map((m, i) => {

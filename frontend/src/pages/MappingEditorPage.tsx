@@ -2566,12 +2566,19 @@ export default function MappingEditorPage() {
             mapping.city && mapping.state ? `${mapping.city}, ${mapping.state}` : null,
           ].filter(Boolean).join(" · ")}
           modes={[
+            { id: "exec", label: "Summary" },
             { id: "view", label: "Drawing" },
             { id: "risk", label: "Risk" },
             { id: "edit", label: "Edit" },
           ]}
           mode={mode}
-          onMode={(id) => setMode(id as "edit" | "view" | "risk")}
+          onMode={(id) => {
+            if (id === "exec") {
+              navigate(`/mappings/plant/${mapping.plant_id}`);
+              return;
+            }
+            setMode(id as "edit" | "view" | "risk");
+          }}
           status={{
             label: isComplete ? "Complete" : "In progress",
             tone: isComplete ? "ok" : "warn",
