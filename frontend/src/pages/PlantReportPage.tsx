@@ -4,8 +4,9 @@ import { getPlantMappings, type Mapping } from "../api/mappings";
 import { fetchPlant } from "../api/plants";
 import { consolidateMappings } from "../data/consolidateMappings";
 import { downloadPresentation } from "../services/presentation";
-import { MappingView, PrintView, RiskRegisterView } from "./MappingEditorPage";
+import { MappingView, PrintView } from "./MappingEditorPage";
 import { ExecutiveView } from "../components/ExecutiveView";
+import { RiskRegisterView } from "../components/RiskRegisterView";
 import { ReportChrome } from "../components/ReportChrome";
 import { usePrintReport } from "../hooks/usePrintReport";
 import { BackToTop } from "../components/BackToTop";
@@ -109,7 +110,7 @@ export default function PlantReportPage() {
           printBusy={printBusy}
         />
 
-        {lines.length > 1 && mode !== "exec" && (
+        {lines.length > 1 && mode === "view" && (
           <div className="flex flex-wrap items-center gap-2 px-1">
             <span className="text-[12px] text-slate-400">Open a line</span>
             {lines.map((line, i) => (

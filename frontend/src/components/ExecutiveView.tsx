@@ -17,6 +17,7 @@ import {
   flagSlices,
   interfaceSlices,
   lifecycleSlices,
+  networkSlices,
   linesOf,
   machineTone,
   newDeliverable,
@@ -821,6 +822,7 @@ function ChartsCard({
   const data: Record<ChartId, ChartSlice[]> = {
     documented: documentedSlices(mapping, machines),
     lifecycle: lifecycleSlices(machines),
+    network: networkSlices(machines),
     flags: flagSlices(machines),
     interface: interfaceSlices(machines),
     photos: photoSlices(machines),

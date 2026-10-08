@@ -217,6 +217,7 @@ export function machineTone(machine: MappingMachine): MachineTone {
 export const CHART_DEFS = [
   { id: "documented", title: "What we recorded", hint: "Stations with a PLC, HMI, drive, servo, or photo" },
   { id: "lifecycle", title: "Controller health", hint: "Current vs mature vs discontinued" },
+  { id: "network", title: "How stations talk", hint: "Ethernet vs DeviceNet vs DH+ / RIO" },
   { id: "flags", title: "Where the pain is", hint: "Opportunity flags across the survey" },
   { id: "interface", title: "How the operator runs it", hint: "None / pushbuttons / graphical HMI" },
   { id: "photos", title: "Photo coverage", hint: "Stations with field photos vs specs only" },
@@ -381,6 +382,28 @@ export function flagSlices(machines: MappingMachine[]): ChartSlice[] {
       value,
       color: palette[i % palette.length],
     }));
+}
+
+export function networkSlices(machines: MappingMachine[]): ChartSlice[] {
+  let ethernet = 0, dnet = 0, dh = 0, island = 0, other = 0, unset = 0;
+  for (const m of machines) {
+    const v = assessMachine(m).observations.network;
+    if (v === "ethernet") ethernet += 1;
+    else if (v === "devicenet") dnet += 1;
+    else if (v === "dh_rio") dh += 1;
+    else if (v === "island") island += 1;
+    else if (v === "other") other += 1;
+    else unset += 1;
+  }
+  if (ethernet + dnet + dh + island + other === 0) return [];
+  return [
+    { label: "Ethernet", value: ethernet, color: "#16a34a" },
+    { label: "DeviceNet", value: dnet, color: "#ca8a04" },
+    { label: "DH+ / RIO", value: dh, color: "#e07a5f" },
+    { label: "Island", value: island, color: "#64748b" },
+    { label: "Other", value: other, color: "#7c3aed" },
+    { label: "Not recorded", value: unset, color: "#cbd5e1" },
+  ].filter((s) => s.value > 0);
 }
 
 export function interfaceSlices(machines: MappingMachine[]): ChartSlice[] {

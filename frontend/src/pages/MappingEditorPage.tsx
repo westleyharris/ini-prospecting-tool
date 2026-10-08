@@ -6,7 +6,6 @@ import {
   HiChevronDown, HiCamera,
   HiCpuChip, HiComputerDesktop, HiBolt, HiPhoto,
   HiBuildingOffice2, HiDocumentText, HiXMark, HiCog8Tooth,
-  HiExclamationTriangle, HiShieldCheck,
   HiArrowUp,
 } from "react-icons/hi2";
 import {
@@ -17,10 +16,11 @@ import {
 } from "../api/mappings";
 import { LIFECYCLE_META, type LifecycleResult } from "../data/obsoleteEquipment";
 import { assessMachine, lifeFor } from "../data/machineAssessment";
-import { buildRiskRegister, RISK_META, type RiskFinding } from "../data/riskRegister";
-import { buildOpportunityRegister } from "../data/opportunityRegister";
+import { buildRiskRegister, type RiskLevel } from "../data/riskRegister";
+import { buildOpportunityRegister, type OpportunityFinding } from "../data/opportunityRegister";
 import { downloadPresentation } from "../services/presentation";
-import { FLOOR_OFFERS, SCADA_PAYOFFS } from "../data/deckOffers";
+import { FLAG_DEFS, FLAG_GROUPS } from "../data/observations";
+import { RiskRegisterView } from "../components/RiskRegisterView";
 import { usePrintReport } from "../hooks/usePrintReport";
 import { ReportChrome } from "../components/ReportChrome";
 import { BackToTop } from "../components/BackToTop";
@@ -722,15 +722,28 @@ function MachineCard({
 // ─── Obsolescence risk register ───────────────────────────────────────────────
 
 const REG_INK  = "#00182e";
-const REG_LIME = "#acec00";
 const REG_HAIR = "rgba(0,24,46,0.22)";
 const MONO     = "'IBM Plex Mono', 'Courier New', monospace";
 
-/** Printable register sheet — ranked findings + the scoring method, so the customer can audit it. */
+const PRINT_LEVELS: { id: RiskLevel; label: string; blurb: string; mark: string }[] = [
+  { id: "critical", label: "Critical", blurb: "Replace first", mark: "#b42318" },
+  { id: "high",     label: "High",     blurb: "Plan the swap", mark: "#b45309" },
+  { id: "moderate", label: "Moderate", blurb: "On the radar",  mark: "#57534e" },
+  { id: "watch",    label: "Watch",    blurb: "Still shipping", mark: "#64748b" },
+];
+
+function printStationTags(machines: { tag: string }[]): string {
+  const tags = machines.map((m) => m.tag);
+  if (tags.length <= 8) return tags.join(", ");
+  return `${tags.slice(0, 6).join(", ")} +${tags.length - 6} more`;
+}
+
+/** Printable register — grouped list, same structure as the on-screen tab. */
 function RiskPrintSheet({
-  register, mapping, dwgNo, reportDate,
+  register, opportunities, mapping, dwgNo, reportDate,
 }: {
   register: ReturnType<typeof buildRiskRegister>;
+  opportunities: ReturnType<typeof buildOpportunityRegister>;
   mapping: Mapping;
   dwgNo: string;
   reportDate: string;
@@ -740,381 +753,173 @@ function RiskPrintSheet({
   const th: React.CSSProperties = {
     textAlign: "left", padding: "5px 8px", fontFamily: MONO, fontSize: 7,
     fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em",
-    color: REG_INK, opacity: 0.5, borderBottom: `1px solid ${REG_HAIR}`,
+    color: REG_INK, opacity: 0.45, borderBottom: `1px solid ${REG_HAIR}`,
   };
   const td: React.CSSProperties = {
-    padding: "7px 8px", fontSize: 9, verticalAlign: "top",
+    padding: "6px 8px", fontSize: 9, verticalAlign: "top",
     borderBottom: `1px solid ${REG_HAIR}`, color: REG_INK,
   };
 
+  const groups = PRINT_LEVELS.map((level) => ({
+    ...level,
+    rows: findings.filter((f) => f.level === level.id),
+  })).filter((g) => g.rows.length > 0);
+
+  const oppGroups = FLAG_GROUPS.map((g) => ({
+    ...g,
+    rows: opportunities.findings.filter((f) => FLAG_DEFS.find((d) => d.key === f.key)?.group === g.id),
+  })).filter((g) => g.rows.length > 0);
+
   return (
-    <div style={{ marginBottom: 14, border: `1.5px solid ${REG_INK}` }} className="print-avoid-break">
-      {/* Sheet header */}
-      <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        padding: "5px 10px", background: REG_INK,
-      }}>
-        <span style={{
-          fontFamily: MONO, fontSize: 9, fontWeight: 700,
-          letterSpacing: "0.18em", color: REG_LIME, textTransform: "uppercase",
-        }}>Lifecycle Risk Register</span>
-        <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.4)" }}>
-          {dwgNo} · {reportDate}
-        </span>
-      </div>
-
-      {/* Summary band */}
-      <div style={{ display: "flex", borderBottom: `1.5px solid ${REG_INK}` }}>
-        {[
-          { n: findings.length, l: "Findings" },
-          { n: totalUnits, l: "Units affected" },
-          { n: `${affectedMachines}/${totalMachines}`, l: "Machines" },
-          { n: counts.critical, l: "Critical" },
-          { n: counts.high, l: "High" },
-          { n: counts.watch, l: "Watch" },
-        ].map((s) => (
-          <div key={s.l} style={{ flex: 1, padding: "8px 10px", borderRight: `1px solid ${REG_HAIR}`, textAlign: "center" }}>
-            <div style={{ fontFamily: MONO, fontSize: 17, fontWeight: 700, color: REG_INK }}>{s.n}</div>
-            <div style={{
-              fontFamily: MONO, fontSize: 7, fontWeight: 700, textTransform: "uppercase",
-              letterSpacing: "0.14em", color: REG_INK, opacity: 0.45, marginTop: 2,
-            }}>{s.l}</div>
-          </div>
-        ))}
-      </div>
-
-      {findings.length === 0 ? (
-        <div style={{ padding: "22px 12px", textAlign: "center" }}>
+    <>
+      <div style={{ marginBottom: 14, border: `1.5px solid ${REG_INK}` }}>
+        <div style={{ padding: "10px 12px", borderBottom: `1px solid ${REG_HAIR}` }}>
           <div style={{
-            fontFamily: MONO, fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-            letterSpacing: "0.1em", color: REG_INK,
-          }}>No obsolete equipment identified</div>
-          <div style={{ fontSize: 9, marginTop: 5, color: REG_INK, opacity: 0.55 }}>
+            fontFamily: MONO, fontSize: 7, fontWeight: 700, textTransform: "uppercase",
+            letterSpacing: "0.16em", color: REG_INK, opacity: 0.4,
+          }}>Risk register</div>
+          <div style={{
+            fontFamily: MONO, fontSize: 14, fontWeight: 700, color: REG_INK, marginTop: 2,
+          }}>What is aging out</div>
+          <div style={{ fontSize: 9, color: REG_INK, opacity: 0.55, marginTop: 3 }}>
+            {findings.length === 0
+              ? "No recorded control or drive matches a vendor end-of-life declaration."
+              : `${findings.length} finding${findings.length === 1 ? "" : "s"} · ${totalUnits} unit${totalUnits === 1 ? "" : "s"} on ${affectedMachines} of ${totalMachines} stations`}
+            {` · ${dwgNo} · ${reportDate}`}
+          </div>
+          {findings.length > 0 && (
+            <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
+              {PRINT_LEVELS.map((level) => (
+                <div key={level.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: 99, background: level.mark }} />
+                  <span style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, color: REG_INK }}>
+                    {level.label}
+                  </span>
+                  <span style={{ fontFamily: MONO, fontSize: 8, color: REG_INK, opacity: 0.45 }}>
+                    {counts[level.id]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {findings.length === 0 ? (
+          <div style={{ padding: "16px 12px", fontSize: 10, color: REG_INK, opacity: 0.55 }}>
             No control or drive asset recorded in this mapping matches a vendor end-of-life declaration.
           </div>
-        </div>
-      ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "rgba(0,24,46,0.04)" }}>
-              <th style={{ ...th, width: 26 }}>#</th>
-              <th style={{ ...th, width: 62 }}>Risk</th>
-              <th style={{ ...th, width: 42 }}>Type</th>
-              <th style={th}>Installed equipment</th>
-              <th style={{ ...th, width: 96 }}>Location</th>
-              <th style={{ ...th, width: 40 }}>Qty</th>
-              <th style={{ ...th, width: 40 }}>Last ship</th>
-              <th style={{ ...th, width: 120 }}>Recommended replacement</th>
-            </tr>
-          </thead>
-          <tbody>
-            {findings.map((f, i) => {
-              const meta = RISK_META[f.level];
-              return (
-                <tr key={f.key} className="print-avoid-break">
-                  <td style={{ ...td, fontFamily: MONO, fontWeight: 700, opacity: 0.45 }}>
-                    {String(i + 1).padStart(2, "0")}
-                  </td>
-                  <td style={td}>
-                    <span style={{
-                      display: "inline-block", padding: "2px 5px",
-                      background: meta.bg, border: `1px solid ${meta.border}`, color: meta.ink,
-                      fontFamily: MONO, fontSize: 7, fontWeight: 700,
-                      textTransform: "uppercase", letterSpacing: "0.1em",
-                    }}>{meta.label}</span>
-                  </td>
-                  <td style={{ ...td, fontFamily: MONO, fontSize: 8, fontWeight: 700, opacity: 0.7 }}>
-                    {f.categoryLabel}
-                  </td>
-                  <td style={td}>
-                    <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>
-                      {f.make} {f.model}
-                    </div>
-                    <div style={{ fontSize: 8, opacity: 0.6, marginTop: 2 }}>{f.note}</div>
-                  </td>
-                  <td style={{ ...td, fontFamily: MONO, fontSize: 8 }}>
-                    {f.machines.map((m) => m.tag).join(", ")}
-                  </td>
-                  <td style={{ ...td, fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>{f.unitCount}</td>
-                  <td style={{ ...td, fontFamily: MONO, fontSize: 9 }}>{f.eolYear ?? "—"}</td>
-                  <td style={{ ...td, fontFamily: MONO, fontSize: 9, fontWeight: 600, color: "#166534" }}>
-                    {f.successor ?? "Consult vendor"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-
-      {/* Method + disclaimer */}
-      <div style={{ borderTop: `1.5px solid ${REG_INK}`, padding: "8px 10px", background: "rgba(0,24,46,0.03)" }}>
-        <div style={{
-          fontFamily: MONO, fontSize: 7, fontWeight: 700, textTransform: "uppercase",
-          letterSpacing: "0.16em", color: REG_INK, opacity: 0.5, marginBottom: 4,
-        }}>Scoring method</div>
-        <div style={{ fontSize: 8, lineHeight: 1.5, color: REG_INK, opacity: 0.75 }}>
-          Each finding scores 2–7 across three factors: <strong>age</strong> (years since the vendor
-          last-ship / discontinued date; mature platforms score 1), <strong>exposure</strong> (units of that asset installed at this
-          facility), and <strong>migration path</strong> (whether the vendor names a direct successor).
-          Older last-ship dates rank above newer ones when scores tie.
-          Critical ≥ 6 · High 4–5 · Moderate ≤ 3 · Watch = mature / still shipping. Lifecycle data reflects published vendor
-          declarations and should be confirmed against the manufacturer's current lifecycle
-          statement before procurement.
-        </div>
-        <div style={{
-          marginTop: 6, fontFamily: MONO, fontSize: 7, textTransform: "uppercase",
-          letterSpacing: "0.1em", color: REG_INK, opacity: 0.4,
-        }}>
-          Prepared by I&amp;I Automation · {mapping.plant_name ?? "Plant"} · {reportDate}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** On-screen register — same content, styled to match the drafting-sheet view. */
-export function RiskRegisterView({ mapping }: { mapping: Mapping }) {
-  const register = buildRiskRegister(mapping);
-  const { findings, counts, affectedMachines, totalMachines, totalUnits } = register;
-
-  return (
-    <div className="space-y-3">
-      {/* Header band */}
-      <div className="border-2 border-brand-navy bg-white">
-        <div className="flex items-center justify-between px-3 py-2 bg-brand-navy">
-          <div className="flex items-center gap-2">
-            <HiExclamationTriangle className="w-4 h-4 text-brand-lime" />
-            <span className="font-mono text-[11px] font-bold text-brand-lime uppercase tracking-[0.16em]">
-              Lifecycle Risk Register
-            </span>
-          </div>
-          <span className="font-mono text-[10px] text-white/40 uppercase tracking-wider">
-            {mapping.plant_name}
-          </span>
-        </div>
-        <div className="grid grid-cols-3 sm:grid-cols-6 divide-x divide-brand-navy/15">
-          {[
-            { n: findings.length, l: "Findings" },
-            { n: totalUnits, l: "Units" },
-            { n: `${affectedMachines}/${totalMachines}`, l: "Machines" },
-            { n: counts.critical, l: "Critical" },
-            { n: counts.high, l: "High" },
-            { n: counts.watch, l: "Watch" },
-          ].map((s) => (
-            <div key={s.l} className="px-2 py-3 text-center">
-              <div className="font-mono text-xl font-bold text-brand-navy tabular-nums">{s.n}</div>
-              <div className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/45 mt-0.5">
-                {s.l}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {findings.length === 0 ? (
-        <div className="border-2 border-brand-navy bg-white px-6 py-12 text-center">
-          <HiShieldCheck className="w-10 h-10 mx-auto text-emerald-500 mb-3" />
-          <p className="font-mono text-sm font-bold text-brand-navy uppercase tracking-wider">
-            No lifecycle findings identified
-          </p>
-          <p className="text-xs text-brand-navy/50 mt-1.5 max-w-md mx-auto">
-            No control or drive asset recorded in this mapping matches a vendor end-of-life
-            declaration. Add equipment details in Edit mode to widen the check.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {findings.map((f, i) => (
-            <RiskFindingCard key={f.key} finding={f} index={i} />
-          ))}
-        </div>
-      )}
-
-      {/* Method note */}
-      <div className="border-2 border-brand-navy/20 bg-white px-3 py-3">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-brand-navy/45 mb-1.5">
-          Scoring method
-        </p>
-        <p className="text-[11px] leading-relaxed text-brand-navy/65">
-          Each finding scores 2–7 across three factors: <strong>age</strong> (years since the vendor
-          last-ship / discontinued date; mature platforms score 1), <strong>exposure</strong> (units installed at this facility), and{" "}
-          <strong>migration path</strong> (whether a direct successor is published).
-          Older last-ship dates rank above newer ones when scores tie.
-          Critical ≥ 6 · High 4–5 · Moderate ≤ 3 · Watch = mature / still shipping. Confirm lifecycle
-          status with the manufacturer before procurement.
-        </p>
-      </div>
-
-      <OpportunityRegisterView mapping={mapping} />
-      <PlantSystemsPitch />
-    </div>
-  );
-}
-
-function PlantSystemsPitch() {
-  return (
-    <div className="space-y-3 pt-4">
-      <div className="border-2 border-brand-navy bg-white">
-        <div className="flex items-center justify-between px-3 py-2 bg-brand-navy">
-          <span className="font-mono text-[11px] font-bold text-brand-lime uppercase tracking-[0.16em]">
-            What SCADA puts on the screen
-          </span>
-          <span className="font-mono text-[10px] text-white/40 uppercase tracking-wider">
-            Gas · water · air · power · production · safety
-          </span>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 divide-x divide-y divide-brand-navy/10">
-          {SCADA_PAYOFFS.map((item) => (
-            <div key={item.title} className="px-3 py-3">
-              <p className="font-mono text-xs font-bold text-brand-navy">{item.title}</p>
-              <p className="text-[11px] leading-relaxed text-brand-navy/65 mt-1">{item.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid sm:grid-cols-2 gap-3">
-        {FLOOR_OFFERS.map((offer) => (
-          <div key={offer.key} className="border-2 border-brand-navy bg-white overflow-hidden">
-            {offer.photo && (
-              <img
-                src={`/deck-refs/${offer.photo}.jpg`}
-                alt={offer.title}
-                className="w-full h-36 object-cover"
-              />
-            )}
-            <div className="px-3 py-2.5">
-              <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">
-                {offer.eyebrow}
-              </p>
-              <p className="font-mono text-sm font-bold text-brand-navy mt-0.5">{offer.title}</p>
-              <p className="text-[11px] leading-relaxed text-brand-navy/65 mt-1.5">{offer.pitch}</p>
-              {offer.photo && (
-                <p className="font-mono text-[8px] text-brand-navy/35 mt-2 uppercase tracking-wider">
-                  Reference — typical installation, not this plant
-                </p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function OpportunityRegisterView({ mapping }: { mapping: Mapping }) {
-  const register = buildOpportunityRegister(mapping);
-  const { findings, affectedMachines, totalMachines, totalFlags } = register;
-
-  return (
-    <div className="space-y-3 pt-4">
-      <div className="border-2 border-brand-navy bg-white">
-        <div className="flex items-center justify-between px-3 py-2 bg-brand-navy">
-          <div className="flex items-center gap-2">
-            <HiShieldCheck className="w-4 h-4 text-brand-lime" />
-            <span className="font-mono text-[11px] font-bold text-brand-lime uppercase tracking-[0.16em]">
-              Opportunity Register
-            </span>
-          </div>
-          <span className="font-mono text-[10px] text-white/40 uppercase tracking-wider">
-            {affectedMachines}/{totalMachines} machines · {totalFlags} flags
-          </span>
-        </div>
-      </div>
-
-      {findings.length === 0 ? (
-        <div className="border-2 border-brand-navy/20 bg-white px-6 py-8 text-center">
-          <p className="font-mono text-xs font-bold text-brand-navy/50 uppercase tracking-wider">
-            No opportunity flags yet
-          </p>
-          <p className="text-xs text-brand-navy/45 mt-1.5 max-w-md mx-auto">
-            In Edit mode, record operator interface, diagnostics, network, and SCADA / utility flags on each machine.
-            Flags such as no HMI, no plant overview, unmetered gas/water, and control islands appear here.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {findings.map((f) => (
-            <div key={f.key} className="border-2 bg-white" style={{ borderColor: REG_INK }}>
-              <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: "#f4f6f2", borderBottom: `1px solid ${REG_HAIR}` }}>
-                <span className="font-mono text-[9px] font-black uppercase tracking-[0.12em] px-1.5 py-0.5 border border-brand-navy/30 text-brand-navy">
-                  {f.short}
+        ) : (
+          groups.map((group) => (
+            <div key={group.id}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "5px 12px", background: "rgba(0,24,46,0.04)",
+                borderTop: `1px solid ${REG_HAIR}`,
+                borderLeft: `3px solid ${group.mark}`,
+              }}>
+                <span style={{
+                  fontFamily: MONO, fontSize: 8, fontWeight: 700, textTransform: "uppercase",
+                  letterSpacing: "0.14em", color: REG_INK,
+                }}>{group.label}</span>
+                <span style={{ fontSize: 8, color: REG_INK, opacity: 0.4 }}>{group.blurb}</span>
+                <span style={{ marginLeft: "auto", fontFamily: MONO, fontSize: 8, color: REG_INK, opacity: 0.4 }}>
+                  {group.rows.length}
                 </span>
-                <span className="font-mono text-xs font-bold text-brand-navy uppercase tracking-wide">{f.label}</span>
-                <span className="ml-auto font-mono text-[10px] font-bold text-brand-navy">{f.unitCount} station{f.unitCount === 1 ? "" : "s"}</span>
               </div>
-              <div className="px-3 py-3">
-                <p className="text-xs text-brand-navy/70 leading-relaxed">{f.pitch}</p>
-                <p className="font-mono text-[10px] font-bold text-brand-navy mt-2">
-                  {f.machines.map((m) => `${m.tag} ${m.name}`).join(" · ")}
-                </p>
-              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={th}>Equipment</th>
+                    <th style={{ ...th, width: 52 }}>Type</th>
+                    <th style={{ ...th, width: 36, whiteSpace: "nowrap" }}>Qty</th>
+                    <th style={{ ...th, width: 58, whiteSpace: "nowrap" }}>Last ship</th>
+                    <th style={{ ...th, width: 130 }}>Replace with</th>
+                    <th style={{ ...th, width: 150 }}>Stations</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.rows.map((f) => (
+                    <tr key={f.key} className="print-avoid-break">
+                      <td style={td}>
+                        <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>
+                          {f.make} {f.model}
+                        </div>
+                        {f.note && (
+                          <div style={{ fontSize: 8, opacity: 0.55, marginTop: 2, lineHeight: 1.35 }}>{f.note}</div>
+                        )}
+                      </td>
+                      <td style={{ ...td, fontSize: 8, opacity: 0.65 }}>{f.categoryLabel}</td>
+                      <td style={{ ...td, fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>{f.unitCount}</td>
+                      <td style={{ ...td, fontFamily: MONO, fontSize: 9 }}>
+                        {f.status === "mature" ? "Mature" : (f.eolYear ?? "—")}
+                      </td>
+                      <td style={{ ...td, fontSize: 9 }}>{f.successor ?? "Consult vendor"}</td>
+                      <td style={{ ...td, fontFamily: MONO, fontSize: 8, opacity: 0.7 }}>
+                        {printStationTags(f.machines)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))
+        )}
+
+        <div style={{ borderTop: `1px solid ${REG_HAIR}`, padding: "8px 12px" }}>
+          <div style={{ fontSize: 8, lineHeight: 1.45, color: REG_INK, opacity: 0.5 }}>
+            Scored 2–7 from age (years since last-ship), exposure (units in this plant), and whether a
+            published successor exists. Critical ≥ 6 · High 4–5 · Moderate ≤ 3 · Watch = still shipping.
+            Confirm with the manufacturer before procurement.
+            {` · I&I Automation · ${mapping.plant_name ?? "Plant"} · ${reportDate}`}
+          </div>
+        </div>
+      </div>
+
+      {oppGroups.length > 0 && (
+        <div style={{ marginBottom: 14, border: `1.5px solid ${REG_INK}` }}>
+          <div style={{ padding: "10px 12px", borderBottom: `1px solid ${REG_HAIR}` }}>
+            <div style={{
+              fontFamily: MONO, fontSize: 7, fontWeight: 700, textTransform: "uppercase",
+              letterSpacing: "0.16em", color: REG_INK, opacity: 0.4,
+            }}>Floor flags</div>
+            <div style={{
+              fontFamily: MONO, fontSize: 13, fontWeight: 700, color: REG_INK, marginTop: 2,
+            }}>What the survey also caught</div>
+            <div style={{ fontSize: 9, color: REG_INK, opacity: 0.55, marginTop: 3 }}>
+              {opportunities.findings.length} theme{opportunities.findings.length === 1 ? "" : "s"} from floor observations — not vendor lifecycle.
+            </div>
+          </div>
+          {oppGroups.map((group) => (
+            <div key={group.id}>
+              <div style={{
+                padding: "5px 12px", background: "rgba(0,24,46,0.04)",
+                borderTop: `1px solid ${REG_HAIR}`,
+                fontFamily: MONO, fontSize: 8, fontWeight: 700, textTransform: "uppercase",
+                letterSpacing: "0.14em", color: REG_INK,
+              }}>{group.label}</div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <tbody>
+                  {group.rows.map((f: OpportunityFinding) => (
+                    <tr key={f.key} className="print-avoid-break">
+                      <td style={{ ...td, width: "42%" }}>
+                        <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>{f.label}</div>
+                        <div style={{ fontSize: 8, opacity: 0.55, marginTop: 2, lineHeight: 1.35 }}>{f.pitch}</div>
+                      </td>
+                      <td style={{ ...td, fontFamily: MONO, fontSize: 8, opacity: 0.7 }}>
+                        {printStationTags(f.machines)}
+                      </td>
+                      <td style={{ ...td, fontFamily: MONO, fontSize: 10, fontWeight: 700, width: 36 }}>
+                        {f.unitCount}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function RiskFindingCard({ finding, index }: { finding: RiskFinding; index: number }) {
-  const meta = RISK_META[finding.level];
-  return (
-    <div className="border-2 bg-white" style={{ borderColor: REG_INK }}>
-      <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: meta.bg, borderBottom: `1px solid ${REG_HAIR}` }}>
-        <span className="font-mono text-[10px] font-bold tabular-nums" style={{ color: meta.ink, opacity: 0.6 }}>
-          {String(index + 1).padStart(2, "0")}
-        </span>
-        <span className="px-1.5 py-0.5 font-mono text-[9px] font-black uppercase tracking-[0.12em] border"
-          style={{ color: meta.ink, borderColor: meta.border, background: "rgba(255,255,255,0.6)" }}>
-          {meta.label} risk
-        </span>
-        <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: meta.ink, opacity: 0.75 }}>
-          {finding.categoryLabel}
-        </span>
-        <span className="ml-auto font-mono text-[10px] font-bold" style={{ color: meta.ink }}>
-          Score {finding.score}/7
-        </span>
-      </div>
-
-      <div className="px-3 py-3">
-        <p className="font-mono text-base font-bold text-brand-navy">
-          {finding.make} {finding.model}
-        </p>
-        <p className="text-xs text-brand-navy/55 mt-0.5">{finding.note}</p>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 mt-3 pt-3 border-t border-brand-navy/10">
-          <div>
-            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">Units</p>
-            <p className="font-mono text-sm font-bold text-brand-navy">{finding.unitCount}</p>
-          </div>
-          <div>
-            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">
-              {finding.status === "mature" ? "Status" : "Last ship"}
-            </p>
-            <p className="font-mono text-sm font-bold text-brand-navy">
-              {finding.status === "mature" ? "Mature" : (finding.eolYear ?? "—")}
-            </p>
-          </div>
-          <div className="col-span-2">
-            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-brand-navy/40">Location</p>
-            <p className="font-mono text-xs font-bold text-brand-navy truncate">
-              {finding.machines.map((m) => `${m.tag} ${m.name}`).join(" · ")}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-3 px-2.5 py-2 border" style={{ borderColor: "#16653433", background: "#f0fdf4" }}>
-          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.14em]" style={{ color: "#166534", opacity: 0.7 }}>
-            Recommended replacement
-          </p>
-          <p className="font-mono text-sm font-bold mt-0.5" style={{ color: "#166534" }}>
-            {finding.successor ?? "Consult vendor for migration path"}
-          </p>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -1327,7 +1132,7 @@ export function PrintView({ mapping, mode = "sheet", active = false }: { mapping
               <span style={{
                 fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700,
                 letterSpacing: "0.18em", color: LIME, textTransform: "uppercase",
-              }}>I&amp;I Automation · Equipment Mapping Drawing</span>
+              }}>{mode === "risk" ? "I&I Automation · Lifecycle Risk Register" : "I&I Automation · Equipment Mapping Drawing"}</span>
             </div>
             <span style={{
               fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600,
@@ -1356,7 +1161,14 @@ export function PrintView({ mapping, mode = "sheet", active = false }: { mapping
               )}
             </div>
             <div style={{ display: "flex", flexShrink: 0 }}>
-              {(lineCount > 1
+              {(mode === "risk"
+                ? [
+                    { n: register.findings.length, l: "FIND" },
+                    { n: register.totalUnits, l: "UNIT" },
+                    { n: register.affectedMachines, l: "STA" },
+                    { n: register.counts.critical + register.counts.high, l: "HIGH" },
+                  ]
+                : lineCount > 1
                 ? [
                     { n: lineCount, l: "LINE" },
                     { n: machines.length, l: "MACH" },
@@ -1408,7 +1220,14 @@ export function PrintView({ mapping, mode = "sheet", active = false }: { mapping
               </div>
             ))}
             <div style={{ flex: 1, padding: "6px 12px", display: "flex", alignItems: "center" }}>
-              {eolCount > 0 ? (
+              {mode === "risk" ? (
+                <span style={{
+                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600,
+                  letterSpacing: "0.02em", color: INK, opacity: 0.65,
+                }}>
+                  {register.findings.length} finding{register.findings.length === 1 ? "" : "s"} · {register.totalUnits} units on {register.affectedMachines} of {register.totalMachines} stations
+                </span>
+              ) : eolCount > 0 ? (
                 <span style={{
                   fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700,
                   textTransform: "uppercase", letterSpacing: "0.06em",
@@ -1434,83 +1253,17 @@ export function PrintView({ mapping, mode = "sheet", active = false }: { mapping
               )}
             </div>
           </div>
-          <LineIndexStrip mapping={mapping} print />
+          {mode !== "risk" && <LineIndexStrip mapping={mapping} print />}
         </div>
 
         {mode === "risk" ? (
-          <>
-            <RiskPrintSheet register={register} mapping={mapping} dwgNo={dwgNo} reportDate={reportDate} />
-            <div style={{ marginBottom: 14, border: `1.5px solid ${INK}` }} className="print-avoid-break">
-              <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "5px 10px", background: INK,
-              }}>
-                <span style={{
-                  fontFamily: MONO, fontSize: 9, fontWeight: 700,
-                  letterSpacing: "0.18em", color: LIME, textTransform: "uppercase",
-                }}>Opportunity Register</span>
-                <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.4)" }}>
-                  {opportunities.affectedMachines}/{opportunities.totalMachines} machines · {opportunities.totalFlags} flags
-                </span>
-              </div>
-              {opportunities.findings.length === 0 ? (
-                <div style={{ padding: "16px 12px", fontSize: 10, color: INK, opacity: 0.55 }}>
-                  No opportunity flags recorded. Fill floor observations in Edit mode.
-                </div>
-              ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <tbody>
-                    {opportunities.findings.map((f) => (
-                      <tr key={f.key} className="print-avoid-break">
-                        <td style={{ padding: "8px 10px", borderBottom: `1px solid ${HAIR}`, width: 72, verticalAlign: "top" }}>
-                          <span style={{
-                            fontFamily: MONO, fontSize: 8, fontWeight: 700, padding: "2px 5px",
-                            border: `1px solid ${INK}`, color: INK,
-                          }}>{f.short}</span>
-                        </td>
-                        <td style={{ padding: "8px 10px", borderBottom: `1px solid ${HAIR}`, verticalAlign: "top" }}>
-                          <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: INK }}>{f.label}</div>
-                          <div style={{ fontSize: 9, color: INK, opacity: 0.7, marginTop: 3, lineHeight: 1.4 }}>{f.pitch}</div>
-                        </td>
-                        <td style={{ padding: "8px 10px", borderBottom: `1px solid ${HAIR}`, fontFamily: MONO, fontSize: 9, color: INK, width: 160, verticalAlign: "top" }}>
-                          {f.machines.map((m) => m.tag).join(", ")}
-                        </td>
-                        <td style={{ padding: "8px 10px", borderBottom: `1px solid ${HAIR}`, fontFamily: MONO, fontSize: 11, fontWeight: 700, color: INK, width: 36 }}>
-                          {f.unitCount}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            <div style={{ marginBottom: 14, border: `1.5px solid ${INK}` }} className="print-avoid-break">
-              <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "5px 10px", background: INK,
-              }}>
-                <span style={{
-                  fontFamily: MONO, fontSize: 9, fontWeight: 700,
-                  letterSpacing: "0.18em", color: LIME, textTransform: "uppercase",
-                }}>What SCADA puts on the screen</span>
-                <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.4)" }}>
-                  Gas · water · air · power · production · safety
-                </span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
-                {SCADA_PAYOFFS.map((item, i) => (
-                  <div key={item.title} style={{
-                    padding: "10px 10px",
-                    borderRight: i % 3 === 2 ? "none" : `1px solid ${HAIR}`,
-                    borderBottom: i < 6 ? `1px solid ${HAIR}` : "none",
-                  }}>
-                    <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: INK, marginBottom: 4 }}>{item.title}</div>
-                    <div style={{ fontSize: 8, lineHeight: 1.4, color: INK, opacity: 0.7 }}>{item.body}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
+          <RiskPrintSheet
+            register={register}
+            opportunities={opportunities}
+            mapping={mapping}
+            dwgNo={dwgNo}
+            reportDate={reportDate}
+          />
         ) : (
           <>
         {/* ══════════ BOM / EQUIPMENT INDEX ══════════ */}
