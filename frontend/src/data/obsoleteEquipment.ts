@@ -271,7 +271,11 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
   {
     category: "plc",
     makeParts: ["allen", "rockwell"],
-    modelParts: ["l55", "l61", "l62", "l63", "l64", "l65", "logix 5550", "logix 5555", "logix 5561", "logix 5563"],
+    modelParts: [
+      "l55", "l61", "l62", "l63", "l64", "l65",
+      "logix 5550", "logix 5555", "logix 5561", "logix 5563",
+      "logix5550", "logix5555", "logix5561", "logix5563",
+    ],
     catalogPrefixes: ["1756l55", "1756l61", "1756l62", "1756l63", "1756l64", "1756l65"],
     status: "discontinued",
     note: "ControlLogix L55 / L6x processors are discontinued. Successor is the 5580 (L8x) family.",
