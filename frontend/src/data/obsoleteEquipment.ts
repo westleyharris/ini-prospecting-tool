@@ -94,6 +94,8 @@ const MAKE_ALIASES: Record<string, string> = {
   "danfoss drives": "danfoss",
   "bosch rexroth": "bosch",
   rexroth: "bosch",
+  indramat: "bosch",
+  "bosch rexroth indramat": "bosch",
   "sew eurodrive": "sew",
   "fanuc robotics": "fanuc",
   adc: "automationdirect",
@@ -885,10 +887,22 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
   },
   {
     category: "servo",
+    makeParts: ["bosch", "rexroth", "indramat"],
+    modelParts: [
+      "ecodrive03", "ecodrive 03", "eco drive 03", "eco drive03",
+      "dkc03", "dkc 03",
+    ],
+    catalogPrefixes: ["ecodrive03", "dkc03"],
+    status: "discontinued",
+    note: "Bosch Rexroth / Indramat EcoDrive 03 (DKC) is in sales phase-out. New units are last-time-buy / surplus; factory repair still exists. Current platform is IndraDrive Cs / ctrlX DRIVE.",
+    successor: "IndraDrive Cs / ctrlX DRIVE",
+  },
+  {
+    category: "servo",
     makeParts: ["bosch", "rexroth"],
     modelParts: ["indradrive c", "eco drive"],
     status: "mature",
-    note: "Bosch Rexroth IndraDrive C / EcoDrive is mature.",
+    note: "Bosch Rexroth IndraDrive C / later EcoDrive is mature. Current compact platform is IndraDrive Cs.",
     successor: "IndraDrive Cs / Mi",
   },
 ];
@@ -949,6 +963,9 @@ function entryFamily(entry: ObsoleteEntry): string {
   if (tokens[0] === "slc") return ["SLC", ...tokens.slice(1).map((t) => t.toUpperCase())].join(" ");
   if (tokens[0] === "p3" && tokens[1]) return `P3-${tokens[1].toUpperCase()}`;
   if (tokens[0] === "gpd" && tokens[1]) return `GPD ${tokens[1].toUpperCase()}`;
+  if (tokens[0] === "eco" && tokens[1] === "drive") {
+    return ["EcoDrive", ...tokens.slice(2).map((t) => t.toUpperCase())].join(" ");
+  }
   if (/^gs[123]$/.test(tokens[0] ?? "")) return tokens[0].toUpperCase();
   if (tokens.length === 0) return (entry.catalogPrefixes?.[0] ?? "").toUpperCase();
   return tokens.map((t) => (/\d/.test(t) ? t.toUpperCase() : titleCase(t))).join(" ");
