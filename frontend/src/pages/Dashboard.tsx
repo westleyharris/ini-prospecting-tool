@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { HiPlus, HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
+import PageHeader from "../components/PageHeader";
 import MetricsCards from "../components/MetricsCards";
 import PlantTable from "../components/PlantTable";
 import AddPlantModal from "../components/AddPlantModal";
@@ -111,13 +113,16 @@ function filterPlants(
       const d = new Date(`${raw}T00:00:00`);
       if (isNaN(d.getTime())) return false;
       const diffDays = Math.round((d.getTime() - today.getTime()) / msPerDay);
-      // Due & overdue within the next 7 days (including past)
       return diffDays <= 7;
     });
   }
 
   return result;
 }
+
+const fieldClass =
+  "block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-brand-navy-600 focus:ring-1 focus:ring-brand-navy-600 min-w-0";
+const labelClass = "block text-xs font-medium text-gray-500 mb-1";
 
 export default function Dashboard() {
   const [plants, setPlants] = useState<Plant[]>([]);
@@ -213,59 +218,59 @@ export default function Dashboard() {
     followUpFilter !== "all" ||
     icpFilter !== "all";
 
-  const upcomingFollowUps = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const msPerDay = 24 * 60 * 60 * 1000;
-    return plants
-      .filter((p) => p.follow_up_date)
-      .map((p) => {
-        const d = new Date(`${p.follow_up_date}T00:00:00`);
-        if (isNaN(d.getTime())) return null;
-        const diffDays = Math.round((d.getTime() - today.getTime()) / msPerDay);
-        return { plant: p, date: d, diffDays };
-      })
-      .filter(
-        (item): item is { plant: Plant; date: Date; diffDays: number } =>
-          !!item && item.diffDays <= 7
-      )
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .slice(0, 10);
-  }, [plants]);
+  const clearFilters = () => {
+    setSearch("");
+    setLocationFilter("");
+    setContactedFilter("all");
+    setCustomerFilter("all");
+    setRelevanceFilter("all");
+    setFollowUpFilter("all");
+    setIcpFilter("all");
+  };
 
   return (
-    <div className="space-y-5 sm:space-y-8">
-      {/* Page header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className="w-1.5 h-6 rounded-sm bg-brand-lime shrink-0" />
-          <h1 className="text-xl sm:text-2xl font-bold text-brand-navy tracking-tight">Dashboard</h1>
-        </div>
-        <div className="flex flex-col gap-2 w-full sm:flex-row sm:w-auto">
+    <div className="space-y-5">
+      <PageHeader
+        title="Dashboard"
+        subtitle="Plants, pipeline, and field activity."
+        actions={
           <button
+            type="button"
             onClick={() => setShowAddPlant(true)}
-            className="inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 shadow-sm w-full sm:w-auto"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-brand-navy text-white text-sm font-medium hover:bg-brand-navy-700 shadow-sm"
           >
+            <HiPlus className="w-4 h-4" />
             Add plant
           </button>
-          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm w-full sm:w-auto min-w-0">
-            <input
-              id="location"
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Zip or city (optional)"
-              className="flex-1 min-w-0 text-sm border-0 p-0 focus:ring-0 focus:outline-none"
-            />
-            <span className="text-gray-300 shrink-0 hidden sm:inline">|</span>
-            <button
-              onClick={handleRunPipeline}
-              disabled={pipelineRunning}
-              className="text-sm font-medium text-brand-navy-600 hover:text-brand-navy disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-            >
-              {pipelineRunning ? "Running..." : "Run pipeline"}
-            </button>
-          </div>
+        }
+      />
+
+      <MetricsCards metrics={metrics} loading={loading} />
+
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3.5 sm:px-5 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="min-w-0 sm:mr-auto">
+          <p className="text-sm font-semibold text-gray-900">Find plants</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Run the prospecting pipeline for a zip code or city.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+          <input
+            id="location"
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Zip or city (optional)"
+            className={`${fieldClass} sm:w-56`}
+          />
+          <button
+            type="button"
+            onClick={handleRunPipeline}
+            disabled={pipelineRunning}
+            className="shrink-0 px-4 py-2 rounded-lg bg-brand-navy text-white text-sm font-medium hover:bg-brand-navy-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {pipelineRunning ? "Running…" : "Run pipeline"}
+          </button>
         </div>
       </div>
 
@@ -275,310 +280,183 @@ export default function Dashboard() {
         </div>
       )}
 
-      <section aria-labelledby="overview-heading">
-        <h2 id="overview-heading" className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2 sm:mb-3">
-          Overview
-        </h2>
-        <MetricsCards metrics={metrics} loading={loading} />
-      </section>
-
-      {/* Plants section */}
-      <section className="min-w-0">
-        <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-2 sm:mb-3">Plants</h2>
-        {upcomingFollowUps.length > 0 && (
-          <div className="mb-3">
-            <div className="bg-white rounded-xl border border-amber-200 shadow-sm p-3 sm:p-4">
-              <h3 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2">
-                Upcoming follow-ups (next 7 days & overdue)
-              </h3>
-              <ul className="space-y-1.5 max-h-48 overflow-y-auto">
-                {upcomingFollowUps.map(({ plant, diffDays, date }) => {
-                  let label: string;
-                  if (diffDays < 0) {
-                    const daysAgo = Math.abs(diffDays);
-                    label = daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`;
-                  } else if (diffDays === 0) {
-                    label = "Today";
-                  } else if (diffDays === 1) {
-                    label = "Tomorrow";
-                  } else {
-                    label = `In ${diffDays} days`;
-                  }
-                  return (
-                    <li
-                      key={plant.id}
-                      className="flex items-baseline justify-between gap-2 text-xs sm:text-sm"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate">
-                          {plant.name ?? "Unknown plant"}
-                        </p>
-                        <p className="text-[11px] text-gray-500 truncate">
-                          {plant.formatted_address ?? plant.short_formatted_address ?? ""}
-                        </p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-[11px] font-medium text-amber-800">{label}</p>
-                        <p className="text-[11px] text-gray-400">
-                          {date.toISOString().slice(0, 10)}
-                        </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </div>
-        )}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-w-0">
-          {/* Search and filters bar */}
-          <div className="p-3 sm:p-5 border-b border-gray-100 bg-gray-50/50">
-            <div className="flex flex-col gap-4">
-              {/* Search row */}
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                <div className="flex-1 min-w-0">
-                  <label htmlFor="search" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    Search plants
-                  </label>
-                  <input
-                    id="search"
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Name, address, phone, type..."
-                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0"
-                  />
-                </div>
-                <div className="w-full sm:w-52 min-w-0">
-                  <label htmlFor="location-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    Location
-                  </label>
-                  <input
-                    id="location-filter"
-                    type="text"
-                    value={locationFilter}
-                    onChange={(e) => setLocationFilter(e.target.value)}
-                    placeholder="City, state, or zip"
-                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0"
-                  />
-                </div>
-              </div>
-              {/* Filter row */}
-              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-3">
-                <div className="min-w-0">
-                  <label htmlFor="contacted-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    Contacted
-                  </label>
-                  <select
-                    id="contacted-filter"
-                    value={contactedFilter}
-                    onChange={(e) => setContactedFilter(e.target.value as "all" | "yes" | "no")}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0 sm:min-w-[100px]"
-                  >
-                    <option value="all">All</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
-                </div>
-                <div className="min-w-0">
-                  <label htmlFor="customer-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    Customer
-                  </label>
-                  <select
-                    id="customer-filter"
-                    value={customerFilter}
-                    onChange={(e) => setCustomerFilter(e.target.value as "all" | "yes" | "no")}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0 sm:min-w-[100px]"
-                  >
-                    <option value="all">All</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
-                </div>
-                <div className="min-w-0 col-span-2 sm:col-span-1">
-                  <label htmlFor="relevance-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    Relevance
-                  </label>
-                  <select
-                    id="relevance-filter"
-                    value={relevanceFilter}
-                    onChange={(e) => setRelevanceFilter(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0 sm:min-w-[100px]"
-                  >
-                    <option value="all">All</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                  </select>
-                </div>
-                <div className="min-w-0 col-span-2 sm:col-span-1">
-                  <label htmlFor="followup-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    Follow-ups
-                  </label>
-                  <select
-                    id="followup-filter"
-                    value={followUpFilter}
-                    onChange={(e) => setFollowUpFilter(e.target.value as "all" | "due" | "none")}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0 sm:min-w-[120px]"
-                  >
-                    <option value="all">All</option>
-                    <option value="due">Due & overdue</option>
-                    <option value="none">No follow-up</option>
-                  </select>
-                </div>
-                <div className="min-w-0 col-span-2 sm:col-span-1">
-                  <label htmlFor="icp-filter" className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    ICP
-                  </label>
-                  <select
-                    id="icp-filter"
-                    value={icpFilter}
-                    onChange={(e) => setIcpFilter(e.target.value as "all" | "icp" | "not_icp")}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-w-0 sm:min-w-[120px]"
-                  >
-                    <option value="all">All</option>
-                    <option value="icp">ICP only</option>
-                    <option value="not_icp">Non-ICP only</option>
-                  </select>
-                </div>
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearch("");
-                      setLocationFilter("");
-                      setContactedFilter("all");
-                      setCustomerFilter("all");
-                      setRelevanceFilter("all");
-                      setFollowUpFilter("all");
-                      setIcpFilter("all");
-                    }}
-                    className="px-3 py-2 text-sm font-medium text-brand-navy-600 hover:text-brand-navy hover:bg-gray-100 rounded-lg col-span-2 sm:col-span-1"
-                  >
-                    Clear filters
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Pagination bar (header) */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 px-3 sm:px-4 py-3 border-b border-gray-100 bg-white">
-            <p className="text-xs sm:text-sm text-gray-500 order-2 sm:order-1">
-              {totalFiltered === 0
-                ? "No plants match filters"
-                : `Showing ${startItem}–${endItem} of ${totalFiltered}`}
-              {plants.length !== totalFiltered && totalFiltered > 0 && (
-                <span className="text-gray-400 hidden sm:inline"> (filtered from {plants.length})</span>
-              )}
+      <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-w-0">
+        <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
+          <div className="flex items-baseline justify-between gap-3 mb-4">
+            <h2 className="text-base font-semibold text-gray-900">Plants</h2>
+            <p className="text-sm text-gray-500">
+              {loading
+                ? "Loading…"
+                : totalFiltered === 0
+                  ? "No plants match"
+                  : `${startItem}–${endItem} of ${totalFiltered.toLocaleString()}`}
+              {!loading && plants.length !== totalFiltered && totalFiltered > 0
+                ? ` · ${plants.length.toLocaleString()} total`
+                : ""}
             </p>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 order-1 sm:order-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm text-gray-500">Rows</span>
-                <select
-                  aria-label="Rows per page"
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="rounded-lg border border-gray-300 bg-white px-2 py-2 sm:py-1.5 text-sm focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-h-[36px] sm:min-h-0"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage <= 1}
-                    className="px-3 py-2 sm:py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px] sm:min-h-0"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-2 sm:px-3 py-2 sm:py-1.5 text-xs sm:text-sm text-gray-600 min-w-[60px] sm:min-w-[80px] text-center">
-                    {safePage} / {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={safePage >= totalPages}
-                    className="px-3 py-2 sm:py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px] sm:min-h-0"
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
 
-          <PlantTable
-            plants={paginatedPlants}
-            loading={loading}
-            onUpdate={load}
-            embedded
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            allFilteredIds={allFilteredIds}
-            totalFilteredCount={totalFiltered}
-          />
+          <div className="relative mb-3">
+            <HiMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              id="search"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name, address, phone, type…"
+              className={`${fieldClass} pl-9`}
+            />
+          </div>
 
-          {/* Pagination bar (footer) */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 px-3 sm:px-4 py-3 border-t border-gray-100 bg-white">
-            <p className="text-xs sm:text-sm text-gray-500 order-2 sm:order-1">
-              {totalFiltered === 0
-                ? "No plants match filters"
-                : `Showing ${startItem}–${endItem} of ${totalFiltered}`}
-              {plants.length !== totalFiltered && totalFiltered > 0 && (
-                <span className="text-gray-400 hidden sm:inline"> (filtered from {plants.length})</span>
-              )}
-            </p>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 order-1 sm:order-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm text-gray-500">Rows</span>
-                <select
-                  aria-label="Rows per page (footer)"
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="rounded-lg border border-gray-300 bg-white px-2 py-2 sm:py-1.5 text-sm focus:border-brand-lime focus:ring-1 focus:ring-brand-lime min-h-[36px] sm:min-h-0"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage <= 1}
-                    className="px-3 py-2 sm:py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px] sm:min-h-0"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-2 sm:px-3 py-2 sm:py-1.5 text-xs sm:text-sm text-gray-600 min-w-[60px] sm:min-w-[80px] text-center">
-                    {safePage} / {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={safePage >= totalPages}
-                    className="px-3 py-2 sm:py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px] sm:min-h-0"
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-3">
+            <div className="col-span-2 sm:col-span-1 sm:w-44 min-w-0">
+              <label htmlFor="location-filter" className={labelClass}>Location</label>
+              <input
+                id="location-filter"
+                type="text"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                placeholder="City, state, or zip"
+                className={fieldClass}
+              />
             </div>
+            <div className="min-w-0">
+              <label htmlFor="contacted-filter" className={labelClass}>Contacted</label>
+              <select
+                id="contacted-filter"
+                value={contactedFilter}
+                onChange={(e) => setContactedFilter(e.target.value as "all" | "yes" | "no")}
+                className={`${fieldClass} sm:min-w-[7.5rem]`}
+              >
+                <option value="all">All</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="customer-filter" className={labelClass}>Customer</label>
+              <select
+                id="customer-filter"
+                value={customerFilter}
+                onChange={(e) => setCustomerFilter(e.target.value as "all" | "yes" | "no")}
+                className={`${fieldClass} sm:min-w-[7.5rem]`}
+              >
+                <option value="all">All</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="relevance-filter" className={labelClass}>Relevance</label>
+              <select
+                id="relevance-filter"
+                value={relevanceFilter}
+                onChange={(e) => setRelevanceFilter(e.target.value)}
+                className={`${fieldClass} sm:min-w-[7.5rem]`}
+              >
+                <option value="all">All</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="followup-filter" className={labelClass}>Follow-ups</label>
+              <select
+                id="followup-filter"
+                value={followUpFilter}
+                onChange={(e) => setFollowUpFilter(e.target.value as "all" | "due" | "none")}
+                className={`${fieldClass} sm:min-w-[8.5rem]`}
+              >
+                <option value="all">All</option>
+                <option value="due">Due & overdue</option>
+                <option value="none">No follow-up</option>
+              </select>
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="icp-filter" className={labelClass}>ICP</label>
+              <select
+                id="icp-filter"
+                value={icpFilter}
+                onChange={(e) => setIcpFilter(e.target.value as "all" | "icp" | "not_icp")}
+                className={`${fieldClass} sm:min-w-[8.5rem]`}
+              >
+                <option value="all">All</option>
+                <option value="icp">ICP only</option>
+                <option value="not_icp">Non-ICP only</option>
+              </select>
+            </div>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg col-span-2 sm:col-span-1"
+              >
+                <HiXMark className="w-4 h-4" />
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        <PlantTable
+          plants={paginatedPlants}
+          loading={loading}
+          onUpdate={load}
+          embedded
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          allFilteredIds={allFilteredIds}
+          totalFilteredCount={totalFiltered}
+        />
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3 border-t border-gray-100 bg-gray-50/60">
+          <p className="text-sm text-gray-500">
+            {totalFiltered === 0
+              ? "No plants match filters"
+              : `Showing ${startItem}–${endItem} of ${totalFiltered.toLocaleString()}`}
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Rows</span>
+              <select
+                aria-label="Rows per page"
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-brand-navy-600 focus:ring-1 focus:ring-brand-navy-600"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <span className="px-2 text-sm text-gray-600 tabular-nums">
+                  {safePage} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>
