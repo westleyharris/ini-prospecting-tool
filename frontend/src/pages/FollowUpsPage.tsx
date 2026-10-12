@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { fetchPlants, updatePlant, type Plant } from "../api/plants";
 import CompleteFollowUpModal from "../components/CompleteFollowUpModal";
 import FollowUpHistoryModal from "../components/FollowUpHistoryModal";
+import FollowUpDetailModal from "../components/FollowUpDetailModal";
 import PageHeader from "../components/PageHeader";
 
 function getTodayMidnight(): Date {
@@ -77,7 +78,7 @@ function EditFollowUpModal({ plant, onClose, onSaved }: EditFollowUpModalProps) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>
@@ -281,6 +282,7 @@ export default function FollowUpsPage() {
   const [completeTarget, setCompleteTarget] = useState<Plant | null>(null);
   const [historyTarget, setHistoryTarget] = useState<Plant | null>(null);
   const [editTarget, setEditTarget] = useState<Plant | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -316,6 +318,13 @@ export default function FollowUpsPage() {
   }, [plants]);
 
   const totalCount = SECTIONS.reduce((acc, s) => acc + sections[s.key].length, 0);
+  const detailPlant = detailId ? plants.find((p) => p.id === detailId) ?? null : null;
+  const detailDueLabel = detailPlant?.follow_up_date
+    ? (() => {
+        const diff = getDiffDays(detailPlant.follow_up_date);
+        return diff === null ? undefined : relativeLabel(diff);
+      })()
+    : undefined;
 
   return (
     <div className="space-y-5">
@@ -370,7 +379,19 @@ export default function FollowUpsPage() {
                   {/* Items */}
                   <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
                     {items.map(({ plant, diffDays }) => (
-                      <div key={plant.id} className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
+                      <div
+                        key={plant.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setDetailId(plant.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setDetailId(plant.id);
+                          }
+                        }}
+                        className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition-colors cursor-pointer text-left w-full"
+                      >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium text-gray-900 truncate">
@@ -401,7 +422,7 @@ export default function FollowUpsPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             onClick={() => setCompleteTarget(plant)}
@@ -439,11 +460,26 @@ export default function FollowUpsPage() {
         </div>
       )}
 
+      {detailPlant && (
+        <FollowUpDetailModal
+          plant={detailPlant}
+          dueLabel={detailDueLabel}
+          onClose={() => setDetailId(null)}
+          onUpdated={updatePlantInList}
+          onComplete={() => setCompleteTarget(detailPlant)}
+          onEdit={() => setEditTarget(detailPlant)}
+          onHistory={() => setHistoryTarget(detailPlant)}
+        />
+      )}
       {completeTarget && (
         <CompleteFollowUpModal
           plant={completeTarget}
           onClose={() => setCompleteTarget(null)}
-          onCompleted={(updatedPlant) => { updatePlantInList(updatedPlant); setCompleteTarget(null); }}
+          onCompleted={(updatedPlant) => {
+            updatePlantInList(updatedPlant);
+            setCompleteTarget(null);
+            if (!updatedPlant.follow_up_date) setDetailId(null);
+          }}
         />
       )}
       {editTarget && (
