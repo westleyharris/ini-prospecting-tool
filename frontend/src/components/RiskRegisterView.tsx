@@ -4,9 +4,10 @@ import type { Mapping } from "../api/mappings";
 import { buildOpportunityRegister, type OpportunityFinding } from "../data/opportunityRegister";
 import { FLAG_DEFS, FLAG_GROUPS } from "../data/observations";
 import { buildRiskRegister, type RiskFinding, type RiskLevel } from "../data/riskRegister";
+import { assessMachine } from "../data/machineAssessment";
 
 const LEVELS: { id: RiskLevel; label: string; blurb: string; mark: string }[] = [
-  { id: "critical", label: "Critical", blurb: "Replace first", mark: "#b42318" },
+  { id: "critical", label: "Critical", blurb: "Line-down if it fails", mark: "#b42318" },
   { id: "high",     label: "High",     blurb: "Plan the swap", mark: "#b45309" },
   { id: "moderate", label: "Moderate", blurb: "On the radar",  mark: "#57534e" },
   { id: "watch",    label: "Watch",    blurb: "Still shipping", mark: "#64748b" },
@@ -48,6 +49,39 @@ export function RiskRegisterView({ mapping }: { mapping: Mapping }) {
             ? "No recorded control or drive matches a vendor end-of-life declaration."
             : `${findings.length} finding${findings.length === 1 ? "" : "s"} · ${totalUnits} unit${totalUnits === 1 ? "" : "s"} on ${affectedMachines} of ${totalMachines} stations`}
         </p>
+
+        {totalMachines > 0 && (
+          <div className="flex items-center gap-5 mt-5">
+            {(() => {
+              const eol = (mapping.machines ?? []).filter((m) => assessMachine(m).hasEol).length;
+              const current = Math.max(0, totalMachines - eol);
+              const pct = Math.round((eol / totalMachines) * 100);
+              return (
+                <>
+                  <div
+                    className="w-[4.75rem] h-[4.75rem] rounded-full shrink-0"
+                    style={{
+                      background: `conic-gradient(#b42318 0 ${pct}%, #050A3C ${pct}% 100%)`,
+                    }}
+                    title={`${eol} discontinued · ${current} current / mature`}
+                  />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 text-sm text-brand-navy">
+                      <span className="w-2 h-2 rounded-full bg-[#b42318] shrink-0" />
+                      <span className="font-semibold tabular-nums">{eol}</span>
+                      <span className="text-brand-navy/55">discontinued</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-brand-navy">
+                      <span className="w-2 h-2 rounded-full bg-[#050A3C] shrink-0" />
+                      <span className="font-semibold tabular-nums">{current}</span>
+                      <span className="text-brand-navy/55">current / mature</span>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
 
         {findings.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-4">
@@ -151,10 +185,11 @@ export function RiskRegisterView({ mapping }: { mapping: Mapping }) {
           How this is scored
         </summary>
         <p className="mt-2 text-xs leading-relaxed text-brand-navy/55 max-w-3xl">
-          Each finding scores 2–7 from age (years since last-ship; mature platforms score 1),
-          exposure (units in this plant), and whether a published successor exists.
-          Critical ≥ 6 · High 4–5 · Moderate ≤ 3 · Watch = still shipping. Confirm with the
-          manufacturer before procurement.
+          Discontinued controllers (PLC-5, PLC-2, PLC-3, and other families past last-ship
+          by five years or more) are always Critical — a spare is not on the shelf and the
+          software skill is leaving. Other assets score from age, how many units this plant
+          runs, and whether a successor is published. Watch = still shipping. Confirm with
+          the manufacturer before procurement.
         </p>
       </details>
     </div>
@@ -162,13 +197,13 @@ export function RiskRegisterView({ mapping }: { mapping: Mapping }) {
 }
 
 function stationList(finding: RiskFinding) {
-  const tags = finding.machines.map((m) => m.tag);
-  const shown = tags.length > 10 ? tags.slice(0, 8) : tags;
-  const rest = tags.length - shown.length;
+  const labels = finding.machines.map((m) => m.name || m.tag);
+  const shown = labels.length > 10 ? labels.slice(0, 8) : labels;
+  const rest = labels.length - shown.length;
   return (
     <div className="flex flex-wrap gap-x-2 gap-y-1 text-brand-navy">
-      {shown.map((tag) => (
-        <span key={tag} className="whitespace-nowrap">{tag}</span>
+      {shown.map((label) => (
+        <span key={label} className="whitespace-nowrap">{label}</span>
       ))}
       {rest > 0 && <span className="text-brand-navy/45">+{rest} more</span>}
     </div>
@@ -267,7 +302,7 @@ function FindingRow({
             <div>
               <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-navy/35">Score</dt>
               <dd className="text-brand-navy/55 mt-0.5">
-                {finding.score}/7 · age {finding.breakdown.age} · exposure {finding.breakdown.exposure} · migration {finding.breakdown.migration}
+                age {finding.breakdown.age} · exposure {finding.breakdown.exposure} · migration {finding.breakdown.migration} · {finding.score}
               </dd>
             </div>
           </dl>

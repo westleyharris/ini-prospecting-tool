@@ -1,7 +1,7 @@
 import type { Mapping } from "../api/mappings";
 import { buildRiskRegister } from "./riskRegister";
 import { buildPlantNarrative } from "./machineAssessment";
-import { FLOOR_OFFERS } from "./deckOffers";
+import { FLOOR_OFFERS, pickDiscontinuedStations, pickTrappedStations } from "./deckOffers";
 import { assessMachine } from "./machineAssessment";
 import type { FlagKey } from "./observations";
 
@@ -45,146 +45,102 @@ export function buildDeckTranscript(mapping: Mapping): TranscriptSlide[] {
   const c = surveyCounts(mapping);
   const narrative = buildPlantNarrative(mapping);
   const risk = buildRiskRegister(mapping);
-  const lines = mapping.source_lines ?? [];
+  const eol = pickDiscontinuedStations(mapping, 6);
+  const trapped = pickTrappedStations(mapping, 6);
+  const plcHits = risk.findings.filter((f) => f.category === "plc" && f.status !== "mature");
+  const plcHit = plcHits[0];
   const slides: TranscriptSlide[] = [];
 
   slides.push({
     id: "title",
     title: "Title",
     talk:
-      `This is the walk we did at ${plant}${location ? ` in ${location}` : ""}. ` +
-      `We are not pitching a catalogue. We are showing what is installed, what is aging out, and a handful of plant-systems items we see on almost every floor. ` +
-      `Invite them to stop you. The last slide is questions.`,
+      `This is the walk at ${plant}${location ? ` in ${location}` : ""}. ` +
+      `${c.stations} stations` + (c.lines > 1 ? ` across ${c.lines} lines` : "") + `. ` +
+      `Then: what is aging out, why that is a problem in real terms, the actual stations, the register, then plant-systems slides they can delete.`,
   });
-
-  slides.push({
-    id: "survey",
-    title: "What we surveyed",
-    talk:
-      `Start here so they know the visit was real. ${c.stations} station${c.stations === 1 ? "" : "s"}` +
-      (c.lines > 1 ? ` across ${c.lines} lines` : "") +
-      `. Controllers on ${c.plc}, HMIs on ${c.hmi}, drives on ${c.vfd}, servo packages on ${c.servo}. ` +
-      (c.photos ? `${c.photos} field photo${c.photos === 1 ? "" : "s"} came back with us. ` : "Nameplates and programs — photos where we could get them. ") +
-      `This slide is the scope. Everything after it is either what we found in that scope, or a typical plant item they can keep or delete.`,
-  });
-
-  if (lines.length > 1) {
-    slides.push({
-      id: "lines",
-      title: "Lines we walked",
-      talk:
-        `${lines.length} lines: ${lines.map((l) => `${l.name} (${l.machine_count} stations)`).join("; ")}. ` +
-        `Read the ones that matter to the people in the room. Skip the rest.`,
-    });
-  }
 
   slides.push({
     id: "found",
     title: "What we found",
     talk:
-      narrative.story +
-      " Pause. Let them react to their own plant before you explain why it matters.",
-  });
-
-  slides.push({
-    id: "snapshot",
-    title: "The numbers",
-    talk:
-      `${narrative.machineCount} stations. ${narrative.eolMachines} on discontinued hardware. ` +
-      `${risk.findings.length} platform${risk.findings.length === 1 ? "" : "s"} on the register. ` +
-      `Say it in one breath, then go to the register so they can see names, not just counts.`,
-  });
-
-  slides.push({
-    id: "lifecycle",
-    title: "Equipment lifecycle",
-    talk:
-      `A controller can look fine while the vendor has already moved it to end of life. ` +
-      `That is the whole point of this slide. Spares get scarce, software ages out, recovery gets longer. ` +
-      `The score on the next slide is a ranking of this plant — not a SIL number. ` +
-      (risk.findings.length
-        ? `${risk.counts.critical} critical, ${risk.counts.high} high, ${risk.counts.moderate} moderate, ${risk.counts.watch} watch.`
-        : `Nothing on this walk landed as a named lifecycle hit. Keep the slide so they understand the idea, or delete it.`),
-  });
-
-  if (risk.findings.length > 0) {
-    const top = risk.findings.slice(0, 3).map((f) => `${f.make} ${f.model}`.trim()).join("; ");
-    slides.push({
-      id: "register",
-      title: "Risk register",
-      talk:
-        `This is the list they can fund. Lead with ${top}. ` +
-        `A list of old equipment does not get approved. A ranked list that names the production it puts at risk does.`,
-    });
-  }
-
-  slides.push({
-    id: "stations",
-    title: "Stations that tell the story",
-    talk:
-      `Three examples, not a tour of every cabinet. Point at the photo, name the platform, say what happens if it dies on a Saturday. Then move.`,
+      `Pie first: ${narrative.eolMachines} discontinued vs ${Math.max(0, narrative.machineCount - narrative.eolMachines)} current. ` +
+      `Then the three numbers — discontinued stations, critical platforms, modern drives behind a legacy PLC. Do not linger. Go to why.`,
   });
 
   slides.push({
     id: "why",
     title: "Why obsolescence is a problem",
     talk:
-      `Keep this human. The hardware still runs. That is not the same as being supported. ` +
-      `Parts, cost, safety, security — pick the two that will land with this room. ` +
-      `PMMI: 52% saw events rise; 44% have no process. Do not pretend the £75k distillery number is this plant. It is “this is what waiting looks like.”`,
+      `Stay on the floor. Do not read ISA. ` +
+      `1) The person who still knows the old software is one vacation away from a long outage. ` +
+      `2) The OEM does not ship the card. Someone is on eBay or a broker. ` +
+      `3) Troubleshooting is a laptop, a vintage cable, and a license that may not activate. ` +
+      `4) One dead processor is not a $2,000 part — it is the line. ` +
+      `Then go to their stations so it is not theoretical.`,
   });
 
-  slides.push({
-    id: "isa",
-    title: "What the standards already say",
-    talk:
-      `Do not lecture. One sentence each: ISA-84 is safety lifecycle, 62443 is patching, 18.2 is alarms, 101 is the HMI, 95 is talking to the business. ` +
-      `Then: we are not auditing you. These are the rules the floor is already expected to run against.`,
-  });
-
-  for (const offer of FLOOR_OFFERS) {
-    const n = offer.flags ? flagCount(mapping, offer.flags) : 0;
-    const tagged = n
-      ? `On this walk we tagged ${n} station${n === 1 ? "" : "s"}. Talk to those.`
-      : `We did not tag this on this walk. Say it is a typical plant item, and they can delete the slide if it does not apply.`;
+  if (eol.length > 0 || plcHits.length > 0) {
+    const names = plcHits.flatMap((f) => f.machines.map((m) => m.name)).slice(0, 6).join("; ");
+    const families = plcHits.map((f) => `${f.make} ${f.model} (${f.unitCount})`.trim()).join("; ");
     slides.push({
-      id: `offer:${offer.key}`,
-      title: offer.title,
-      talk: `${offer.pitch} ${tagged} ${offer.bullets.map((b, i) => `${i + 1}) ${b}`).join(" ")}`,
+      id: "eol-examples",
+      title: plcHits.length === 1 && plcHit
+        ? `${plcHit.make} ${plcHit.model}`.trim()
+        : "Discontinued platforms",
+      talk:
+        `Point at the photos. Families: ${families || "discontinued controllers"}. ` +
+        `Read the stations: ${names || eol.map((s) => s.label).slice(0, 3).join("; ")}. ` +
+        `A spare is a broker. The software to get online is a dying skill. Then the trapped-drive slide if you have one.`,
     });
   }
 
-  slides.push({
-    id: "scada-payoffs",
-    title: "What SCADA actually puts on the screen",
-    talk:
-      `This is the “why SCADA” grid. Gas, water, air, kWh, production, alarms, safety, lot/CIP. ` +
-      `Pick the two utilities this plant cares about. Do not read all nine.`,
-  });
+  if (trapped.length > 0 || narrative.trapped > 0) {
+    slides.push({
+      id: "trapped-examples",
+      title: "Modern drive, legacy PLC",
+      talk:
+        `They already bought the drive. The old PLC cannot show speed, current, or the trip. ` +
+        `Read two cabinets: ${trapped.slice(0, 2).map((s) => `${s.label}${s.drive ? ` — ${s.drive}` : ""}`).join("; ")}. ` +
+        `The fix is the processor, not another drive.`,
+    });
+  }
 
-  slides.push({
-    id: "also",
-    title: "What else this walk covers",
-    talk:
-      `Historian, andon, recipes, remote, backups — the rest of the plant-systems conversation. ` +
-      `Skip anything they already have. Linger on whatever made them nod on the floor.`,
-  });
+  if (risk.findings.length > 0) {
+    const top = risk.findings.slice(0, 3).map((f) => `${f.make} ${f.model} (${f.level})`.trim()).join("; ");
+    slides.push({
+      id: "register",
+      title: "Risk register",
+      talk:
+        `PLC-5 and other discontinued controllers are Critical on purpose. Lead with ${top}. ` +
+        `This is the list they can fund. Then the plant-systems slides — skip any they already have.`,
+    });
+  }
+
+  for (const offer of FLOOR_OFFERS) {
+    if (offer.key === "trapped" && (trapped.length > 0 || narrative.trapped > 0)) continue;
+    const n = offer.flags ? flagCount(mapping, offer.flags) : 0;
+    const tagged = n
+      ? `On this walk we tagged ${n} station${n === 1 ? "" : "s"}.`
+      : `Not tagged here — they can delete the slide.`;
+    slides.push({
+      id: `offer:${offer.key}`,
+      title: offer.title,
+      talk: `${offer.pitch} ${tagged}`,
+    });
+  }
 
   slides.push({
     id: "roadmap",
     title: "Recommended sequence",
     talk:
-      `Now / next outage / program. Immediate is backups, e-stops, the critical platform quote. ` +
-      `Shutdown is the first migrations and HMIs. Program is SCADA, utilities, the rest of the register. ` +
-      `Ask for a date on item one before you leave the room.`,
+      `Now / next outage / program. Immediate is backups, e-stops, and quoting the critical PLC family. Ask for a date on item one.`,
   });
 
   slides.push({
     id: "questions",
     title: "Any questions?",
-    talk:
-      `Stop talking. Let them ask. If the room is quiet, offer: “The usual first question is what we would do in the next 90 days — that is the left column of the sequence slide.” ` +
-      `Thank them for the time on the floor.`,
+    talk: `Stop talking. If it is quiet: “What would you do in the next 90 days?” is the left column.`,
   });
 
   return slides;

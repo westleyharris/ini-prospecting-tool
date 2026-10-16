@@ -55,6 +55,62 @@ function stationScore(
   return { score, why };
 }
 
+export interface ProblemStation {
+  machine: MappingMachine;
+  index: number;
+  tag: string;
+  label: string;
+  assessment: MachineAssessment;
+  plc: string;
+  drive: string;
+}
+
+function stationLabel(machine: MappingMachine, index: number): string {
+  const tag = machineTag(machine, index);
+  return machine.line_name ? `${machine.line_name} · ${machine.name}` : `${tag}  ${machine.name}`;
+}
+
+function assetLine(
+  assessment: MachineAssessment,
+  category: "plc" | "drive" | "servo",
+): string {
+  const hit = assessment.assets.find((a) => a.category === category);
+  if (!hit) return "";
+  return `${hit.make} ${hit.model}`.trim();
+}
+
+function toProblem(machine: MappingMachine, index: number): ProblemStation {
+  const assessment = assessMachine(machine);
+  const drive = assetLine(assessment, "drive") || assetLine(assessment, "servo");
+  return {
+    machine,
+    index,
+    tag: machineTag(machine, index),
+    label: stationLabel(machine, index),
+    assessment,
+    plc: assetLine(assessment, "plc"),
+    drive,
+  };
+}
+
+/** Stations on discontinued / unsupported hardware, photos first. */
+export function pickDiscontinuedStations(mapping: Mapping, limit = 8): ProblemStation[] {
+  return (mapping.machines ?? [])
+    .map((machine, index) => toProblem(machine, index))
+    .filter((s) => s.assessment.hasEol)
+    .sort((a, b) => (b.machine.photos?.length ?? 0) - (a.machine.photos?.length ?? 0))
+    .slice(0, limit);
+}
+
+/** Modern drive/servo sitting behind a legacy processor. */
+export function pickTrappedStations(mapping: Mapping, limit = 8): ProblemStation[] {
+  return (mapping.machines ?? [])
+    .map((machine, index) => toProblem(machine, index))
+    .filter((s) => s.assessment.flags.some((f) => f.key === "trapped_modern"))
+    .sort((a, b) => (b.machine.photos?.length ?? 0) - (a.machine.photos?.length ?? 0))
+    .slice(0, limit);
+}
+
 /** Highest-risk stations for an executive deck — never one slide per machine. */
 export function pickCriticalExamples(mapping: Mapping, limit = 4): StationExample[] {
   const machines = mapping.machines ?? [];

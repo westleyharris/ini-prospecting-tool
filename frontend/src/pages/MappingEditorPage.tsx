@@ -727,16 +727,16 @@ const REG_HAIR = "rgba(0,24,46,0.22)";
 const MONO     = "'IBM Plex Mono', 'Courier New', monospace";
 
 const PRINT_LEVELS: { id: RiskLevel; label: string; blurb: string; mark: string }[] = [
-  { id: "critical", label: "Critical", blurb: "Replace first", mark: "#b42318" },
+  { id: "critical", label: "Critical", blurb: "Line-down if it fails", mark: "#b42318" },
   { id: "high",     label: "High",     blurb: "Plan the swap", mark: "#b45309" },
   { id: "moderate", label: "Moderate", blurb: "On the radar",  mark: "#57534e" },
   { id: "watch",    label: "Watch",    blurb: "Still shipping", mark: "#64748b" },
 ];
 
-function printStationTags(machines: { tag: string }[]): string {
-  const tags = machines.map((m) => m.tag);
-  if (tags.length <= 8) return tags.join(", ");
-  return `${tags.slice(0, 6).join(", ")} +${tags.length - 6} more`;
+function printStationTags(machines: { tag: string; name?: string }[]): string {
+  const labels = machines.map((m) => m.name || m.tag);
+  if (labels.length <= 8) return labels.join(", ");
+  return `${labels.slice(0, 6).join(", ")} +${labels.length - 6} more`;
 }
 
 /** Printable register — grouped list, same structure as the on-screen tab. */
@@ -788,21 +788,42 @@ function RiskPrintSheet({
               : `${findings.length} finding${findings.length === 1 ? "" : "s"} · ${totalUnits} unit${totalUnits === 1 ? "" : "s"} on ${affectedMachines} of ${totalMachines} stations`}
             {` · ${dwgNo} · ${reportDate}`}
           </div>
-          {findings.length > 0 && (
-            <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
-              {PRINT_LEVELS.map((level) => (
-                <div key={level.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: 99, background: level.mark }} />
-                  <span style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, color: REG_INK }}>
-                    {level.label}
-                  </span>
-                  <span style={{ fontFamily: MONO, fontSize: 8, color: REG_INK, opacity: 0.45 }}>
-                    {counts[level.id]}
-                  </span>
+          {totalMachines > 0 && (() => {
+            const eol = (mapping.machines ?? []).filter((m) => assessMachine(m).hasEol).length;
+            const current = Math.max(0, totalMachines - eol);
+            const pct = Math.round((eol / totalMachines) * 100);
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8 }}>
+                <div
+                  style={{
+                    width: 36, height: 36, borderRadius: 99, flexShrink: 0,
+                    background: `conic-gradient(#b42318 0 ${pct}%, #00182e ${pct}% 100%)`,
+                  }}
+                />
+                <div style={{ fontFamily: MONO, fontSize: 8, color: REG_INK }}>
+                  <div><span style={{ fontWeight: 700 }}>{eol}</span> discontinued</div>
+                  <div style={{ opacity: 0.55, marginTop: 2 }}>
+                    <span style={{ fontWeight: 700, opacity: 1 }}>{current}</span> current / mature
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+                {findings.length > 0 && (
+                  <div style={{ display: "flex", gap: 12, marginLeft: 8 }}>
+                    {PRINT_LEVELS.map((level) => (
+                      <div key={level.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: 99, background: level.mark }} />
+                        <span style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, color: REG_INK }}>
+                          {level.label}
+                        </span>
+                        <span style={{ fontFamily: MONO, fontSize: 8, color: REG_INK, opacity: 0.45 }}>
+                          {counts[level.id]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {findings.length === 0 ? (
@@ -868,9 +889,9 @@ function RiskPrintSheet({
 
         <div style={{ borderTop: `1px solid ${REG_HAIR}`, padding: "8px 12px" }}>
           <div style={{ fontSize: 8, lineHeight: 1.45, color: REG_INK, opacity: 0.5 }}>
-            Scored 2–7 from age (years since last-ship), exposure (units in this plant), and whether a
-            published successor exists. Critical ≥ 6 · High 4–5 · Moderate ≤ 3 · Watch = still shipping.
-            Confirm with the manufacturer before procurement.
+            Discontinued controllers past last-ship (PLC-5 and similar) are Critical. Other assets
+            score from age, units in this plant, and whether a successor is published. Watch = still
+            shipping. Confirm with the manufacturer before procurement.
             {` · I&I Automation · ${mapping.plant_name ?? "Plant"} · ${reportDate}`}
           </div>
         </div>

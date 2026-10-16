@@ -1,67 +1,34 @@
 /**
- * Static copy for the customer deck.
- * Plant-specific numbers come from the mapping. Keep this conversational.
+ * Why obsolescence is a problem — floor language, not standard numbers.
+ * ISA lives as a one-line footnote, not the argument.
  */
 
 export const WHY_PILLARS = [
   {
-    kicker: "Parts & time",
-    title: "The spare is not on the shelf",
+    kicker: "People",
+    title: "The person who can get online is retiring",
     body:
-      "When a controller is discontinued, parts go to brokers, firmware disappears, and the technician who still knows the platform retires. A failure that used to be an afternoon becomes a week of hunting.",
+      "The software for that processor is a skill, not a setting. A serial cable in a drawer, a license that may not activate, and one electrician who still remembers the package. When that person is on vacation — or gone — a twenty-minute fault becomes a long outage.",
   },
   {
-    kicker: "Cost",
-    title: "Keeping it running is often the expensive option",
+    kicker: "Parts",
+    title: "The OEM does not ship it. eBay does.",
     body:
-      "PMMI found 52% of plants saw obsolescence events rise over five years — and 44% still have no process. Unplanned capital shows up as lost shift, not as a PLC line item. A ranked list is cheaper than a scramble.",
+      "Once last-ship has passed, a processor or I/O card comes from a broker or a surplus listing. No warranty, unknown hours, unknown firmware. You are bidding against every other plant still running the same family.",
   },
   {
-    kicker: "Safety",
-    title: "You cannot maintain what you cannot support",
+    kicker: "Recovery",
+    title: "Troubleshooting turns into archaeology",
     body:
-      "ISA-84 / IEC 61511 expects a safety function to stay testable for its life. An unlit e-stop or an undocumented hardwired circuit is not a maintenance note. It is a safety layer you cannot prove.",
+      "No plain-language fault. No current backup. A laptop, a vintage cable, and a license that will not activate. Mean time to repair becomes mean time to find the software, then the person, then the spare.",
   },
   {
-    kicker: "Security",
-    title: "If you cannot patch it, you cannot secure it",
+    kicker: "The line",
+    title: "One dead card takes the whole line with it",
     body:
-      "ISA/IEC 62443 treats the control system as something that has to stay defendable. Unsupported Windows boxes and unpatchable controllers are the same inventory as the old PLC — a cyber finding and a production finding.",
+      "A discontinued controller is not a $2,000 part. It is every station downstream waiting. There is no overnight factory order. The modern drive in the same cabinet cannot even tell you it tripped, because the old PLC cannot talk to it.",
   },
 ] as const;
 
 export const WHY_FOOTNOTE =
-  "Industry figures: PMMI, Managing Obsolescence (2026). The walk records this plant; the industry numbers explain why the walk matters.";
-
-export const ISA_CARDS = [
-  {
-    std: "ISA-84 / IEC 61511",
-    title: "Functional safety",
-    body: "Keep the process in a safe state — and keep the proof current. You cannot claim that on a processor nobody supports.",
-  },
-  {
-    std: "ISA/IEC 62443",
-    title: "Industrial cybersecurity",
-    body: "Secure the automation system for its full life. End of support is the day you stop being able to patch.",
-  },
-  {
-    std: "ISA-18.2",
-    title: "Alarm management",
-    body: "A horn everyone has learned to ignore is not a protection layer. Own the alarm, or it is noise.",
-  },
-  {
-    std: "ISA-101",
-    title: "HMI design",
-    body: "The operator must see why it stopped and how to recover. Pushbuttons are not situational awareness.",
-  },
-  {
-    std: "ISA-95",
-    title: "Plant integration",
-    body: "Isolated stations cannot feed quality, energy, or MES. Islands stay invisible to the business.",
-  },
-  {
-    std: "ISA-84.91.01",
-    title: "Safety controls integrity",
-    body: "Inspect, test, and document safety controls, alarms, and interlocks. You cannot inspect what you have not listed.",
-  },
-] as const;
+  "ISA-84 and ISA/IEC 62443 say the same thing in standard language: you cannot maintain or patch what the vendor no longer supports.";

@@ -72,43 +72,62 @@ function candidatesFor(m: MappingMachine): Candidate[] {
   ];
 }
 
+function yearsPast(eolYear: number | undefined): number {
+  if (eolYear == null) return 0;
+  return Math.max(0, new Date().getFullYear() - eolYear);
+}
+
 /**
- * Risk score, 2–7. Deliberately simple so it can be explained on the printed sheet:
- *   age       years since the vendor last-ship / discontinued date
- *             (mature platforms score 1; unsupported score 3)
+ * Risk score. Explained on the printed sheet:
+ *   age       years since last-ship (unsupported and 8+ year-old discontinued score highest)
  *   exposure  how many units in this plant depend on it
  *   migration whether a documented successor exists
  *
- * Age uses last-ship year, not announcement year. That is why PLC-5 (2017)
- * ranks older/higher than SLC 500 (2024) at the same unit count.
+ * Controllers are a special case: a discontinued PLC is a line-down event,
+ * so PLC-5 / PLC-2 / PLC-3 land Critical even at a single unit. A successor
+ * existing does not make last-ship-2017 hardware "moderate."
  */
 function scoreOf(
   status: LifecycleStatus,
   eolYear: number | undefined,
   unitCount: number,
   hasSuccessor: boolean,
+  category: EquipmentCategory,
 ) {
-  const now = new Date().getFullYear();
+  const years = yearsPast(eolYear);
   let age: number;
   if (status === "mature") {
     age = 1;
   } else if (status === "unsupported") {
+    age = 4;
+  } else if (years >= 8) {
+    age = 4;
+  } else if (years >= 5) {
     age = 3;
-  } else if (eolYear === undefined) {
-    age = 2;
   } else {
-    const years = now - eolYear;
-    age = years >= 10 ? 3 : years >= 5 ? 2 : 1;
+    age = 2;
   }
-  const exposure = unitCount >= 3 ? 3 : unitCount === 2 ? 2 : 1;
+  if (category === "plc" && status !== "mature") age += 2;
+  const exposure = unitCount >= 10 ? 3 : unitCount >= 3 ? 2 : 1;
   const migration = hasSuccessor ? 0 : 1;
   return { age, exposure, migration, total: age + exposure + migration };
 }
 
-function levelOf(status: LifecycleStatus, score: number): RiskLevel {
+function levelOf(
+  status: LifecycleStatus,
+  score: number,
+  category: EquipmentCategory,
+  eolYear: number | undefined,
+): RiskLevel {
   if (status === "mature") return "watch";
-  if (score >= 6) return "critical";
-  if (score >= 4) return "high";
+  const years = yearsPast(eolYear);
+  if (category === "plc") {
+    if (status === "unsupported" || years >= 5 || eolYear == null) return "critical";
+    return "high";
+  }
+  if (status === "unsupported") return score >= 5 ? "critical" : "high";
+  if (score >= 7) return "critical";
+  if (score >= 5) return "high";
   return "moderate";
 }
 
@@ -164,11 +183,11 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
   });
 
   const findings = [...grouped.values()].map((f) => {
-    const s = scoreOf(f.status, f.eolYear, f.unitCount, Boolean(f.successor));
+    const s = scoreOf(f.status, f.eolYear, f.unitCount, Boolean(f.successor), f.category);
     return {
       ...f,
       score: s.total,
-      level: levelOf(f.status, s.total),
+      level: levelOf(f.status, s.total, f.category, f.eolYear),
       breakdown: { age: s.age, exposure: s.exposure, migration: s.migration },
     };
   });
