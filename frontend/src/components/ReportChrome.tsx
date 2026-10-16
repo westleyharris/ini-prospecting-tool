@@ -166,7 +166,7 @@ export function ReportChrome({
                 <HiChevronDown className={`w-3.5 h-3.5 transition-transform ${exportOpen ? "rotate-180" : ""}`} />
               </button>
               {exportOpen && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-40">
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-40">
                   {onDeck && (
                     <button
                       type="button"

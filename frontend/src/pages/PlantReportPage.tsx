@@ -7,6 +7,7 @@ import { downloadPresentation } from "../services/presentation";
 import { MappingView, PrintView } from "./MappingEditorPage";
 import { ExecutiveView } from "../components/ExecutiveView";
 import { RiskRegisterView } from "../components/RiskRegisterView";
+import { SpeakerNotesPrint, SpeakerNotesView } from "../components/SpeakerNotesView";
 import { ReportChrome } from "../components/ReportChrome";
 import { usePrintReport } from "../hooks/usePrintReport";
 import { BackToTop } from "../components/BackToTop";
@@ -18,7 +19,7 @@ export default function PlantReportPage() {
   const [brief, setBrief] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"exec" | "view" | "risk">("exec");
+  const [mode, setMode] = useState<"exec" | "view" | "risk" | "notes">("exec");
   const [buildingDeck, setBuildingDeck] = useState(false);
   const { printReady, printBusy, startPrint } = usePrintReport();
 
@@ -76,7 +77,8 @@ export default function PlantReportPage() {
 
   return (
     <>
-      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady && mode !== "exec"} />
+      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady && mode !== "exec" && mode !== "notes"} />
+      <SpeakerNotesPrint mapping={mapping} active={printReady && mode === "notes"} />
 
       <div className="mapping-screen-only space-y-3 pb-24">
         <ReportChrome
@@ -90,14 +92,15 @@ export default function PlantReportPage() {
             { id: "exec", label: "Summary" },
             { id: "view", label: "Drawing" },
             { id: "risk", label: "Risk" },
+            { id: "notes", label: "Talk track" },
           ]}
           mode={mode}
-          onMode={(id) => setMode(id as "exec" | "view" | "risk")}
+          onMode={(id) => setMode(id as "exec" | "view" | "risk" | "notes")}
           share={{ kind: "plant", id: mapping.plant_id }}
           onDeck={async () => {
             setBuildingDeck(true);
             try {
-              await downloadPresentation(mapping);
+              await downloadPresentation(mapping, { includeNotes: true });
             } catch (err) {
               console.error(err);
               alert("Could not build the presentation.");
@@ -127,6 +130,7 @@ export default function PlantReportPage() {
 
         {mode === "view" && <MappingView mapping={mapping} />}
         {mode === "risk" && <RiskRegisterView mapping={mapping} />}
+        {mode === "notes" && <SpeakerNotesView mapping={mapping} />}
       </div>
 
       {mode === "exec" && (

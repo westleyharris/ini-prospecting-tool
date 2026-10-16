@@ -115,15 +115,21 @@ export interface FloorOffer {
   bullets: string[];
   /** Key into /deck-refs/{photo}.jpg */
   photo?: string;
+  /** Survey flags that mark this offer as recorded on this walk. */
+  flags?: FlagKey[];
 }
 
-/** Always-on plant work that is not just obsolescence — shown even when untagged. */
+/**
+ * Always-on plant work — shown on every deck, even when untagged.
+ * Delete a slide in PowerPoint if it does not apply to this plant.
+ */
 export const FLOOR_OFFERS: FloorOffer[] = [
   {
     key: "scada",
     eyebrow: "Plant systems",
     title: "SCADA — one picture of the plant",
     photo: "scada",
+    flags: ["no_scada"],
     pitch: "Most plants still run on radios and whiteboards. A SCADA overview is the difference between knowing the filler is down and walking the line to find out. It is also the only way gas, water, and production become the same conversation.",
     bullets: [
       "Every station reports running, starved, blocked, or down — and why.",
@@ -136,6 +142,7 @@ export const FLOOR_OFFERS: FloorOffer[] = [
     eyebrow: "Energy & utilities",
     title: "See the gas, water, and air you already pay for",
     photo: "utilities",
+    flags: ["no_utilities"],
     pitch: "The meter house knows what the plant used. The line does not. A leak, a stuck valve, a CIP that never ends, or a compressor running all weekend is invisible until the invoice.",
     bullets: [
       "Natural gas / CO2, city water, wastewater, steam, and compressed air at the line — not only at the fence.",
@@ -148,11 +155,25 @@ export const FLOOR_OFFERS: FloorOffer[] = [
     eyebrow: "Safety",
     title: "Illuminated e-stops",
     photo: "estop",
+    flags: ["estop_unlit"],
     pitch: "Most lines still have a dark mushroom somewhere. When it is latched, nobody can see it from the other end of the cell. The crew spends the next twenty minutes walking e-stops instead of running product.",
     bullets: [
       "Replace incandescent or unlit mushrooms with LED illuminated actuators.",
       "When it is pressed, it lights. Reset is obvious from across the line.",
-      "Fewer ‘it won’t start’ calls that were just a pulled e-stop on the far side.",
+      "Fewer “it won’t start” calls that were just a pulled e-stop on the far side.",
+    ],
+  },
+  {
+    key: "safety-status",
+    eyebrow: "Safety",
+    title: "Safety status on the screen",
+    photo: "estop",
+    flags: ["hardwired_safety"],
+    pitch: "When a hardwired safety circuit drops, the crew should see which gate, e-stop, or relay opened. Walking the line with a flashlight is not a safety procedure. It is lost minutes with the line dead.",
+    bullets: [
+      "Map the circuit: every gate, mushroom, and relay on the HMI.",
+      "A drop shows a device, not a generic “safety fault.”",
+      "Reset is faster and the next audit has a record.",
     ],
   },
   {
@@ -160,11 +181,155 @@ export const FLOOR_OFFERS: FloorOffer[] = [
     eyebrow: "Panel climate",
     title: "Cabinet air conditioner replacement",
     photo: "cabinet",
+    flags: ["panel_hvac"],
     pitch: "A sealed panel with a dead air conditioner is a slow failure. Drives derate, processors trip on overtemp, and it always happens on the hottest afternoon of the year.",
     bullets: [
       "Failed or undersized panel HVAC is a one-day swap, not a controls project.",
       "Heat is what kills VFDs and aging PLCs sitting inches from each other.",
       "Filter, condensate, and setpoint while we are in the cabinet.",
+    ],
+  },
+  {
+    key: "hmi",
+    eyebrow: "Operations",
+    title: "The operator can see why it stopped",
+    photo: "scada",
+    flags: ["no_visibility"],
+    pitch: "Pushbuttons and a blinking light are not a recovery plan. Fault text, counts, and the next step on a graphical HMI turn tribal knowledge into something the next shift can use.",
+    bullets: [
+      "Plain-language faults instead of a red light.",
+      "Station counts in and out so balance is a number.",
+      "Recovery steps on the screen, not in someone’s notebook.",
+    ],
+  },
+  {
+    key: "diagnostics",
+    eyebrow: "Maintenance",
+    title: "Mechanics recover from the panel",
+    photo: "cabinet",
+    flags: ["no_diagnostics"],
+    pitch: "A laptop and a 1990s cable is not a maintenance plan. If the only person who can get online is off-shift, mean time to repair is mean time to find that person.",
+    bullets: [
+      "Panel diagnostics for the crew on nights and weekends.",
+      "Drive and servo status without launching vendor software.",
+      "Fewer “wait for engineering” calls on a simple fault.",
+    ],
+  },
+  {
+    key: "backups",
+    eyebrow: "Reliability",
+    title: "A restore, not a rewrite",
+    photo: "cabinet",
+    flags: ["no_backup"],
+    pitch: "If this processor dies tonight, recovery should be an image restore — not a rewrite from memory. Backups are the cheapest insurance on the floor, and most plants do not have a current one.",
+    bullets: [
+      "Image every processor and drive while we are on site.",
+      "A named location and a date, not a USB in a drawer.",
+      "The next failure is hours, not days.",
+    ],
+  },
+  {
+    key: "trapped",
+    eyebrow: "Installed hardware",
+    title: "Unlock hardware already paid for",
+    photo: "cabinet",
+    flags: ["trapped_modern"],
+    pitch: "A current drive or servo is already in the cabinet, but the legacy processor cannot expose its data. Replacing the controller unlocks hardware they have already bought.",
+    bullets: [
+      "Current, speed, and trip history on the HMI.",
+      "No need to rip out a drive that still has years in it.",
+      "The migration pays for itself in the data they already own.",
+    ],
+  },
+  {
+    key: "islands",
+    eyebrow: "Networks",
+    title: "The line as one picture",
+    photo: "scada",
+    flags: ["island"],
+    pitch: "Stations that cannot talk cannot be balanced. Ethernet into a simple overview is the first measurement. Until then, starve and block time is a story from the operator, not a trend.",
+    bullets: [
+      "Connect islands so upstream and downstream see each other.",
+      "DH+ / RIO / DeviceNet called out where they still run.",
+      "A path to plant SCADA without boiling the ocean.",
+    ],
+  },
+  {
+    key: "historian",
+    eyebrow: "Plant systems",
+    title: "Historian and trends",
+    photo: "scada",
+    flags: ["no_historian"],
+    pitch: "Yesterday’s downtime is a memory until speed, flow, and faults live in a historian operations can pull. A shift report cannot tell you when the warmer drifted.",
+    bullets: [
+      "Speed, temperature, flow, and fault history on one trend.",
+      "Engineering answers “when did it start?” without a guess.",
+      "The same data feeds OEE, energy, and quality later.",
+    ],
+  },
+  {
+    key: "andon",
+    eyebrow: "Operations",
+    title: "Andon and downtime reason codes",
+    photo: "scada",
+    flags: ["no_andon"],
+    pitch: "First-hour production stops being a guess. The supervisor sees mechanical vs material vs quality, and the meeting at 9 a.m. has a number instead of a debate.",
+    bullets: [
+      "Andon at the line: running, starved, down.",
+      "Reason codes the crew can actually pick.",
+      "First-hour and end-of-shift reports that match the floor.",
+    ],
+  },
+  {
+    key: "recipes",
+    eyebrow: "Changeover",
+    title: "Recipes on the HMI",
+    photo: "scada",
+    flags: ["no_recipe"],
+    pitch: "Changeover lives in someone’s head until it is a recipe. SKU swaps stop being off-spec nights, and the next new operator is not a week of shadowing.",
+    bullets: [
+      "SKU, speed, and setpoints as a named recipe.",
+      "Fewer handwritten setup sheets.",
+      "A record of what actually ran.",
+    ],
+  },
+  {
+    key: "trace",
+    eyebrow: "Quality",
+    title: "Lot, batch, and CIP records",
+    photo: "utilities",
+    flags: ["no_traceability"],
+    pitch: "When quality asks which batch ran at 2 a.m., the answer should not be a clipboard. Lot, recipe, and CIP cycle records from the controller close the loop.",
+    bullets: [
+      "Lot / batch ID from the controller, not a paper traveler.",
+      "CIP cycle, rinse, and return temperature on the record.",
+      "A hold or recall has a timeline, not a hunt.",
+    ],
+  },
+  {
+    key: "remote",
+    eyebrow: "Support",
+    title: "Remote support path",
+    photo: "scada",
+    flags: ["no_remote"],
+    pitch: "Every call is a truck roll until there is a managed path in. On a current platform we can be on the machine without a plane ticket — and without leaving the plant wide open.",
+    bullets: [
+      "Managed remote access, not an unattended modem.",
+      "Faster recovery on nights and weekends.",
+      "Works only after the processor is on a living platform.",
+    ],
+  },
+  {
+    key: "spares",
+    eyebrow: "Reliability",
+    title: "Spares before the last one fails",
+    photo: "cabinet",
+    flags: ["single_source"],
+    pitch: "One discontinued unit with no published lead time is not a spare strategy. The next failure is a broker search against a running line.",
+    bullets: [
+      "Know which catalogue numbers are last-time-buy.",
+      "Stock the ones that would stop the line, or migrate them.",
+      "A brokered spare is a delay you cannot schedule.",
     ],
   },
 ];

@@ -2,26 +2,21 @@ import PptxGenJS from "pptxgenjs";
 import type { Mapping, MappingMachine } from "../api/mappings";
 import { photoUrl } from "../api/mappings";
 import { buildRiskRegister, type RiskFinding } from "../data/riskRegister";
-import { buildOpportunityRegister } from "../data/opportunityRegister";
 import { assessMachine, buildPlantNarrative } from "../data/machineAssessment";
 import { type FlagKey } from "../data/observations";
-import { pickCriticalExamples, pickThemeExamples } from "../data/deckOffers";
+import { machineTag } from "../data/consolidateMappings";
 import {
-  STORY_AGENDA,
-  WHY_PILLARS,
-  WHY_FOOTNOTE,
-  ISA_CARDS,
-  METHOD_STEPS,
-  METHOD_NOTE,
-  DELIVERABLES,
-} from "../data/deckStory";
+  pickCriticalExamples, FLOOR_OFFERS, ALSO_ON_THE_FLOOR, SCADA_PAYOFFS,
+} from "../data/deckOffers";
+import { WHY_PILLARS, WHY_FOOTNOTE, ISA_CARDS } from "../data/deckStory";
+import {
+  NOTES_PREFIX, buildDeckTranscript, surveyCounts, type TranscriptSlide,
+} from "../data/deckTranscript";
 
 /**
- * Plant systems assessment deck.
- *
- * Beginning — why obsolescence is a safety, cost, production, and cyber problem,
- * and what ISA already requires. Middle — this plant: inventory, register, evidence.
- * End — ranked program and the ask. Design follows the I&I navy/lime chrome.
+ * Customer deck: survey → what they have → why obsolescence is a problem →
+ * plant-systems slides they can delete → sequence → questions.
+ * Speaker notes are optional (internal export only).
  */
 
 const NAVY = "050A3C";
@@ -58,6 +53,8 @@ export interface DeckOptions {
   images: DeckImages;
   summary?: string;
   preparedFor?: string;
+  /** PowerPoint speaker notes. Internal downloads only — omit on share links. */
+  includeNotes?: boolean;
 }
 
 type Theme = "light" | "dark";
@@ -68,9 +65,9 @@ function fmtDate(d = new Date()): string {
 
 function frame(
   pptx: PptxGenJS,
-  opts: { eyebrow: string; title: string; theme: Theme; pageNo: number; images: DeckImages },
+  opts: { eyebrow: string; title: string; theme: Theme; pageNo: number; images: DeckImages; notes?: string },
 ) {
-  const { eyebrow, title, theme, pageNo, images } = opts;
+  const { eyebrow, title, theme, pageNo, images, notes } = opts;
   const dark = theme === "dark";
   const slide = pptx.addSlide();
 
@@ -104,6 +101,8 @@ function frame(
     fontFace: FONT, fontSize: 8, color: dark ? PALE : GREY,
     align: "right", margin: 0,
   });
+
+  if (notes) slide.addNotes(notes);
 
   return slide;
 }
@@ -144,6 +143,36 @@ function machinesWithFlags(mapping: Mapping, keys: FlagKey[]): MappingMachine[] 
   );
 }
 
+function photoIds(mapping: Mapping, limit = 8): string[] {
+  const ids: string[] = [];
+  for (const m of mapping.machines ?? []) {
+    const p = m.photos?.[0];
+    if (p && !ids.includes(p.id)) ids.push(p.id);
+    if (ids.length >= limit) break;
+  }
+  return ids;
+}
+
+function placePhotos(
+  slide: PptxGenJS.Slide,
+  images: DeckImages,
+  ids: string[],
+  x: number, y: number, w: number, h: number,
+) {
+  const n = ids.filter((id) => images.photos[id]).length;
+  if (n === 0) return;
+  const shown = ids.filter((id) => images.photos[id]).slice(0, 4);
+  const gap = 0.08;
+  const cw = (w - gap * (shown.length - 1)) / shown.length;
+  shown.forEach((id, i) => {
+    slide.addImage({
+      data: images.photos[id],
+      x: x + i * (cw + gap), y, w: cw, h,
+      sizing: { type: "cover", w: cw, h },
+    });
+  });
+}
+
 function autoSummary(
   mapping: Mapping,
   narrative: ReturnType<typeof buildPlantNarrative>,
@@ -154,57 +183,54 @@ function autoSummary(
   if (narrative.eolMachines > 0) {
     return (
       `${narrative.eolMachines} of ${n} stations at ${plant} run discontinued control hardware. ` +
-      `That is not a spare-parts list. It is the set of assets that can no longer be supported the way ` +
-      `ANSI/ISA-61511 and ISA/IEC 62443 expect a live plant to be supported. ` +
+      `That is what we recorded on the floor — not a spare-parts wish list. ` +
       (risk.findings.length
-        ? `The register ranks ${risk.findings.length} platform${risk.findings.length === 1 ? "" : "s"} ` +
-          `so capital can be approved in order — not after a failure forces the spend.`
-        : `The findings below are what operations lives with, and what a controls program can still change.`)
+        ? `The register names ${risk.findings.length} platform${risk.findings.length === 1 ? "" : "s"} so the next spend can happen in order.`
+        : `The rest of this deck is what we saw, and the plant-systems work that usually follows.`)
     );
   }
   return (
     `Installed controllers in the surveyed scope at ${plant} are on current or mature platforms. ` +
-    `The walk still recorded operational, safety, and visibility gaps the same standards require you to close ` +
-    `before they become a failure. A ranked program is cheaper than an unplanned one.`
+    `The walk still recorded how the line is run, recovered, and seen. The slides after this are typical plant items — keep or delete what does not apply.`
   );
 }
 
 const Pptx = ((PptxGenJS as unknown as { default?: typeof PptxGenJS }).default ??
   PptxGenJS) as typeof PptxGenJS;
 
-export async function buildPresentation({ mapping, images, summary, preparedFor }: DeckOptions) {
+export async function buildPresentation({
+  mapping, images, summary, preparedFor, includeNotes,
+}: DeckOptions) {
   const pptx = new Pptx();
   pptx.defineLayout({ name: "IANDI", width: 13.33, height: 7.5 });
   pptx.layout = "IANDI";
   pptx.author = "I&I Automation";
-  pptx.title = `${mapping.plant_name ?? mapping.name} — Plant Systems Assessment`;
-  pptx.subject = "Obsolescence, safety, and operating-cost baseline";
+  pptx.title = `${mapping.plant_name ?? mapping.name} — Automation Report`;
+  pptx.subject = "Floor survey, lifecycle, and plant systems";
 
   const machines = mapping.machines ?? [];
   const assessments = machines.map(assessMachine);
   const risk = buildRiskRegister(mapping);
-  const opps = buildOpportunityRegister(mapping);
   const narrative = buildPlantNarrative(mapping);
   const critical = pickCriticalExamples(mapping, 3);
-  const themes = pickThemeExamples(
-    mapping,
-    new Set(critical.map((c) => c.machine.id)),
-    2,
-  );
   const lines = mapping.source_lines ?? [];
   const plant = mapping.plant_name ?? mapping.name;
   const location = [mapping.city, mapping.state].filter(Boolean).join(", ");
   const date = fmtDate();
   const execSummary = (summary ?? "").trim() || autoSummary(mapping, narrative, risk);
+  const counts = surveyCounts(mapping);
+  const script = includeNotes ? buildDeckTranscript(mapping) : [];
+  const notesFor = (id: string) => {
+    if (!includeNotes) return undefined;
+    const row = script.find((s: TranscriptSlide) => s.id === id);
+    return row ? NOTES_PREFIX + row.talk : undefined;
+  };
 
-  const safetyMachines = machinesWithFlags(mapping, ["hardwired_safety", "estop_unlit", "no_backup"]);
-  const costMachines = machinesWithFlags(mapping, [
-    "no_utilities", "no_scada", "trapped_modern", "no_visibility", "island", "no_diagnostics",
-  ]);
   const laptopCount = assessments.filter((a) => a.observations.recoverability === "laptop_required").length;
   const noBackup = machinesWithFlags(mapping, ["no_backup"]).length;
   const estop = machinesWithFlags(mapping, ["estop_unlit"]).length;
   const hardwired = machinesWithFlags(mapping, ["hardwired_safety"]).length;
+  const collage = photoIds(mapping, 8);
 
   let page = 1;
 
@@ -219,79 +245,332 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
         sizing: { type: "contain", w: 1.15, h: 1.1 },
       });
     }
-    s.addText("PLANT SYSTEMS ASSESSMENT", {
-      x: MARGIN_L, y: 1.55, w: 11.4, h: 0.32,
+    s.addText("AUTOMATION REPORT", {
+      x: MARGIN_L, y: 1.35, w: 11.4, h: 0.32,
       fontFace: FONT, fontSize: 12, bold: true, charSpacing: 2.4,
       color: LIME, margin: 0,
     });
     s.addText(plant, {
-      x: MARGIN_L, y: 1.95, w: 11.4, h: 0.7,
+      x: MARGIN_L, y: 1.75, w: 11.4, h: 0.7,
       fontFace: FONT, fontSize: 34, bold: true, color: WHITE, margin: 0, valign: "middle",
     });
     s.addText(
       [location, date].filter(Boolean).join("   ·   ") + (preparedFor ? `   ·   For ${preparedFor}` : ""),
       {
-        x: MARGIN_L, y: 2.68, w: 11.4, h: 0.28,
+        x: MARGIN_L, y: 2.48, w: 11.4, h: 0.28,
         fontFace: FONT, fontSize: 13, color: PALE, margin: 0,
       },
     );
     s.addShape("rect", {
-      x: MARGIN_L, y: 3.15, w: 1.4, h: 0.06, fill: { color: LIME }, line: { width: 0 },
+      x: MARGIN_L, y: 2.95, w: 1.4, h: 0.06, fill: { color: LIME }, line: { width: 0 },
     });
-    s.addText("Obsolescence  ·  Safety  ·  Operating cost", {
-      x: MARGIN_L, y: 3.4, w: 11.4, h: 0.32,
+    s.addText("What we walked. What is installed. What to do next.", {
+      x: MARGIN_L, y: 3.2, w: 11.4, h: 0.36,
       fontFace: FONT, fontSize: 16, bold: true, color: WHITE, margin: 0,
     });
     s.addText(
-      "What is installed. How close each system is to losing support. Which of them would stop production — or leave you unable to prove a safe state — if it failed tomorrow.",
+      `${counts.stations} station${counts.stations === 1 ? "" : "s"} documented` +
+      (counts.lines > 1 ? ` across ${counts.lines} lines` : "") +
+      " — controllers, HMIs, drives, and the plant systems that sit around them.",
       {
-        x: MARGIN_L, y: 3.85, w: 10.6, h: 1.15,
+        x: MARGIN_L, y: 3.65, w: 10.6, h: 0.7,
         fontFace: FONT, fontSize: 16, color: PALE, margin: 0,
       },
     );
+    placePhotos(s, images, collage, BODY_L, 4.55, BODY_W, 1.85);
     s.addText("PREPARED BY I&I AUTOMATION", {
       x: MARGIN_L, y: 6.85, w: 8, h: 0.24,
       fontFace: FONT, fontSize: 10, bold: true, charSpacing: 1.4, color: LIME, margin: 0,
     });
+    const n = notesFor("title");
+    if (n) s.addNotes(n);
   }
 
-  // ── Agenda ────────────────────────────────────────────────────────────────
+  // ── What we surveyed ──────────────────────────────────────────────────────
   {
     const s = frame(pptx, {
-      eyebrow: "01  ·  02  ·  03",
-      title: "This report, in three parts",
-      theme: "light", pageNo: page++, images,
+      eyebrow: "The visit",
+      title: "What we surveyed",
+      theme: "light", pageNo: page++, images, notes: notesFor("survey"),
     });
-    STORY_AGENDA.forEach((item, i) => {
-      const y = CONTENT_T + i * 1.55;
-      s.addText(item.n, {
-        x: BODY_L, y, w: 0.9, h: 1.35,
-        fontFace: FONT, fontSize: 28, bold: true, color: NAVY, margin: 0, valign: "middle",
+    const tiles: [string, string][] = [
+      [String(counts.stations), "Stations"],
+      [String(counts.lines > 1 ? counts.lines : 1), "Lines"],
+      [String(counts.plc), "Controllers"],
+      [String(counts.hmi), "HMIs"],
+      [String(counts.vfd + counts.servo), "Drives / servo"],
+      [String(counts.photos), "Photos"],
+    ];
+    tiles.forEach(([value, label], i) => {
+      const col = i % 6;
+      const x = BODY_L + col * 2.02;
+      panel(s, x, CONTENT_T, 1.9, 1.55, CARD);
+      s.addText(value, {
+        x, y: CONTENT_T + 0.18, w: 1.9, h: 0.7,
+        fontFace: FONT, fontSize: 28, bold: true, color: NAVY, align: "center", margin: 0,
       });
-      s.addText(item.kicker.toUpperCase(), {
-        x: BODY_L + 1.1, y: y + 0.12, w: 10.4, h: 0.22,
-        fontFace: FONT, fontSize: 10, bold: true, charSpacing: 1.4, color: GREY, margin: 0,
+      s.addText(label.toUpperCase(), {
+        x: x + 0.08, y: CONTENT_T + 0.95, w: 1.74, h: 0.4,
+        fontFace: FONT, fontSize: 10, bold: true, color: GREY, align: "center", margin: 0,
       });
-      s.addText(item.title, {
-        x: BODY_L + 1.1, y: y + 0.36, w: 10.4, h: 0.36,
-        fontFace: FONT, fontSize: 18, bold: true, color: NAVY, margin: 0,
+    });
+    s.addText(
+      "We walked the floor, read nameplates, and recorded how each station is run and recovered. This is the inventory the rest of the conversation uses.",
+      {
+        x: BODY_L, y: CONTENT_T + 1.75, w: BODY_W, h: 0.5,
+        fontFace: FONT, fontSize: 14, color: INK, margin: 0,
+      },
+    );
+    placePhotos(s, images, collage, BODY_L, CONTENT_T + 2.4, BODY_W, 2.55);
+  }
+
+  // ── Lines ─────────────────────────────────────────────────────────────────
+  if (lines.length > 1) {
+    const s = frame(pptx, {
+      eyebrow: "The visit",
+      title: "Lines we walked",
+      theme: "light", pageNo: page++, images, notes: notesFor("lines"),
+    });
+    const shown = lines.slice(0, 9);
+    const compact = shown.length > 6;
+    const cardH = compact ? 1.45 : 2.15;
+    const rowH = compact ? 1.6 : 2.35;
+    shown.forEach((line, i) => {
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x = BODY_L + col * 4.05;
+      const y = CONTENT_T + row * rowH;
+      panel(s, x, y, 3.9, cardH, CARD);
+      s.addText(line.name, {
+        x: x + 0.18, y: y + 0.14, w: 3.54, h: compact ? 0.55 : 0.7,
+        fontFace: FONT, fontSize: compact ? 14 : 16, bold: true, color: NAVY, margin: 0,
       });
-      s.addText(item.body, {
-        x: BODY_L + 1.1, y: y + 0.74, w: 10.4, h: 0.5,
+      const n = line.machine_count ?? 0;
+      s.addText(`${n} station${n === 1 ? "" : "s"} documented`, {
+        x: x + 0.18, y: y + (compact ? 0.72 : 0.95), w: 3.54, h: 0.5,
         fontFace: FONT, fontSize: 13, color: INK, margin: 0,
       });
     });
   }
 
+  // ── What we found ─────────────────────────────────────────────────────────
+  {
+    const s = frame(pptx, {
+      eyebrow: "This plant",
+      title: "What we found",
+      theme: "light", pageNo: page++, images, notes: notesFor("found"),
+    });
+    s.addText(narrative.story, {
+      x: BODY_L, y: CONTENT_T, w: BODY_W, h: 1.45,
+      fontFace: FONT, fontSize: 15, color: INK, margin: 0,
+    });
+    const bullets = narrative.bullets.slice(0, 6);
+    bullets.forEach((b, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = BODY_L + col * 6.05;
+      const y = CONTENT_T + 1.6 + row * 0.95;
+      panel(s, x, y, 5.85, 0.82, CARD);
+      s.addShape("rect", { x, y, w: 0.08, h: 0.82, fill: { color: LIME }, line: { width: 0 } });
+      s.addText(b, {
+        x: x + 0.28, y: y + 0.12, w: 5.4, h: 0.58,
+        fontFace: FONT, fontSize: 14, color: NAVY, margin: 0, valign: "middle",
+      });
+    });
+  }
+
+  // ── Snapshot ──────────────────────────────────────────────────────────────
+  {
+    const s = frame(pptx, {
+      eyebrow: "This plant",
+      title: "The numbers",
+      theme: "dark", pageNo: page++, images, notes: notesFor("snapshot"),
+    });
+    const tiles: [string, string][] = [
+      [String(narrative.machineCount), "Stations surveyed"],
+      [String(narrative.eolMachines), "On discontinued hardware"],
+      [String(risk.findings.length), "Platforms on the register"],
+      [String(narrative.flagCount), "Operational flags"],
+    ];
+    tiles.forEach(([value, label], i) => {
+      statTile(s, BODY_L + i * 3.05, CONTENT_T, 2.85, value, label, "dark");
+    });
+    panel(s, BODY_L, CONTENT_T + 1.35, BODY_W, 3.55, "0B1466");
+    s.addText("IN PLAIN LANGUAGE", {
+      x: BODY_L + 0.28, y: CONTENT_T + 1.52, w: 11.3, h: 0.24,
+      fontFace: FONT, fontSize: 10, bold: true, charSpacing: 1.4, color: LIME, margin: 0,
+    });
+    s.addText(execSummary, {
+      x: BODY_L + 0.28, y: CONTENT_T + 1.85, w: 11.3, h: 2.8,
+      fontFace: FONT, fontSize: 16, color: WHITE, margin: 0,
+    });
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  {
+    const s = frame(pptx, {
+      eyebrow: "This plant",
+      title: "Equipment lifecycle",
+      theme: "dark", pageNo: page++, images, notes: notesFor("lifecycle"),
+    });
+    s.addText(
+      "The hardware can still be blinking. That is not the same as being supported. When a family goes end of life, parts, software, and the people who know it all get scarce — and a failure takes longer to recover.",
+      {
+        x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.7,
+        fontFace: FONT, fontSize: 14, color: PALE, margin: 0,
+      },
+    );
+    const bands: [string, string, string][] = [
+      [String(risk.counts.critical), "Critical", "B91C1C"],
+      [String(risk.counts.high), "High", "C2410C"],
+      [String(risk.counts.moderate), "Moderate", "B45309"],
+      [String(risk.counts.watch), "Watch", "94A3B8"],
+    ];
+    bands.forEach(([value, label, color], i) => {
+      const x = BODY_L + i * 3.05;
+      panel(s, x, CONTENT_T + 0.9, 2.9, 1.55, "0B1466");
+      s.addShape("rect", { x, y: CONTENT_T + 0.9, w: 0.1, h: 1.55, fill: { color }, line: { width: 0 } });
+      s.addText(value, {
+        x: x + 0.28, y: CONTENT_T + 1.02, w: 2.4, h: 0.7,
+        fontFace: FONT, fontSize: 36, bold: true, color: WHITE, margin: 0,
+      });
+      s.addText(label.toUpperCase(), {
+        x: x + 0.28, y: CONTENT_T + 1.74, w: 2.4, h: 0.28,
+        fontFace: FONT, fontSize: 11, bold: true, charSpacing: 1.1, color: PALE, margin: 0,
+      });
+    });
+    s.addText(
+      `${risk.totalUnits} unit${risk.totalUnits === 1 ? "" : "s"} across ${risk.affectedMachines} of ${risk.totalMachines} stations. ` +
+      "The score ranks this plant’s installed base. It is not a SIL calculation.",
+      {
+        x: BODY_L, y: CONTENT_T + 2.7, w: BODY_W, h: 0.55,
+        fontFace: FONT, fontSize: 13, color: PALE, margin: 0,
+      },
+    );
+    const estopPic = images.refs?.estop;
+    if (estopPic) {
+      s.addImage({
+        data: estopPic, x: BODY_L, y: 5.35, w: 2.4, h: 1.35,
+        sizing: { type: "cover", w: 2.4, h: 1.35 },
+      });
+      s.addText("Support ending quietly is how a Saturday failure becomes a week.", {
+        x: BODY_L + 2.6, y: 5.55, w: 9.2, h: 0.9,
+        fontFace: FONT, fontSize: 14, italic: true, color: LIME, margin: 0, valign: "middle",
+      });
+    }
+  }
+
+  // ── Register ──────────────────────────────────────────────────────────────
+  if (risk.findings.length > 0) {
+    const rows = risk.findings.slice(0, 8);
+    const s = frame(pptx, {
+      eyebrow: "This plant",
+      title: "Risk register",
+      theme: "light", pageNo: page++, images, notes: notesFor("register"),
+    });
+    const headers = ["Platform", "Level", "Units", "Stations", "Why it matters"];
+    const colX = [BODY_L, 4.55, 5.7, 6.85, 8.15];
+    const colW = [3.65, 1.05, 1.05, 1.2, 4.5];
+    headers.forEach((h, i) => {
+      s.addText(h.toUpperCase(), {
+        x: colX[i], y: CONTENT_T, w: colW[i], h: 0.28,
+        fontFace: FONT, fontSize: 9, bold: true, charSpacing: 0.8, color: GREY, margin: 0,
+      });
+    });
+    rows.forEach((f, i) => {
+      const y = CONTENT_T + 0.38 + i * 0.58;
+      if (i % 2 === 0) {
+        s.addShape("rect", {
+          x: BODY_L - 0.08, y: y - 0.06, w: BODY_W + 0.16, h: 0.56,
+          fill: { color: CARD }, line: { width: 0 },
+        });
+      }
+      s.addText(`${f.make} ${f.model}`.trim(), {
+        x: colX[0], y, w: colW[0], h: 0.44,
+        fontFace: FONT, fontSize: 12, bold: true, color: NAVY, margin: 0, valign: "middle",
+      });
+      s.addText(f.level, {
+        x: colX[1], y, w: colW[1], h: 0.44,
+        fontFace: FONT, fontSize: 11, bold: true, color: riskColor(f), margin: 0, valign: "middle",
+      });
+      s.addText(String(f.unitCount), {
+        x: colX[2], y, w: colW[2], h: 0.44,
+        fontFace: FONT, fontSize: 12, color: INK, margin: 0, valign: "middle",
+      });
+      s.addText(String(f.machines.length), {
+        x: colX[3], y, w: colW[3], h: 0.44,
+        fontFace: FONT, fontSize: 12, color: INK, margin: 0, valign: "middle",
+      });
+      s.addText(f.note, {
+        x: colX[4], y, w: colW[4], h: 0.44,
+        fontFace: FONT, fontSize: 11, color: INK, margin: 0, valign: "middle",
+      });
+    });
+  }
+
+  // ── Stations ──────────────────────────────────────────────────────────────
+  {
+    const examples = critical.length
+      ? critical.slice(0, 3)
+      : machines.slice(0, 3).map((machine, index) => ({
+          machine, index, tag: machineTag(machine, index),
+          assessment: assessMachine(machine), score: 0, why: machine.name,
+        }));
+    if (examples.length > 0) {
+      const s = frame(pptx, {
+        eyebrow: "This plant",
+        title: "Stations that tell the story",
+        theme: "light", pageNo: page++, images, notes: notesFor("stations"),
+      });
+      examples.forEach((ex, i) => {
+        const x = BODY_L + i * 4.05;
+        panel(s, x, CONTENT_T, 3.9, 5.05, CARD);
+        const photo = ex.machine.photos?.[0];
+        const data = photo ? images.photos[photo.id] : undefined;
+        if (data) {
+          s.addImage({
+            data, x: x + 0.12, y: CONTENT_T + 0.12, w: 3.66, h: 1.85,
+            sizing: { type: "cover", w: 3.66, h: 1.85 },
+          });
+        } else {
+          s.addShape("rect", {
+            x: x + 0.12, y: CONTENT_T + 0.12, w: 3.66, h: 1.85,
+            fill: { color: NAVY }, line: { width: 0 },
+          });
+        }
+        s.addText(ex.tag, {
+          x: x + 0.18, y: CONTENT_T + 2.08, w: 3.54, h: 0.22,
+          fontFace: FONT, fontSize: 10, bold: true, charSpacing: 0.8, color: GREY, margin: 0,
+        });
+        s.addText(ex.machine.name, {
+          x: x + 0.18, y: CONTENT_T + 2.3, w: 3.54, h: 0.5,
+          fontFace: FONT, fontSize: 15, bold: true, color: NAVY, margin: 0,
+        });
+        s.addText(ex.why, {
+          x: x + 0.18, y: CONTENT_T + 2.85, w: 3.54, h: 0.7,
+          fontFace: FONT, fontSize: 12, color: INK, margin: 0,
+        });
+        const detail =
+          ex.assessment.risk[0] ??
+          ex.assessment.flags[0]?.pitch ??
+          "Documented on this walk.";
+        s.addText(detail, {
+          x: x + 0.18, y: CONTENT_T + 3.6, w: 3.54, h: 1.25,
+          fontFace: FONT, fontSize: 11, color: GREY, margin: 0,
+        });
+      });
+    }
+  }
+
   // ── Why obsolescence is bad ───────────────────────────────────────────────
   {
     const s = frame(pptx, {
-      eyebrow: "01  The problem",
+      eyebrow: "Why this matters",
       title: "Why obsolescence is a problem",
-      theme: "dark", pageNo: page++, images,
+      theme: "dark", pageNo: page++, images, notes: notesFor("why"),
     });
     s.addText(
-      "A line can run reliably while the next crisis is already in the cabinet. The controller is still blinking. The vendor is not.",
+      "The line can run reliably while the next crisis is already in the cabinet. The controller is still blinking. The vendor is not.",
       {
         x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.42,
         fontFace: FONT, fontSize: 14, color: PALE, margin: 0,
@@ -304,16 +583,16 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
       const y = CONTENT_T + 0.52 + row * 2.22;
       panel(s, x, y, 5.85, 2.08, "0B1466");
       s.addText(p.kicker.toUpperCase(), {
-        x: x + 0.18, y: y + 0.12, w: 5.5, h: 0.22,
-        fontFace: FONT, fontSize: 9, bold: true, charSpacing: 0.8, color: LIME, margin: 0,
+        x: x + 0.18, y: y + 0.14, w: 5.5, h: 0.22,
+        fontFace: FONT, fontSize: 10, bold: true, charSpacing: 0.8, color: LIME, margin: 0,
       });
       s.addText(p.title, {
-        x: x + 0.18, y: y + 0.36, w: 5.5, h: 0.42,
-        fontFace: FONT, fontSize: 14, bold: true, color: WHITE, margin: 0,
+        x: x + 0.18, y: y + 0.4, w: 5.5, h: 0.4,
+        fontFace: FONT, fontSize: 16, bold: true, color: WHITE, margin: 0,
       });
       s.addText(p.body, {
-        x: x + 0.18, y: y + 0.82, w: 5.5, h: 1.14,
-        fontFace: FONT, fontSize: 11, color: PALE, margin: 0,
+        x: x + 0.18, y: y + 0.88, w: 5.5, h: 1.02,
+        fontFace: FONT, fontSize: 13, color: PALE, margin: 0,
       });
     });
     s.addText(WHY_FOOTNOTE, {
@@ -325,12 +604,12 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
   // ── ISA ───────────────────────────────────────────────────────────────────
   {
     const s = frame(pptx, {
-      eyebrow: "01  The problem",
-      title: "What the standards already require",
-      theme: "light", pageNo: page++, images,
+      eyebrow: "Why this matters",
+      title: "What the standards already say",
+      theme: "light", pageNo: page++, images, notes: notesFor("isa"),
     });
     s.addText(
-      "This is not an opinion that old equipment is inconvenient. These are the rules a live plant is already expected to run against.",
+      "This is not our opinion that old equipment is inconvenient. These are the rules a live plant is already expected to run against.",
       {
         x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.36,
         fontFace: FONT, fontSize: 13, color: INK, margin: 0,
@@ -352,466 +631,96 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
       });
       s.addText(c.body, {
         x: x + 0.16, y: y + 0.8, w: 3.58, h: 1.08,
-        fontFace: FONT, fontSize: 12, color: INK, margin: 0,
+        fontFace: FONT, fontSize: 13, color: INK, margin: 0,
       });
     });
   }
 
-  // ── Method ────────────────────────────────────────────────────────────────
-  {
+  // ── Always-on floor offers ────────────────────────────────────────────────
+  for (const offer of FLOOR_OFFERS) {
     const s = frame(pptx, {
-      eyebrow: "01  The problem",
-      title: "How this assessment was run",
-      theme: "light", pageNo: page++, images,
+      eyebrow: offer.eyebrow,
+      title: offer.title,
+      theme: "light", pageNo: page++, images, notes: notesFor(`offer:${offer.key}`),
     });
+    const pic = offer.photo ? images.refs?.[offer.photo] : undefined;
+    if (pic) {
+      s.addImage({
+        data: pic, x: BODY_L, y: CONTENT_T, w: 5.55, h: 4.55,
+        sizing: { type: "cover", w: 5.55, h: 4.55 },
+      });
+    } else {
+      panel(s, BODY_L, CONTENT_T, 5.55, 4.55, NAVY);
+    }
+    s.addText(offer.pitch, {
+      x: 6.55, y: CONTENT_T, w: 6.1, h: 1.55,
+      fontFace: FONT, fontSize: 14, color: INK, margin: 0,
+    });
+    offer.bullets.forEach((b, i) => {
+      const y = CONTENT_T + 1.7 + i * 0.7;
+      panel(s, 6.55, y, 6.1, 0.62, CARD);
+      s.addShape("rect", { x: 6.55, y, w: 0.08, h: 0.62, fill: { color: LIME }, line: { width: 0 } });
+      s.addText(b, {
+        x: 6.8, y, w: 5.7, h: 0.62,
+        fontFace: FONT, fontSize: 13, color: NAVY, margin: 0, valign: "middle",
+      });
+    });
+    const tagged = offer.flags ? machinesWithFlags(mapping, offer.flags).length : 0;
     s.addText(
-      "Fixed scope. Floor walk. Nameplates and programs. The people who keep it running. Nothing is graded. Nothing is reported to a third party.",
+      tagged
+        ? `On this walk: ${tagged} station${tagged === 1 ? "" : "s"} tagged.`
+        : "Not tagged on this visit — delete this slide if it does not apply.",
       {
-        x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.36,
-        fontFace: FONT, fontSize: 13, color: INK, margin: 0,
+        x: 6.55, y: 6.45, w: 6.1, h: 0.35,
+        fontFace: FONT, fontSize: 11, italic: true, color: GREY, margin: 0,
       },
     );
-    METHOD_STEPS.forEach((step, i) => {
-      const x = BODY_L + i * 3.05;
-      panel(s, x, CONTENT_T + 0.5, 2.9, 3.55, CARD);
-      s.addText(step.n, {
-        x: x + 0.16, y: CONTENT_T + 0.66, w: 2.58, h: 0.4,
-        fontFace: FONT, fontSize: 22, bold: true, color: NAVY, margin: 0,
-      });
-      s.addText(step.title, {
-        x: x + 0.16, y: CONTENT_T + 1.14, w: 2.58, h: 0.7,
-        fontFace: FONT, fontSize: 15, bold: true, color: NAVY, margin: 0,
-      });
-      s.addText(step.body, {
-        x: x + 0.16, y: CONTENT_T + 1.9, w: 2.58, h: 1.9,
-        fontFace: FONT, fontSize: 12, color: INK, margin: 0,
-      });
-    });
-    s.addText(METHOD_NOTE, {
-      x: BODY_L, y: 6.55, w: BODY_W, h: 0.4,
-      fontFace: FONT, fontSize: 12, italic: true, color: GREY, margin: 0,
-    });
   }
 
-  // ── Lines surveyed ────────────────────────────────────────────────────────
-  if (lines.length > 1) {
+  // ── SCADA payoffs ─────────────────────────────────────────────────────────
+  {
     const s = frame(pptx, {
-      eyebrow: "02  This plant",
-      title: "Lines in this assessment",
-      theme: "light", pageNo: page++, images,
+      eyebrow: "Plant systems",
+      title: "What SCADA puts on the screen",
+      theme: "light", pageNo: page++, images, notes: notesFor("scada-payoffs"),
     });
-    const shown = lines.slice(0, 9);
-    const compact = shown.length > 6;
-    const cardH = compact ? 1.45 : 2.15;
-    const rowH = compact ? 1.6 : 2.35;
-    shown.forEach((line, i) => {
+    SCADA_PAYOFFS.forEach((p, i) => {
       const col = i % 3;
       const row = Math.floor(i / 3);
       const x = BODY_L + col * 4.05;
-      const y = CONTENT_T + row * rowH;
-      panel(s, x, y, 3.9, cardH, CARD);
-      s.addText(line.name, {
-        x: x + 0.18, y: y + 0.14, w: 3.54, h: compact ? 0.55 : 0.7,
-        fontFace: FONT, fontSize: compact ? 14 : 16, bold: true, color: NAVY, margin: 0,
-      });
-      const n = line.machine_count ?? 0;
-      s.addText(`${n} station${n === 1 ? "" : "s"} documented on this walk`, {
-        x: x + 0.18, y: y + (compact ? 0.72 : 0.95), w: 3.54, h: 0.5,
-        fontFace: FONT, fontSize: 13, color: INK, margin: 0,
-      });
-    });
-    if (lines.length > shown.length) {
-      s.addText(`${lines.length - shown.length} additional line${lines.length - shown.length === 1 ? "" : "s"} in this assessment.`, {
-        x: BODY_L, y: 6.7, w: BODY_W, h: 0.22,
-        fontFace: FONT, fontSize: 11, color: GREY, margin: 0,
-      });
-    }
-  }
-
-  // ── What we found ─────────────────────────────────────────────────────────
-  {
-    const s = frame(pptx, {
-      eyebrow: "02  This plant",
-      title: "What the walk found",
-      theme: "light", pageNo: page++, images,
-    });
-    s.addText(narrative.story, {
-      x: BODY_L, y: CONTENT_T, w: BODY_W, h: 1.55,
-      fontFace: FONT, fontSize: 15, color: INK, margin: 0,
-    });
-    const bullets = narrative.bullets.slice(0, 6);
-    bullets.forEach((b, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const x = BODY_L + col * 6.05;
-      const y = CONTENT_T + 1.75 + row * 0.95;
-      panel(s, x, y, 5.85, 0.82, CARD);
-      s.addShape("rect", {
-        x, y, w: 0.08, h: 0.82, fill: { color: LIME }, line: { width: 0 },
-      });
-      s.addText(b, {
-        x: x + 0.28, y: y + 0.12, w: 5.4, h: 0.58,
-        fontFace: FONT, fontSize: 14, color: NAVY, margin: 0, valign: "middle",
-      });
-    });
-  }
-
-  // ── Executive snapshot ────────────────────────────────────────────────────
-  {
-    const s = frame(pptx, {
-      eyebrow: "02  This plant",
-      title: "Executive snapshot",
-      theme: "dark", pageNo: page++, images,
-    });
-    const tiles: [string, string][] = [
-      [String(narrative.machineCount), "Stations surveyed"],
-      [String(narrative.eolMachines), "On discontinued hardware"],
-      [String(risk.findings.length), "Platforms on the register"],
-      [String(narrative.flagCount), "Operational flags"],
-    ];
-    tiles.forEach(([value, label], i) => {
-      statTile(s, BODY_L + i * 3.05, CONTENT_T, 2.85, value, label, "dark");
-    });
-    panel(s, BODY_L, CONTENT_T + 1.35, BODY_W, 3.55, "0B1466");
-    s.addText("WHAT THIS MEANS", {
-      x: BODY_L + 0.28, y: CONTENT_T + 1.52, w: 11.3, h: 0.24,
-      fontFace: FONT, fontSize: 10, bold: true, charSpacing: 1.4, color: LIME, margin: 0,
-    });
-    s.addText(execSummary, {
-      x: BODY_L + 0.28, y: CONTENT_T + 1.85, w: 11.3, h: 2.8,
-      fontFace: FONT, fontSize: 16, color: WHITE, margin: 0,
-    });
-  }
-
-  // ── Lifecycle risk ────────────────────────────────────────────────────────
-  if (risk.findings.length > 0) {
-    const s = frame(pptx, {
-      eyebrow: "02  This plant",
-      title: "Equipment lifecycle risk",
-      theme: "dark", pageNo: page++, images,
-    });
-    s.addText(
-      "Hardware or software that is no longer manufactured or supported carries direct operational risk: limited parts, thinner vendor support, and a longer recovery after a failure. A controller family can move from Active to End of Life while the line still looks fine. The status change is the warning.",
-      {
-        x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.85,
-        fontFace: FONT, fontSize: 14, color: PALE, margin: 0,
-      },
-    );
-    const counts: [string, string, string][] = [
-      [String(risk.counts.critical), "Critical", "B91C1C"],
-      [String(risk.counts.high), "High", "C2410C"],
-      [String(risk.counts.moderate), "Moderate", "B45309"],
-      [String(risk.counts.watch), "Watch", "94A3B8"],
-    ];
-    counts.forEach(([value, label, color], i) => {
-      const x = BODY_L + i * 3.05;
-      panel(s, x, CONTENT_T + 1.05, 2.9, 1.55, "0B1466");
-      s.addShape("rect", { x, y: CONTENT_T + 1.05, w: 0.1, h: 1.55, fill: { color }, line: { width: 0 } });
-      s.addText(value, {
-        x: x + 0.28, y: CONTENT_T + 1.18, w: 2.4, h: 0.7,
-        fontFace: FONT, fontSize: 36, bold: true, color: WHITE, margin: 0,
-      });
-      s.addText(label.toUpperCase(), {
-        x: x + 0.28, y: CONTENT_T + 1.9, w: 2.4, h: 0.28,
-        fontFace: FONT, fontSize: 11, bold: true, charSpacing: 1.1, color: PALE, margin: 0,
-      });
-    });
-    s.addText(
-      `${risk.totalUnits} unit${risk.totalUnits === 1 ? "" : "s"} across ${risk.affectedMachines} of ${risk.totalMachines} stations. ` +
-      "Score = years past last-ship (mature = 1, unsupported = 3) + how many units depend on it + whether a successor is published. It ranks this plant’s installed base. It is not a SIL calculation.",
-      {
-        x: BODY_L, y: CONTENT_T + 2.85, w: BODY_W, h: 0.7,
-        fontFace: FONT, fontSize: 13, color: PALE, margin: 0,
-      },
-    );
-    s.addText(
-      "A list of old equipment does not get funded. A ranked register that ties each item to the production it puts at risk does.",
-      {
-        x: BODY_L, y: 6.35, w: BODY_W, h: 0.4,
-        fontFace: FONT, fontSize: 14, italic: true, color: LIME, margin: 0,
-      },
-    );
-  }
-
-  // ── Risk register ─────────────────────────────────────────────────────────
-  if (risk.findings.length > 0) {
-    const rows = risk.findings.slice(0, 8);
-    const s = frame(pptx, {
-      eyebrow: "02  This plant",
-      title: "Risk register — ranked for capital",
-      theme: "light", pageNo: page++, images,
-    });
-    const headers = ["Platform", "Level", "Units", "Stations", "Why it matters"];
-    const colX = [BODY_L, 4.55, 5.7, 6.85, 8.15];
-    const colW = [3.65, 1.05, 1.05, 1.2, 4.5];
-    headers.forEach((h, i) => {
-      s.addText(h.toUpperCase(), {
-        x: colX[i], y: CONTENT_T, w: colW[i], h: 0.28,
-        fontFace: FONT, fontSize: 9, bold: true, charSpacing: 0.8, color: GREY, margin: 0,
-      });
-    });
-    rows.forEach((f, i) => {
-      const y = CONTENT_T + 0.38 + i * 0.58;
-      if (i % 2 === 0) {
-        s.addShape("rect", {
-          x: BODY_L - 0.08, y: y - 0.06, w: BODY_W + 0.16, h: 0.56,
-          fill: { color: CARD }, line: { width: 0 },
-        });
-      }
-      const label = `${f.make} ${f.model}`.trim();
-      s.addText(label, {
-        x: colX[0], y, w: colW[0], h: 0.44,
-        fontFace: FONT, fontSize: 12, bold: true, color: NAVY, margin: 0, valign: "middle",
-      });
-      s.addText(f.level, {
-        x: colX[1], y, w: colW[1], h: 0.44,
-        fontFace: FONT, fontSize: 11, bold: true, color: riskColor(f), margin: 0, valign: "middle",
-      });
-      s.addText(String(f.unitCount), {
-        x: colX[2], y, w: colW[2], h: 0.44,
-        fontFace: FONT, fontSize: 12, color: INK, margin: 0, valign: "middle",
-      });
-      s.addText(String(f.machines.length), {
-        x: colX[3], y, w: colW[3], h: 0.44,
-        fontFace: FONT, fontSize: 12, color: INK, margin: 0, valign: "middle",
-      });
-      s.addText(f.note, {
-        x: colX[4], y, w: colW[4], h: 0.44,
-        fontFace: FONT, fontSize: 11, color: INK, margin: 0, valign: "middle",
-      });
-    });
-    if (risk.findings.length > rows.length) {
-      s.addText(`${risk.findings.length - rows.length} additional platform${risk.findings.length - rows.length === 1 ? "" : "s"} on the full register.`, {
-        x: BODY_L, y: 6.7, w: BODY_W, h: 0.22,
-        fontFace: FONT, fontSize: 11, color: GREY, margin: 0,
-      });
-    }
-  }
-
-  // ── Stations that prove it ────────────────────────────────────────────────
-  if (critical.length > 0) {
-    const s = frame(pptx, {
-      eyebrow: "02  This plant",
-      title: "Stations that prove the score",
-      theme: "light", pageNo: page++, images,
-    });
-    critical.slice(0, 3).forEach((ex, i) => {
-      const x = BODY_L + i * 4.05;
-      panel(s, x, CONTENT_T, 3.9, 5.05, CARD);
-      const photo = ex.machine.photos?.[0];
-      const data = photo ? images.photos[photo.id] : undefined;
-      if (data) {
-        s.addImage({
-          data, x: x + 0.12, y: CONTENT_T + 0.12, w: 3.66, h: 1.85,
-          sizing: { type: "cover", w: 3.66, h: 1.85 },
-        });
-      } else {
-        s.addShape("rect", {
-          x: x + 0.12, y: CONTENT_T + 0.12, w: 3.66, h: 1.85,
-          fill: { color: NAVY }, line: { width: 0 },
-        });
-      }
-      s.addText(ex.tag, {
-        x: x + 0.18, y: CONTENT_T + 2.08, w: 3.54, h: 0.22,
-        fontFace: FONT, fontSize: 10, bold: true, charSpacing: 0.8, color: GREY, margin: 0,
-      });
-      s.addText(ex.machine.name, {
-        x: x + 0.18, y: CONTENT_T + 2.3, w: 3.54, h: 0.5,
-        fontFace: FONT, fontSize: 15, bold: true, color: NAVY, margin: 0,
-      });
-      s.addText(ex.why, {
-        x: x + 0.18, y: CONTENT_T + 2.85, w: 3.54, h: 0.7,
-        fontFace: FONT, fontSize: 12, color: INK, margin: 0,
-      });
-      const detail =
-        ex.assessment.risk[0] ??
-        ex.assessment.flags[0]?.pitch ??
-        "Documented on this walk as a priority station.";
-      s.addText(detail, {
-        x: x + 0.18, y: CONTENT_T + 3.6, w: 3.54, h: 1.25,
-        fontFace: FONT, fontSize: 11, color: GREY, margin: 0,
-      });
-    });
-  }
-
-  // ── Safety on this floor ──────────────────────────────────────────────────
-  if (safetyMachines.length > 0) {
-    const s = frame(pptx, {
-      eyebrow: "02  This plant",
-      title: "Safety on this floor",
-      theme: "dark", pageNo: page++, images,
-    });
-    s.addText(
-      "ANSI/ISA-61511 requires the safety function to remain maintainable and testable for its life. ISA-84.91.01 requires process safety controls, alarms, and interlocks to be identified and kept mechanically integral. The walk found stations that fail that test today.",
-      {
-        x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.7,
-        fontFace: FONT, fontSize: 14, color: PALE, margin: 0,
-      },
-    );
-    const tiles: [string, string, string][] = [
-      [String(estop), "Unlit e-stops", "A dark mushroom does not tell you it is pressed. The line hunts a latched stop instead of recovering."],
-      [String(hardwired), "Hardwired safety, no status", "When the circuit drops, there is no HMI indication of which gate, e-stop, or relay opened."],
-      [String(noBackup), "No current backup", "A failed processor is a rewrite, not a restore. That is lost production and a lost safety configuration."],
-    ];
-    tiles.forEach(([value, title, body], i) => {
-      const x = BODY_L + i * 4.05;
-      panel(s, x, CONTENT_T + 0.9, 3.9, 3.35, "0B1466");
-      s.addText(value, {
-        x: x + 0.2, y: CONTENT_T + 1.05, w: 3.5, h: 0.7,
-        fontFace: FONT, fontSize: 36, bold: true, color: LIME, margin: 0,
-      });
-      s.addText(title, {
-        x: x + 0.2, y: CONTENT_T + 1.8, w: 3.5, h: 0.55,
-        fontFace: FONT, fontSize: 16, bold: true, color: WHITE, margin: 0,
-      });
-      s.addText(body, {
-        x: x + 0.2, y: CONTENT_T + 2.45, w: 3.5, h: 1.5,
-        fontFace: FONT, fontSize: 13, color: PALE, margin: 0,
-      });
-    });
-  }
-
-  // ── Cost and visibility ───────────────────────────────────────────────────
-  if (costMachines.length > 0 || narrative.eolMachines > 0) {
-    const s = frame(pptx, {
-      eyebrow: "02  This plant",
-      title: "Cost and visibility on this floor",
-      theme: "light", pageNo: page++, images,
-    });
-    s.addText(
-      "Obsolescence is unplanned capital. Missing visibility is unplanned labor. Both show up as lost shift long before they show up as a purchase order.",
-      {
-        x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.45,
-        fontFace: FONT, fontSize: 14, color: INK, margin: 0,
-      },
-    );
-    const items: [string, string][] = [];
-    if (narrative.eolMachines) {
-      items.push([
-        `${narrative.eolMachines} station${narrative.eolMachines === 1 ? "" : "s"} on discontinued hardware`,
-        "Brokered spares, no firmware path, and a recovery that depends on whoever still knows the platform.",
-      ]);
-    }
-    if (narrative.trapped) {
-      items.push([
-        `${narrative.trapped} modern drive/servo package${narrative.trapped === 1 ? "" : "s"} trapped`,
-        "Hardware already paid for, blocked by a legacy processor that cannot expose its data.",
-      ]);
-    }
-    if (narrative.noHmi) {
-      items.push([
-        `${narrative.noHmi} station${narrative.noHmi === 1 ? "" : "s"} with no useful operator interface`,
-        "ISA-101 expects situational awareness. Diagnosis here is tribal knowledge, not the screen.",
-      ]);
-    }
-    if (narrative.islands) {
-      items.push([
-        `${narrative.islands} control island${narrative.islands === 1 ? "" : "s"}`,
-        "ISA-95 cannot integrate what cannot talk. Balance stays an opinion.",
-      ]);
-    }
-    const noScada = machinesWithFlags(mapping, ["no_scada"]).length;
-    const noUtils = machinesWithFlags(mapping, ["no_utilities"]).length;
-    if (noScada) {
-      items.push([
-        `${noScada} station${noScada === 1 ? "" : "s"} with no plant SCADA overview`,
-        "Nobody in a control room can see running, starved, or down — and why.",
-      ]);
-    }
-    if (noUtils) {
-      items.push([
-        `${noUtils} station${noUtils === 1 ? "" : "s"} with no utility visibility`,
-        "Gas, water, air, and power are spent without a number attached to the line.",
-      ]);
-    }
-    if (laptopCount) {
-      items.push([
-        `${laptopCount} station${laptopCount === 1 ? "" : "s"} where recovery requires a laptop`,
-        "Mean time to repair is mean time to find the person with the software.",
-      ]);
-    }
-    items.slice(0, 6).forEach((item, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const x = BODY_L + col * 6.05;
-      const y = CONTENT_T + 0.6 + row * 1.45;
-      panel(s, x, y, 5.85, 1.32, CARD);
-      s.addShape("rect", { x, y, w: 0.08, h: 1.32, fill: { color: LIME }, line: { width: 0 } });
-      s.addText(item[0], {
-        x: x + 0.28, y: y + 0.14, w: 5.4, h: 0.45,
+      const y = CONTENT_T + row * 1.7;
+      panel(s, x, y, 3.9, 1.55, CARD);
+      s.addText(p.title, {
+        x: x + 0.16, y: y + 0.12, w: 3.58, h: 0.32,
         fontFace: FONT, fontSize: 14, bold: true, color: NAVY, margin: 0,
       });
-      s.addText(item[1], {
-        x: x + 0.28, y: y + 0.62, w: 5.4, h: 0.55,
+      s.addText(p.body, {
+        x: x + 0.16, y: y + 0.48, w: 3.58, h: 0.92,
         fontFace: FONT, fontSize: 12, color: INK, margin: 0,
       });
     });
   }
 
-  // ── What we can change ────────────────────────────────────────────────────
-  if (opps.findings.length > 0) {
+  // ── Also on the floor ─────────────────────────────────────────────────────
+  {
     const s = frame(pptx, {
-      eyebrow: "03  The program",
-      title: "What we can change from this walk",
-      theme: "light", pageNo: page++, images,
+      eyebrow: "Plant systems",
+      title: "What else this walk covers",
+      theme: "light", pageNo: page++, images, notes: notesFor("also"),
     });
-    s.addText(
-      "Each item below is already on the floor. It is not a catalogue of services. It is the work the findings justify.",
-      {
-        x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.36,
-        fontFace: FONT, fontSize: 13, color: INK, margin: 0,
-      },
-    );
-    opps.findings.slice(0, 6).forEach((f, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const x = BODY_L + col * 6.05;
-      const y = CONTENT_T + 0.5 + row * 1.5;
-      panel(s, x, y, 5.85, 1.38, CARD);
-      s.addText(`${f.label}  ·  ${f.unitCount} station${f.unitCount === 1 ? "" : "s"}`, {
-        x: x + 0.2, y: y + 0.14, w: 5.45, h: 0.35,
-        fontFace: FONT, fontSize: 14, bold: true, color: NAVY, margin: 0,
-      });
-      s.addText(f.pitch, {
-        x: x + 0.2, y: y + 0.52, w: 5.45, h: 0.7,
-        fontFace: FONT, fontSize: 12, color: INK, margin: 0,
-      });
-    });
-  }
-
-  // ── Theme evidence (plant-specific only) ──────────────────────────────────
-  if (themes.length > 0) {
-    const shown = themes.slice(0, 2);
-    const s = frame(pptx, {
-      eyebrow: "03  The program",
-      title: "Evidence, then the fix",
-      theme: "light", pageNo: page++, images,
-    });
-    shown.forEach((theme, i) => {
-      const x = BODY_L + i * 6.05;
-      panel(s, x, CONTENT_T, 5.85, 5.05, CARD);
-      const photo = theme.station?.machine.photos?.[0];
-      const data = photo ? images.photos[photo.id] : undefined;
-      if (data) {
-        s.addImage({
-          data, x: x + 0.14, y: CONTENT_T + 0.14, w: 5.57, h: 2.15,
-          sizing: { type: "cover", w: 5.57, h: 2.15 },
-        });
-      }
-      s.addText(theme.title, {
-        x: x + 0.22, y: CONTENT_T + 2.42, w: 5.4, h: 0.4,
+    ALSO_ON_THE_FLOOR.forEach((p, i) => {
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x = BODY_L + col * 4.05;
+      const y = CONTENT_T + row * 2.35;
+      panel(s, x, y, 3.9, 2.15, CARD);
+      s.addText(p.title, {
+        x: x + 0.18, y: y + 0.2, w: 3.54, h: 0.5,
         fontFace: FONT, fontSize: 16, bold: true, color: NAVY, margin: 0,
       });
-      s.addText(theme.pitch, {
-        x: x + 0.22, y: CONTENT_T + 2.88, w: 5.4, h: 1.0,
+      s.addText(p.body, {
+        x: x + 0.18, y: y + 0.75, w: 3.54, h: 1.15,
         fontFace: FONT, fontSize: 13, color: INK, margin: 0,
-      });
-      const names = theme.station
-        ? `${theme.station.tag}  ·  ${theme.station.machine.name}`
-        : "";
-      s.addText(names, {
-        x: x + 0.22, y: CONTENT_T + 4.05, w: 5.4, h: 0.7,
-        fontFace: FONT, fontSize: 12, color: GREY, margin: 0,
       });
     });
   }
@@ -819,44 +728,39 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
   // ── Roadmap ───────────────────────────────────────────────────────────────
   {
     const s = frame(pptx, {
-      eyebrow: "03  The program",
+      eyebrow: "Next",
       title: "Recommended sequence",
-      theme: "light", pageNo: page++, images,
+      theme: "light", pageNo: page++, images, notes: notesFor("roadmap"),
     });
-    s.addText(
-      "Fund in this order so the first dollar goes to the asset that would stop the plant — or leave a safety function unprovable.",
-      {
-        x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.4,
-        fontFace: FONT, fontSize: 14, color: INK, margin: 0,
-      },
-    );
+    s.addText("A starting order. Move items to match your shutdown calendar.", {
+      x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.32,
+      fontFace: FONT, fontSize: 14, color: INK, margin: 0,
+    });
 
-    const immediate: string[] = [];
-    if (noBackup) immediate.push("Image every processor that still has no current backup.");
-    if (estop) immediate.push("Illuminate latched e-stops so a stop is obvious from the aisle.");
-    if (hardwired) immediate.push("Put safety-circuit status on the HMI — which device opened.");
+    const immediate: string[] = [
+      "Image processors that still have no current backup.",
+      "Illuminate latched e-stops so a stop is obvious from the aisle.",
+      "Put safety-circuit status on the HMI — which device opened.",
+    ];
     if (risk.counts.critical > 0) {
-      immediate.push(`Quote migration for the ${risk.counts.critical} critical platform${risk.counts.critical === 1 ? "" : "s"} on the register.`);
+      immediate.splice(0, 0, `Quote migration for the ${risk.counts.critical} critical platform${risk.counts.critical === 1 ? "" : "s"} on the register.`);
     }
     if (laptopCount) immediate.push("Panel diagnostics so recovery does not wait on a laptop.");
-    if (immediate.length === 0) immediate.push("Confirm backups, spare strategy, and ownership of this register.");
-
-    const shutdown: string[] = [];
-    if (narrative.eolMachines) {
-      shutdown.push("First controller migrations on discontinued platforms, aligned to the outage calendar.");
+    if (noBackup === 0 && estop === 0 && hardwired === 0 && risk.counts.critical === 0) {
+      /* keep the generic three */
     }
-    if (narrative.noHmi) shutdown.push("Graphical HMI with fault text and recovery on stations that have none.");
-    if (narrative.trapped) shutdown.push("Unlock modern drives and servos already installed behind legacy processors.");
-    if (shutdown.length === 0) shutdown.push("Use the next outage to close the highest remaining items on the register.");
 
-    const program: string[] = [];
-    const noScada = machinesWithFlags(mapping, ["no_scada"]).length;
-    const noUtils = machinesWithFlags(mapping, ["no_utilities"]).length;
-    if (noScada) program.push("Plant SCADA overview — one picture of running, starved, down, and why.");
-    if (noUtils) program.push("Meter gas, water, air, and power at the line so cost has a number.");
-    if (narrative.islands) program.push("Connect islands so the line can be balanced on data, not opinion.");
-    program.push("Remaining platform migrations on a published successor path.");
-    program.push("Keep the register current as vendor lifecycle states change.");
+    const shutdown: string[] = [
+      "First controller migrations on discontinued platforms, aligned to the outage.",
+      "Graphical HMI with fault text on stations that have none.",
+      "Unlock modern drives and servos sitting behind a legacy processor.",
+    ];
+    const program: string[] = [
+      "Plant SCADA overview — running, starved, down, and why.",
+      "Meter gas, water, air, and power at the line.",
+      "Connect islands so the line can be balanced on data.",
+      "Keep the register current as vendor lifecycle states change.",
+    ];
 
     const cols: { title: string; kicker: string; items: string[] }[] = [
       { kicker: "Now", title: "Immediate", items: immediate.slice(0, 4) },
@@ -865,53 +769,25 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
     ];
     cols.forEach((col, i) => {
       const x = BODY_L + i * 4.05;
-      panel(s, x, CONTENT_T + 0.55, 3.9, 4.5, CARD);
+      panel(s, x, CONTENT_T + 0.45, 3.9, 4.6, CARD);
       s.addText(col.kicker.toUpperCase(), {
-        x: x + 0.2, y: CONTENT_T + 0.72, w: 3.5, h: 0.22,
+        x: x + 0.2, y: CONTENT_T + 0.62, w: 3.5, h: 0.22,
         fontFace: FONT, fontSize: 10, bold: true, charSpacing: 1.2, color: GREY, margin: 0,
       });
       s.addText(col.title, {
-        x: x + 0.2, y: CONTENT_T + 0.96, w: 3.5, h: 0.4,
+        x: x + 0.2, y: CONTENT_T + 0.86, w: 3.5, h: 0.4,
         fontFace: FONT, fontSize: 20, bold: true, color: NAVY, margin: 0,
       });
       col.items.forEach((item, j) => {
         s.addText(`${j + 1}.  ${item}`, {
-          x: x + 0.2, y: CONTENT_T + 1.5 + j * 0.8, w: 3.5, h: 0.72,
+          x: x + 0.2, y: CONTENT_T + 1.4 + j * 0.8, w: 3.5, h: 0.72,
           fontFace: FONT, fontSize: 13, color: INK, margin: 0,
         });
       });
     });
   }
 
-  // ── Deliverables ──────────────────────────────────────────────────────────
-  {
-    const s = frame(pptx, {
-      eyebrow: "03  The program",
-      title: "What you now hold",
-      theme: "light", pageNo: page++, images,
-    });
-    DELIVERABLES.forEach((d, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      const x = BODY_L + col * 4.05;
-      const y = CONTENT_T + row * 2.35;
-      panel(s, x, y, 3.9, 2.15, CARD);
-      s.addText(String(i + 1).padStart(2, "0"), {
-        x: x + 0.18, y: y + 0.16, w: 3.54, h: 0.28,
-        fontFace: FONT, fontSize: 12, bold: true, color: GREY, margin: 0,
-      });
-      s.addText(d.title, {
-        x: x + 0.18, y: y + 0.48, w: 3.54, h: 0.4,
-        fontFace: FONT, fontSize: 16, bold: true, color: NAVY, margin: 0,
-      });
-      s.addText(d.body, {
-        x: x + 0.18, y: y + 0.95, w: 3.54, h: 0.95,
-        fontFace: FONT, fontSize: 13, color: INK, margin: 0,
-      });
-    });
-  }
-
-  // ── Close ─────────────────────────────────────────────────────────────────
+  // ── Any questions? ────────────────────────────────────────────────────────
   {
     const s = pptx.addSlide();
     s.background = { color: NAVY };
@@ -922,36 +798,27 @@ export async function buildPresentation({ mapping, images, summary, preparedFor 
         sizing: { type: "contain", w: 1.15, h: 1.1 },
       });
     }
-    s.addText("THE NEXT CONVERSATION", {
-      x: MARGIN_L, y: 1.7, w: 11.4, h: 0.28,
+    s.addText("I&I AUTOMATION", {
+      x: MARGIN_L, y: 2.35, w: 11.4, h: 0.28,
       fontFace: FONT, fontSize: 12, bold: true, charSpacing: 2.2, color: LIME, margin: 0,
     });
-    s.addText("Act on the register before the failure writes the schedule.", {
-      x: MARGIN_L, y: 2.15, w: 11.2, h: 1.15,
-      fontFace: FONT, fontSize: 28, bold: true, color: WHITE, margin: 0,
+    s.addText("Any questions?", {
+      x: MARGIN_L, y: 2.8, w: 11.2, h: 1.1,
+      fontFace: FONT, fontSize: 48, bold: true, color: WHITE, margin: 0,
     });
-    s.addText(
-      "A ranked list of discontinued platforms, undocumented safety, and missing visibility is only useful if the first item gets a date. I&I Automation will walk the critical migrations, the safety-status work, and the plant-systems scope against your shutdown calendar.",
-      {
-        x: MARGIN_L, y: 3.45, w: 10.6, h: 1.2,
-        fontFace: FONT, fontSize: 16, color: PALE, margin: 0,
-      },
-    );
     s.addShape("rect", {
-      x: MARGIN_L, y: 4.85, w: 1.4, h: 0.06, fill: { color: LIME }, line: { width: 0 },
-    });
-    s.addText("I&I Automation", {
-      x: MARGIN_L, y: 5.15, w: 10, h: 0.36,
-      fontFace: FONT, fontSize: 18, bold: true, color: WHITE, margin: 0,
+      x: MARGIN_L, y: 4.1, w: 1.4, h: 0.06, fill: { color: LIME }, line: { width: 0 },
     });
     s.addText(plant + (location ? `  ·  ${location}` : ""), {
-      x: MARGIN_L, y: 5.55, w: 10, h: 0.28,
-      fontFace: FONT, fontSize: 14, color: PALE, margin: 0,
+      x: MARGIN_L, y: 4.4, w: 10, h: 0.32,
+      fontFace: FONT, fontSize: 16, color: PALE, margin: 0,
     });
     s.addText(date, {
       x: MARGIN_L, y: 6.85, w: 8, h: 0.24,
       fontFace: FONT, fontSize: 12, color: GREY, margin: 0,
     });
+    const n = notesFor("questions");
+    if (n) s.addNotes(n);
   }
 
   return pptx;
@@ -965,12 +832,12 @@ function riskColor(f: RiskFinding): string {
 }
 
 export function deckFileName(mapping: Mapping): string {
-  const base = (mapping.plant_name ?? mapping.name ?? "Plant-Systems-Assessment")
+  const base = (mapping.plant_name ?? mapping.name ?? "Automation-Report")
     .replace(/[^\w\s-]/g, "")
     .trim()
     .replace(/\s+/g, "-");
   const plantWide = (mapping.source_lines?.length ?? 0) > 1 ? "-Plant" : "";
-  return `${base}${plantWide}-Plant-Systems-Assessment.pptx`;
+  return `${base}${plantWide}-Automation-Report.pptx`;
 }
 
 export const DECK_FONT_FALLBACK = FONT_FALLBACK;
@@ -1045,21 +912,19 @@ function photosNeededForDeck(mapping: Mapping) {
     out.push(photo);
   };
   for (const machine of mapping.machines ?? []) {
-    if ((machine.photos ?? []).length > 0) {
-      addFirst(machine);
-      break;
-    }
+    addFirst(machine);
+    if (out.length >= 8) break;
   }
   for (const example of pickCriticalExamples(mapping, 3)) {
     addFirst(example.machine);
   }
-  for (const theme of pickThemeExamples(mapping, new Set(), 2)) {
-    addFirst(theme.station?.machine);
-  }
   return out;
 }
 
-export async function downloadPresentation(mapping: Mapping): Promise<void> {
+export async function downloadPresentation(
+  mapping: Mapping,
+  opts: { includeNotes?: boolean } = {},
+): Promise<void> {
   const photos: Record<string, string> = {};
 
   await Promise.all(
@@ -1074,6 +939,19 @@ export async function downloadPresentation(mapping: Mapping): Promise<void> {
     toDataUri("/brand/deck-logo-dark.png"),
   ]);
 
-  const pptx = await buildPresentation({ mapping, images: { logoWhite, logoDark, photos } });
+  const refs: Record<string, string> = {};
+  const refKeys = [...new Set(FLOOR_OFFERS.map((o) => o.photo).filter(Boolean))] as string[];
+  await Promise.all(
+    refKeys.map(async (key) => {
+      const data = await fetchImageAsJpeg(`/deck-refs/${key}.jpg`, 1100, 0.78, true);
+      if (data) refs[key] = data;
+    }),
+  );
+
+  const pptx = await buildPresentation({
+    mapping,
+    images: { logoWhite, logoDark, photos, refs },
+    includeNotes: opts.includeNotes ?? false,
+  });
   await pptx.writeFile({ fileName: deckFileName(mapping) });
 }
