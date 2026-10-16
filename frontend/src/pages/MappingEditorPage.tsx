@@ -19,7 +19,6 @@ import { assessMachine, lifeFor } from "../data/machineAssessment";
 import { buildRiskRegister, type RiskLevel } from "../data/riskRegister";
 import { buildOpportunityRegister, type OpportunityFinding } from "../data/opportunityRegister";
 import { downloadPresentation } from "../services/presentation";
-import { SpeakerNotesPrint, SpeakerNotesView } from "../components/SpeakerNotesView";
 import { FLAG_DEFS, FLAG_GROUPS } from "../data/observations";
 import { RiskRegisterView } from "../components/RiskRegisterView";
 import { usePrintReport } from "../hooks/usePrintReport";
@@ -2239,7 +2238,7 @@ export default function MappingEditorPage() {
   const [newMachineName, setNewMachineName] = useState("");
   const [showAddMachine, setShowAddMachine] = useState(false);
   // Open on the read-only report; editing is opt-in via the Edit toggle
-  const [mode, setMode] = useState<"edit" | "view" | "risk" | "notes">("view");
+  const [mode, setMode] = useState<"edit" | "view" | "risk">("view");
   const [buildingDeck, setBuildingDeck] = useState(false);
   const { printReady, printBusy, startPrint } = usePrintReport();
   const viewMode = mode !== "edit";
@@ -2328,8 +2327,7 @@ export default function MappingEditorPage() {
   return (
     <>
       {/* Print view — lives outside the screen wrapper so display:none doesn't block it */}
-      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady && mode !== "notes"} />
-      <SpeakerNotesPrint mapping={mapping} active={printReady && mode === "notes"} />
+      <PrintView mapping={mapping} mode={mode === "risk" ? "risk" : "sheet"} active={printReady} />
 
       {/* Screen UI — toolbar always full-bleed; edit mode narrows the form */}
       <div className="mapping-screen-only pb-24">
@@ -2345,7 +2343,6 @@ export default function MappingEditorPage() {
             { id: "exec", label: "Summary" },
             { id: "view", label: "Drawing" },
             { id: "risk", label: "Risk" },
-            { id: "notes", label: "Talk track" },
             { id: "edit", label: "Edit" },
           ]}
           mode={mode}
@@ -2354,7 +2351,7 @@ export default function MappingEditorPage() {
               navigate(`/mappings/plant/${mapping.plant_id}`);
               return;
             }
-            setMode(id as "edit" | "view" | "risk" | "notes");
+            setMode(id as "edit" | "view" | "risk");
           }}
           status={{
             label: isComplete ? "Complete" : "In progress",
@@ -2365,7 +2362,7 @@ export default function MappingEditorPage() {
           onDeck={async () => {
             setBuildingDeck(true);
             try {
-              await downloadPresentation(mapping, { includeNotes: true });
+              await downloadPresentation(mapping);
             } catch (err) {
               console.error(err);
               alert("Could not build the presentation.");
@@ -2382,7 +2379,6 @@ export default function MappingEditorPage() {
         {/* View mode */}
         {mode === "view" && <MappingView mapping={mapping} />}
         {mode === "risk" && <RiskRegisterView mapping={mapping} />}
-        {mode === "notes" && <SpeakerNotesView mapping={mapping} />}
 
         {/* Edit mode — machines */}
         {!viewMode && machines.length === 0 ? (

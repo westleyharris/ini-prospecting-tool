@@ -9,14 +9,10 @@ import {
   FLOOR_OFFERS, type ProblemStation,
 } from "../data/deckOffers";
 import { WHY_PILLARS, WHY_FOOTNOTE } from "../data/deckStory";
-import {
-  NOTES_PREFIX, buildDeckTranscript, surveyCounts, type TranscriptSlide,
-} from "../data/deckTranscript";
 
 /**
- * Customer deck: survey → what they have → why obsolescence is a problem →
+ * Customer deck: what we found → why obsolescence is a problem →
  * plant-systems slides they can delete → sequence → questions.
- * Speaker notes are optional (internal export only).
  */
 
 const NAVY = "050A3C";
@@ -53,8 +49,6 @@ export interface DeckOptions {
   images: DeckImages;
   summary?: string;
   preparedFor?: string;
-  /** PowerPoint speaker notes. Internal downloads only — omit on share links. */
-  includeNotes?: boolean;
 }
 
 type Theme = "light" | "dark";
@@ -65,9 +59,9 @@ function fmtDate(d = new Date()): string {
 
 function frame(
   pptx: PptxGenJS,
-  opts: { eyebrow: string; title: string; theme: Theme; pageNo: number; images: DeckImages; notes?: string },
+  opts: { eyebrow: string; title: string; theme: Theme; pageNo: number; images: DeckImages },
 ) {
-  const { eyebrow, title, theme, pageNo, images, notes } = opts;
+  const { eyebrow, title, theme, pageNo, images } = opts;
   const dark = theme === "dark";
   const slide = pptx.addSlide();
 
@@ -102,8 +96,6 @@ function frame(
     align: "right", margin: 0,
   });
 
-  if (notes) slide.addNotes(notes);
-
   return slide;
 }
 
@@ -122,6 +114,21 @@ function machinesWithFlags(mapping: Mapping, keys: FlagKey[]): MappingMachine[] 
   return (mapping.machines ?? []).filter((m) =>
     assessMachine(m).flags.some((f) => want.has(f.key)),
   );
+}
+
+function surveyCounts(mapping: Mapping) {
+  const machines = mapping.machines ?? [];
+  return {
+    stations: machines.length,
+    lines: mapping.source_lines?.length ?? 0,
+    plc: machines.filter((m) => m.plc_make || m.plc_model).length,
+    hmi: machines.filter((m) => m.hmi_make || m.hmi_model).length,
+    vfd: machines.filter((m) => m.vfd_make || m.vfd_model).length,
+    servo: machines.filter((m) =>
+      m.servo_drive_make || m.servo_drive_model || m.servo_motor_make || m.servo_motor_model
+    ).length,
+    photos: machines.reduce((n, m) => n + (m.photos?.length ?? 0), 0),
+  };
 }
 
 function photoIds(mapping: Mapping, limit = 8): string[] {
@@ -160,7 +167,6 @@ function addEvidenceSlide(opts: {
   pptx: PptxGenJS;
   images: DeckImages;
   page: number;
-  notes?: string;
   eyebrow: string;
   title: string;
   pitch: string;
@@ -168,8 +174,8 @@ function addEvidenceSlide(opts: {
   names: string[];
   total: number;
 }) {
-  const { pptx, images, page, notes, eyebrow, title, pitch, stations, names, total } = opts;
-  const s = frame(pptx, { eyebrow, title, theme: "light", pageNo: page, images, notes });
+  const { pptx, images, page, eyebrow, title, pitch, stations, names, total } = opts;
+  const s = frame(pptx, { eyebrow, title, theme: "light", pageNo: page, images });
   s.addText(pitch, {
     x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.7,
     fontFace: FONT, fontSize: 14, color: INK, margin: 0,
@@ -249,7 +255,7 @@ const Pptx = ((PptxGenJS as unknown as { default?: typeof PptxGenJS }).default ?
   PptxGenJS) as typeof PptxGenJS;
 
 export async function buildPresentation({
-  mapping, images, summary, preparedFor, includeNotes,
+  mapping, images, summary, preparedFor,
 }: DeckOptions) {
   const pptx = new Pptx();
   pptx.defineLayout({ name: "IANDI", width: 13.33, height: 7.5 });
@@ -270,12 +276,6 @@ export async function buildPresentation({
   const date = fmtDate();
   const execSummary = (summary ?? "").trim() || autoSummary(mapping, narrative, risk);
   const counts = surveyCounts(mapping);
-  const script = includeNotes ? buildDeckTranscript(mapping) : [];
-  const notesFor = (id: string) => {
-    if (!includeNotes) return undefined;
-    const row = script.find((s: TranscriptSlide) => s.id === id);
-    return row ? NOTES_PREFIX + row.talk : undefined;
-  };
 
   const laptopCount = assessments.filter((a) => a.observations.recoverability === "laptop_required").length;
   const noBackup = machinesWithFlags(mapping, ["no_backup"]).length;
@@ -333,8 +333,6 @@ export async function buildPresentation({
       x: MARGIN_L, y: 6.85, w: 8, h: 0.24,
       fontFace: FONT, fontSize: 10, bold: true, charSpacing: 1.4, color: LIME, margin: 0,
     });
-    const n = notesFor("title");
-    if (n) s.addNotes(n);
   }
 
   // ── What we found (survey + pie) ──────────────────────────────────────────
@@ -342,7 +340,7 @@ export async function buildPresentation({
     const s = frame(pptx, {
       eyebrow: "This plant",
       title: "What we found",
-      theme: "light", pageNo: page++, images, notes: notesFor("found"),
+      theme: "light", pageNo: page++, images,
     });
     const lineBit = lines.length > 1 ? `${lines.length} lines · ` : "";
     s.addText(
@@ -392,7 +390,7 @@ export async function buildPresentation({
     const s = frame(pptx, {
       eyebrow: "Why this matters",
       title: "Why obsolescence is a problem",
-      theme: "dark", pageNo: page++, images, notes: notesFor("why"),
+      theme: "dark", pageNo: page++, images,
     });
     s.addText(
       "The hardware can still be running. That is not the same as being supported. This is what “end of life” actually does on a floor.",
@@ -459,7 +457,7 @@ export async function buildPresentation({
         : "Discontinued platforms";
       const total = names.length || eolExamples.length;
       addEvidenceSlide({
-        pptx, images, page: page++, notes: notesFor("eol-examples"),
+        pptx, images, page: page++,
         eyebrow: "On this floor",
         title,
         pitch:
@@ -475,7 +473,7 @@ export async function buildPresentation({
   // ── Trapped modern ────────────────────────────────────────────────────────
   if (trappedExamples.length > 0 || narrative.trapped > 0) {
     addEvidenceSlide({
-      pptx, images, page: page++, notes: notesFor("trapped-examples"),
+      pptx, images, page: page++,
       eyebrow: "On this floor",
       title: "Modern drive, legacy PLC",
       pitch:
@@ -495,7 +493,7 @@ export async function buildPresentation({
     const s = frame(pptx, {
       eyebrow: "This plant",
       title: "Risk register",
-      theme: "light", pageNo: page++, images, notes: notesFor("register"),
+      theme: "light", pageNo: page++, images,
     });
     const headers = ["Platform", "Level", "Units", "Where it sits"];
     const colX = [BODY_L, 4.55, 5.7, 6.7];
@@ -541,7 +539,7 @@ export async function buildPresentation({
     const s = frame(pptx, {
       eyebrow: offer.eyebrow,
       title: offer.title,
-      theme: "light", pageNo: page++, images, notes: notesFor(`offer:${offer.key}`),
+      theme: "light", pageNo: page++, images,
     });
     const pic = offer.photo ? images.refs?.[offer.photo] : undefined;
     if (pic) {
@@ -582,7 +580,7 @@ export async function buildPresentation({
     const s = frame(pptx, {
       eyebrow: "Next",
       title: "Recommended sequence",
-      theme: "light", pageNo: page++, images, notes: notesFor("roadmap"),
+      theme: "light", pageNo: page++, images,
     });
     s.addText("A starting order. Move items to match your shutdown calendar.", {
       x: BODY_L, y: CONTENT_T, w: BODY_W, h: 0.32,
@@ -669,8 +667,6 @@ export async function buildPresentation({
       x: MARGIN_L, y: 6.85, w: 8, h: 0.24,
       fontFace: FONT, fontSize: 12, color: GREY, margin: 0,
     });
-    const n = notesFor("questions");
-    if (n) s.addNotes(n);
   }
 
   return pptx;
@@ -779,10 +775,7 @@ function photosNeededForDeck(mapping: Mapping) {
   return out;
 }
 
-export async function downloadPresentation(
-  mapping: Mapping,
-  opts: { includeNotes?: boolean } = {},
-): Promise<void> {
+export async function downloadPresentation(mapping: Mapping): Promise<void> {
   const photos: Record<string, string> = {};
 
   await Promise.all(
@@ -809,7 +802,6 @@ export async function downloadPresentation(
   const pptx = await buildPresentation({
     mapping,
     images: { logoWhite, logoDark, photos, refs },
-    includeNotes: opts.includeNotes ?? false,
   });
   await pptx.writeFile({ fileName: deckFileName(mapping) });
 }
