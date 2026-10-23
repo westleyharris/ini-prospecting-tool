@@ -14,22 +14,18 @@ import {
   applyBriefLayout,
   activeDeliverables,
   CHART_DEFS,
+  CHART_GROUPS,
   columnFor,
-  documentedSlices,
-  flagSlices,
-  interfaceSlices,
-  lifecycleSlices,
-  networkSlices,
+  headlineStats,
   linesOf,
   machineTone,
   newDeliverable,
   newNote,
   parseBrief,
-  photoSlices,
   processColumns,
+  slicesFor,
   snapshotMapColumns,
   suggestDeliverables,
-  type ChartId,
   type ChartSlice,
   type ExecDeliverable,
   type ExecLine,
@@ -821,43 +817,69 @@ function ChartsCard({
   onChange: (b: ExecutiveBrief) => void;
   onHide: () => void;
 }) {
-  const data: Record<ChartId, ChartSlice[]> = {
-    documented: documentedSlices(mapping, machines),
-    lifecycle: lifecycleSlices(machines),
-    network: networkSlices(machines),
-    flags: flagSlices(machines),
-    interface: interfaceSlices(machines),
-    photos: photoSlices(machines),
-  };
-  const visible = CHART_DEFS.filter((c) => !brief.hiddenCharts.includes(c.id) && data[c.id].length > 0);
+  const data = useMemo(() => {
+    const out = {} as Record<(typeof CHART_DEFS)[number]["id"], ChartSlice[]>;
+    for (const def of CHART_DEFS) out[def.id] = slicesFor(def.id, mapping, machines, brief);
+    return out;
+  }, [mapping, machines, brief]);
+  const stats = useMemo(() => headlineStats(machines), [machines]);
   const hidden = CHART_DEFS.filter((c) => brief.hiddenCharts.includes(c.id));
+  const groups = CHART_GROUPS.map((group) => ({
+    ...group,
+    charts: group.ids
+      .map((id) => CHART_DEFS.find((c) => c.id === id)!)
+      .filter((c) => !brief.hiddenCharts.includes(c.id) && data[c.id].length > 0),
+  })).filter((g) => g.charts.length > 0);
 
   return (
     <SectionChrome
       title="The numbers"
-      subtitle="Built from this mapping — hide any chart that does not help the conversation."
+      subtitle="Counts, mix, and health from the stations on this mapping. Hide any chart that does not help the conversation."
       editing={editing}
       onHide={onHide}
     >
-      {visible.length === 0 ? (
+      {stats.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-slate-100 border-b border-slate-100">
+          {stats.map((s) => (
+            <div key={s.label} className="bg-white px-4 py-3">
+              <p className="text-2xl font-semibold tabular-nums text-brand-navy leading-none">{s.value}</p>
+              <p className="mt-1 text-[11px] text-slate-500">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {groups.length === 0 ? (
         <p className="px-5 py-8 text-sm text-brand-navy/45 text-center">No chart data yet. Record equipment or observations on a station.</p>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-px bg-slate-100">
-          {visible.map((def) => (
-            <div key={def.id} className="bg-white px-5 py-4 relative group">
-              {editing && (
-                <button type="button" onClick={() => onChange({ ...brief, hiddenCharts: [...brief.hiddenCharts, def.id] })}
-                  className="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-700 opacity-0 group-hover:opacity-100" title="Remove chart">
-                  <HiXMark className="w-4 h-4" />
-                </button>
-              )}
-              <p className="text-sm font-semibold text-brand-navy">{def.title}</p>
-              <p className="text-[11px] text-slate-400 mb-3">{def.hint}</p>
-              {def.id === "flags" || def.id === "documented" ? (
-                <BarChart slices={data[def.id]} />
-              ) : (
-                <DonutChart slices={data[def.id]} />
-              )}
+        <div className="bg-slate-100 space-y-px">
+          {groups.map((group) => (
+            <div key={group.title}>
+              <div className="bg-white px-5 pt-4 pb-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{group.title}</p>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-px bg-slate-100">
+                {group.charts.map((def) => (
+                  <div key={def.id} className={`bg-white px-5 py-4 relative group ${def.wide ? "sm:col-span-2" : ""}`}>
+                    {editing && (
+                      <button type="button" onClick={() => onChange({ ...brief, hiddenCharts: [...brief.hiddenCharts, def.id] })}
+                        className="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-700 opacity-0 group-hover:opacity-100" title="Remove chart">
+                        <HiXMark className="w-4 h-4" />
+                      </button>
+                    )}
+                    <p className="text-sm font-semibold text-brand-navy">{def.title}</p>
+                    <p className="text-[11px] text-slate-400 mb-3">{def.hint}</p>
+                    {def.kind === "bar" ? (
+                      <BarChart slices={data[def.id]} />
+                    ) : def.kind === "column" ? (
+                      <ColumnChart slices={data[def.id]} />
+                    ) : def.kind === "stack" ? (
+                      <StackedBars slices={data[def.id]} />
+                    ) : (
+                      <DonutChart slices={data[def.id]} />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -898,32 +920,107 @@ function BarChart({ slices }: { slices: ChartSlice[] }) {
 
 function DonutChart({ slices }: { slices: ChartSlice[] }) {
   const total = slices.reduce((s, x) => s + x.value, 0) || 1;
-  const r = 36;
+  const r = 42;
   const c = 2 * Math.PI * r;
   let offset = 0;
   return (
     <div className="flex items-center gap-4">
-      <svg width="96" height="96" viewBox="0 0 96 96" className="shrink-0">
-        <g transform="rotate(-90 48 48)">
+      <svg width="112" height="112" viewBox="0 0 112 112" className="shrink-0" role="img" aria-label="Donut chart">
+        <g transform="rotate(-90 56 56)">
           {slices.map((s) => {
             const len = (s.value / total) * c;
             const dash = `${len} ${c - len}`;
             const el = (
-              <circle key={s.label} cx="48" cy="48" r={r} fill="none" stroke={s.color} strokeWidth="14"
-                strokeDasharray={dash} strokeDashoffset={-offset} />
+              <circle key={s.label} cx="56" cy="56" r={r} fill="none" stroke={s.color} strokeWidth="16"
+                strokeDasharray={dash} strokeDashoffset={-offset}>
+                <title>{`${s.label}: ${s.value}`}</title>
+              </circle>
             );
             offset += len;
             return el;
           })}
         </g>
-        <text x="48" y="52" textAnchor="middle" className="fill-brand-navy" fontSize="16" fontWeight="700">{total}</text>
+        <text x="56" y="60" textAnchor="middle" className="fill-brand-navy" fontSize="18" fontWeight="700">{total}</text>
       </svg>
-      <ul className="space-y-1 min-w-0">
+      <ul className="space-y-1 min-w-0 flex-1">
         {slices.map((s) => (
-          <li key={s.label} className="flex items-center gap-2 text-[12px] text-slate-600">
-            <i className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: s.color }} />
-            <span className="truncate">{s.label}</span>
-            <span className="ml-auto tabular-nums font-semibold text-brand-navy">{s.value}</span>
+          <li key={s.label} className="flex items-start gap-2 text-[12px] text-slate-600">
+            <i className="w-2.5 h-2.5 rounded-sm shrink-0 mt-1" style={{ background: s.color }} />
+            <span className="min-w-0 leading-snug">{s.label}</span>
+            <span className="ml-auto tabular-nums font-semibold text-brand-navy">
+              {s.value}
+              <span className="ml-1 font-normal text-slate-400">{Math.round((s.value / total) * 100)}%</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ColumnChart({ slices }: { slices: ChartSlice[] }) {
+  const max = Math.max(...slices.map((s) => s.value), 1);
+  return (
+    <div className="flex items-end gap-2 h-32">
+      {slices.map((s) => (
+        <div key={s.label} className="flex-1 min-w-0 flex flex-col items-center justify-end h-full" title={`${s.label}: ${s.value}`}>
+          <span className="text-[10px] font-semibold tabular-nums text-brand-navy">{s.value}</span>
+          <div
+            className="w-full mt-1"
+            style={{ height: `${Math.max(6, (s.value / max) * 78)}px`, background: s.color }}
+          />
+          <span className="mt-1 text-[10px] text-slate-500 text-center leading-tight w-full truncate">{s.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StackedBars({ slices }: { slices: ChartSlice[] }) {
+  const rows: { label: string; segments: ChartSlice[] }[] = [];
+  for (const s of slices) {
+    const label = s.group ?? s.label;
+    let row = rows.find((r) => r.label === label);
+    if (!row) {
+      row = { label, segments: [] };
+      rows.push(row);
+    }
+    if (s.value > 0) row.segments.push(s);
+  }
+  const legend: { label: string; color: string }[] = [];
+  for (const s of slices) {
+    if (s.value > 0 && !legend.some((l) => l.label === s.label)) legend.push({ label: s.label, color: s.color });
+  }
+  return (
+    <div>
+      <div className="space-y-3">
+        {rows.map((row) => {
+          const total = row.segments.reduce((sum, s) => sum + s.value, 0);
+          return (
+            <div key={row.label}>
+              <div className="flex justify-between text-[11px] text-slate-600 mb-1">
+                <span className="font-semibold text-brand-navy">{row.label}</span>
+                <span className="tabular-nums">{total}</span>
+              </div>
+              <div className="flex h-3 bg-slate-100 overflow-hidden">
+                {row.segments.map((s) => (
+                  <div
+                    key={s.label}
+                    title={`${s.label}: ${s.value}`}
+                    className="h-full min-w-[3px]"
+                    style={{ flexGrow: s.value, background: s.color }}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+        {legend.map((l) => (
+          <li key={l.label} className="flex items-center gap-1.5 text-[11px] text-slate-600">
+            <i className="w-2.5 h-2.5 shrink-0" style={{ background: l.color }} />
+            {l.label}
           </li>
         ))}
       </ul>
