@@ -2,6 +2,8 @@ import type { Mapping, MappingMachine } from "../api/mappings";
 import { assessMachine, lifeFor } from "./machineAssessment";
 import { FLAG_DEFS } from "./observations";
 import { FLOOR_OFFERS } from "./deckOffers";
+import { vfdUnitCount, vfdsOf } from "./vfds";
+import { servoUnitCount, servosOf } from "./servos";
 
 /** Saved layout for the plant executive summary. Edits hide/reorder display only. */
 export interface ExecDeliverable {
@@ -215,7 +217,7 @@ export function machineTone(machine: MappingMachine): MachineTone {
 }
 
 export const CHART_DEFS = [
-  { id: "documented", title: "What we recorded", hint: "Stations with a PLC, HMI, drive, servo, or photo" },
+  { id: "documented", title: "What we recorded", hint: "PLCs and HMIs by station. VFDs and servos by quantity." },
   { id: "lifecycle", title: "Controller health", hint: "Current vs mature vs discontinued" },
   { id: "network", title: "How stations talk", hint: "Ethernet vs DeviceNet vs DH+ / RIO" },
   { id: "flags", title: "Where the pain is", hint: "Opportunity flags across the survey" },
@@ -231,8 +233,10 @@ export function suggestDeliverables(mapping: Mapping): ExecDeliverable[] {
   const lines = mapping.source_lines?.length ?? 1;
   const plc = machines.filter((m) => m.plc_make || m.plc_model).length;
   const hmi = machines.filter((m) => m.hmi_make || m.hmi_model).length;
-  const vfd = machines.filter((m) => m.vfd_make || m.vfd_model).length;
-  const servo = machines.filter((m) => m.servo_drive_make || m.servo_drive_model).length;
+  const vfd = vfdUnitCount(machines);
+  const vfdKinds = machines.reduce((sum, m) => sum + vfdsOf(m).length, 0);
+  const servo = servoUnitCount(machines);
+  const servoKinds = machines.reduce((sum, m) => sum + servosOf(m).length, 0);
   const photos = machines.reduce((s, m) => s + (m.photos ?? []).length, 0);
   const withPhotos = machines.filter((m) => (m.photos ?? []).length > 0).length;
   const assessments = machines.map(assessMachine);
@@ -267,14 +271,18 @@ export function suggestDeliverables(mapping: Mapping): ExecDeliverable[] {
     out.push({
       id: "drives",
       title: "Drive identification",
-      body: `${vfd} VFD${vfd === 1 ? "" : "s"} documented (make, model, horsepower where available).`,
+      body: vfdKinds > 1
+        ? `${vfd} VFDs across ${vfdKinds} models — make, model, horsepower, and quantity.`
+        : `${vfd} VFD${vfd === 1 ? "" : "s"} documented — make, model, horsepower, and quantity.`,
     });
   }
   if (servo) {
     out.push({
       id: "servo",
       title: "Servo packages",
-      body: `${servo} servo drive/motor package${servo === 1 ? "" : "s"} identified.`,
+      body: servoKinds > 1
+        ? `${servo} servos across ${servoKinds} axes — drive, motor, and quantity.`
+        : `${servo} servo${servo === 1 ? "" : "s"} documented — drive, motor, and quantity.`,
     });
   }
   if (photos) {
@@ -335,15 +343,15 @@ export interface ChartSlice {
 export function documentedSlices(mapping: Mapping, machines: MappingMachine[]): ChartSlice[] {
   const plc = machines.filter((m) => m.plc_make || m.plc_model).length;
   const hmi = machines.filter((m) => m.hmi_make || m.hmi_model).length;
-  const vfd = machines.filter((m) => m.vfd_make || m.vfd_model).length;
-  const servo = machines.filter((m) => m.servo_drive_make || m.servo_drive_model).length;
+  const vfd = vfdUnitCount(machines);
+  const servo = servoUnitCount(machines);
   const photos = machines.filter((m) => (m.photos ?? []).length > 0).length;
   void mapping;
   return [
     { label: "PLC", value: plc, color: "#1d4ed8" },
     { label: "HMI", value: hmi, color: "#7c3aed" },
-    { label: "Drives", value: vfd, color: "#b45309" },
-    { label: "Servo", value: servo, color: "#15803d" },
+    { label: "VFDs", value: vfd, color: "#b45309" },
+    { label: "Servos", value: servo, color: "#15803d" },
     { label: "Photos", value: photos, color: "#0f766e" },
   ].filter((s) => s.value > 0);
 }
@@ -425,7 +433,7 @@ export function interfaceSlices(machines: MappingMachine[]): ChartSlice[] {
 
 export function photoSlices(machines: MappingMachine[]): ChartSlice[] {
   const withP = machines.filter((m) => (m.photos ?? []).length > 0).length;
-  const specsOnly = machines.filter((m) => (m.photos ?? []).length === 0 && (m.plc_make || m.hmi_make || m.vfd_make)).length;
+  const specsOnly = machines.filter((m) => (m.photos ?? []).length === 0 && (m.plc_make || m.hmi_make || vfdsOf(m).length > 0)).length;
   const empty = machines.length - withP - specsOnly;
   return [
     { label: "Has photos", value: withP, color: "#0f766e" },

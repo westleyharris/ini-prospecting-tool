@@ -9,6 +9,8 @@ import {
   FLOOR_OFFERS, type ProblemStation,
 } from "../data/deckOffers";
 import { WHY_PILLARS, WHY_FOOTNOTE } from "../data/deckStory";
+import { vfdUnitCount } from "../data/vfds";
+import { servoUnitCount } from "../data/servos";
 
 /**
  * Customer deck: what we found → why obsolescence is a problem →
@@ -123,10 +125,8 @@ function surveyCounts(mapping: Mapping) {
     lines: mapping.source_lines?.length ?? 0,
     plc: machines.filter((m) => m.plc_make || m.plc_model).length,
     hmi: machines.filter((m) => m.hmi_make || m.hmi_model).length,
-    vfd: machines.filter((m) => m.vfd_make || m.vfd_model).length,
-    servo: machines.filter((m) =>
-      m.servo_drive_make || m.servo_drive_model || m.servo_motor_make || m.servo_motor_model
-    ).length,
+    vfd: vfdUnitCount(machines),
+    servo: servoUnitCount(machines),
     photos: machines.reduce((n, m) => n + (m.photos?.length ?? 0), 0),
   };
 }

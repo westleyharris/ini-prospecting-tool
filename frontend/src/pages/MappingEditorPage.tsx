@@ -12,9 +12,11 @@ import {
   getMapping, updateMapping, createMachine, updateMachine,
   deleteMachine, uploadPhoto, deletePhoto, rerunOcr,
   photoUrl,
-  type Mapping, type MappingMachine, type MappingPhoto,
+  type Mapping, type MappingMachine, type MappingPhoto, type MachinePatch, type ServoInput, type VfdInput,
 } from "../api/mappings";
-import { LIFECYCLE_META, type LifecycleResult } from "../data/obsoleteEquipment";
+import { LIFECYCLE_META, checkAsset, type LifecycleResult } from "../data/obsoleteEquipment";
+import { formatVfdLine, vfdSpecRows, vfdUnitCount, vfdsOf } from "../data/vfds";
+import { formatServoLine, servoSpecRows, servoUnitCount, servosOf } from "../data/servos";
 import { assessMachine, lifeFor } from "../data/machineAssessment";
 import { buildRiskRegister, type RiskLevel } from "../data/riskRegister";
 import { buildOpportunityRegister, type OpportunityFinding } from "../data/opportunityRegister";
@@ -187,7 +189,7 @@ function FieldGroup({
   Icon: React.ElementType;
   fields: { key: keyof MappingMachine; label: string; placeholder: string }[];
   machine: MappingMachine;
-  onSave: (data: Partial<MappingMachine>) => Promise<void>;
+  onSave: (data: MachinePatch) => Promise<void>;
   eolResult?: LifecycleResult;
 }) {
   const [editing, setEditing] = useState(false);
@@ -206,7 +208,7 @@ function FieldGroup({
   async function save() {
     setSaving(true);
     try {
-      const patch: Partial<MappingMachine> = {};
+      const patch: MachinePatch = {};
       for (const f of fields) {
         (patch as Record<string, string | null>)[f.key as string] = vals[f.key as string]?.trim() || null;
       }
@@ -268,6 +270,309 @@ function FieldGroup({
             </p>
           ) : (
             <p className="text-xs text-gray-400 mt-0.5">Tap to fill in</p>
+          )}
+        </div>
+        <HiPencil className="w-4 h-4 text-gray-300 shrink-0" />
+      </div>
+    </button>
+  );
+}
+
+function VfdEditor({ machine, onSave }: { machine: MappingMachine; onSave: (vfds: VfdInput[]) => Promise<void> }) {
+  const drives = vfdsOf(machine);
+  const [editing, setEditing] = useState(false);
+  const [rows, setRows] = useState<VfdInput[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  function startEdit() {
+    setRows(
+      drives.length
+        ? drives.map((v) => ({
+            make: v.make ?? "",
+            model: v.model ?? "",
+            hp: v.hp ?? "",
+            voltage: v.voltage ?? "",
+            quantity: v.quantity,
+          }))
+        : [{ make: "", model: "", hp: "", voltage: "", quantity: 1 }],
+    );
+    setEditing(true);
+  }
+
+  function updateRow(index: number, patch: Partial<VfdInput>) {
+    setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await onSave(rows.map((row) => ({
+        make: row.make?.trim() || null,
+        model: row.model?.trim() || null,
+        hp: row.hp?.trim() || null,
+        voltage: row.voltage?.trim() || null,
+        quantity: row.quantity,
+      })));
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-white">
+        <div className="flex items-center gap-2">
+          <HiBolt className="w-4 h-4 text-gray-500" />
+          <span className="font-semibold text-sm text-gray-700">VFDs</span>
+        </div>
+        <p className="text-xs text-gray-400">One row per model. Quantity is how many of that model are on this machine.</p>
+        {rows.map((row, index) => {
+          const life = checkAsset("drive", { make: row.make, model: row.model });
+          const filled = Boolean(row.make || row.model || row.hp || row.voltage);
+          return (
+            <div key={index} className="rounded-lg border border-gray-200 p-2.5 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-gray-500">Drive {index + 1}</span>
+                <div className="flex items-center gap-2">
+                  <LifecycleBadge result={life} />
+                  {(rows.length > 1 || filled) && (
+                    <button type="button" onClick={() => setRows((current) => current.filter((_, i) => i !== index))}
+                      className="p-1 text-gray-300 hover:text-red-500" title="Remove this drive">
+                      <HiTrash className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-0.5">Quantity</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={999}
+                  value={row.quantity ?? 1}
+                  onChange={(e) => updateRow(index, { quantity: e.target.value === "" ? 1 : Number(e.target.value) })}
+                  className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              {([
+                ["make", "Make", "e.g. Allen-Bradley"],
+                ["model", "Model", "e.g. PowerFlex 525"],
+                ["hp", "HP", "e.g. 5 HP"],
+                ["voltage", "Voltage", "e.g. 480V"],
+              ] as const).map(([key, label, placeholder]) => (
+                <div key={key}>
+                  <label className="block text-xs text-gray-400 mb-0.5">{label}</label>
+                  <input
+                    type="text"
+                    value={row[key] ?? ""}
+                    onChange={(e) => updateRow(index, { [key]: e.target.value })}
+                    placeholder={placeholder}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+              ))}
+            </div>
+          );
+        })}
+        <button type="button"
+          onClick={() => setRows((current) => [...current, { make: "", model: "", hp: "", voltage: "", quantity: 1 }])}
+          className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-300 hover:text-blue-700 flex items-center justify-center gap-1.5">
+          <HiPlus className="w-4 h-4" />
+          {rows.length === 0 ? "Add a drive" : "Add another drive"}
+        </button>
+        <div className="flex gap-2">
+          <button onClick={save} disabled={saving}
+            className="flex-1 py-2 bg-brand-navy text-white rounded-lg text-sm font-medium hover:bg-brand-navy-700 disabled:opacity-50">
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button onClick={() => setEditing(false)}
+            className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={startEdit}
+      className={`w-full text-left rounded-xl border-2 border-dashed p-3 transition-colors ${
+        drives.length ? "border-transparent bg-gray-50 hover:bg-gray-100" : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/30"
+      }`}>
+      <div className="flex items-start gap-2">
+        <HiBolt className={`w-5 h-5 shrink-0 mt-0.5 ${drives.length ? "text-gray-500" : "text-gray-300"}`} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">VFDs</span>
+            <LifecycleBadge result={lifeFor(machine, "vfd")} />
+          </div>
+          {drives.length ? (
+            <div className="mt-0.5 space-y-0.5">
+              {drives.map((v) => (
+                <p key={v.id} className="text-xs text-gray-500 truncate">{formatVfdLine(v)}</p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 mt-0.5">Tap to add drives and quantities</p>
+          )}
+        </div>
+        <HiPencil className="w-4 h-4 text-gray-300 shrink-0" />
+      </div>
+    </button>
+  );
+}
+
+const EMPTY_SERVO: ServoInput = {
+  drive_make: "", drive_model: "", motor_make: "", motor_model: "", motor_part_no: "", quantity: 1,
+};
+
+function servoLife(row: ServoInput): LifecycleResult {
+  const rank = { unsupported: 3, discontinued: 2, mature: 1, unknown: 0 } as const;
+  const drive = checkAsset("servo", { make: row.drive_make, model: row.drive_model });
+  const motor = checkAsset("servo", { make: row.motor_make, model: row.motor_model, partNo: row.motor_part_no });
+  return rank[drive.status] >= rank[motor.status] ? drive : motor;
+}
+
+function ServoEditor({ machine, onSave }: { machine: MappingMachine; onSave: (servos: ServoInput[]) => Promise<void> }) {
+  const axes = servosOf(machine);
+  const [editing, setEditing] = useState(false);
+  const [rows, setRows] = useState<ServoInput[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  function startEdit() {
+    setRows(
+      axes.length
+        ? axes.map((v) => ({
+            drive_make: v.drive_make ?? "",
+            drive_model: v.drive_model ?? "",
+            motor_make: v.motor_make ?? "",
+            motor_model: v.motor_model ?? "",
+            motor_part_no: v.motor_part_no ?? "",
+            quantity: v.quantity,
+          }))
+        : [{ ...EMPTY_SERVO }],
+    );
+    setEditing(true);
+  }
+
+  function updateRow(index: number, patch: Partial<ServoInput>) {
+    setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await onSave(rows.map((row) => ({
+        drive_make: row.drive_make?.trim() || null,
+        drive_model: row.drive_model?.trim() || null,
+        motor_make: row.motor_make?.trim() || null,
+        motor_model: row.motor_model?.trim() || null,
+        motor_part_no: row.motor_part_no?.trim() || null,
+        quantity: row.quantity,
+      })));
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-white">
+        <div className="flex items-center gap-2">
+          <HiCog8Tooth className="w-4 h-4 text-gray-500" />
+          <span className="font-semibold text-sm text-gray-700">Servos</span>
+        </div>
+        <p className="text-xs text-gray-400">One row per axis. Quantity is how many of that drive and motor are on this machine.</p>
+        {rows.map((row, index) => {
+          const filled = Boolean(row.drive_make || row.drive_model || row.motor_make || row.motor_model || row.motor_part_no);
+          return (
+            <div key={index} className="rounded-lg border border-gray-200 p-2.5 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-gray-500">Axis {index + 1}</span>
+                <div className="flex items-center gap-2">
+                  <LifecycleBadge result={servoLife(row)} />
+                  {(rows.length > 1 || filled) && (
+                    <button type="button" onClick={() => setRows((current) => current.filter((_, i) => i !== index))}
+                      className="p-1 text-gray-300 hover:text-red-500" title="Remove this axis">
+                      <HiTrash className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-0.5">Quantity</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={999}
+                  value={row.quantity ?? 1}
+                  onChange={(e) => updateRow(index, { quantity: e.target.value === "" ? 1 : Number(e.target.value) })}
+                  className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              {([
+                ["drive_make", "Drive make", "e.g. Allen-Bradley"],
+                ["drive_model", "Drive model", "e.g. Kinetix 5500"],
+                ["motor_make", "Motor make", "e.g. Allen-Bradley"],
+                ["motor_model", "Motor model", "e.g. MPL-B"],
+                ["motor_part_no", "Motor part no.", "e.g. MPL-B430P-MJ72AA"],
+              ] as const).map(([key, label, placeholder]) => (
+                <div key={key}>
+                  <label className="block text-xs text-gray-400 mb-0.5">{label}</label>
+                  <input
+                    type="text"
+                    value={row[key] ?? ""}
+                    onChange={(e) => updateRow(index, { [key]: e.target.value })}
+                    placeholder={placeholder}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+              ))}
+            </div>
+          );
+        })}
+        <button type="button"
+          onClick={() => setRows((current) => [...current, { ...EMPTY_SERVO }])}
+          className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-300 hover:text-blue-700 flex items-center justify-center gap-1.5">
+          <HiPlus className="w-4 h-4" />
+          {rows.length === 0 ? "Add an axis" : "Add another axis"}
+        </button>
+        <div className="flex gap-2">
+          <button onClick={save} disabled={saving}
+            className="flex-1 py-2 bg-brand-navy text-white rounded-lg text-sm font-medium hover:bg-brand-navy-700 disabled:opacity-50">
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button onClick={() => setEditing(false)}
+            className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={startEdit}
+      className={`w-full text-left rounded-xl border-2 border-dashed p-3 transition-colors ${
+        axes.length ? "border-transparent bg-gray-50 hover:bg-gray-100" : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/30"
+      }`}>
+      <div className="flex items-start gap-2">
+        <HiCog8Tooth className={`w-5 h-5 shrink-0 mt-0.5 ${axes.length ? "text-gray-500" : "text-gray-300"}`} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Servos</span>
+            <LifecycleBadge result={lifeFor(machine, "servo")} />
+          </div>
+          {axes.length ? (
+            <div className="mt-0.5 space-y-0.5">
+              {axes.map((v) => (
+                <p key={v.id} className="text-xs text-gray-500 truncate">{formatServoLine(v)}</p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 mt-0.5">Tap to add axes and quantities</p>
           )}
         </div>
         <HiPencil className="w-4 h-4 text-gray-300 shrink-0" />
@@ -609,10 +914,11 @@ function MachineCard({
     setEditingName(false);
   }
 
-  async function saveFields(data: Partial<MappingMachine>) {
+  async function saveFields(data: MachinePatch) {
     const updated = await updateMachine(machine.id, data);
-    setMachine(updated);
-    onUpdate(updated);
+    const merged = { ...machine, ...updated, photos: updated.photos ?? machine.photos };
+    setMachine(merged);
+    onUpdate(merged);
   }
 
   function handlePhotoAdded(photo: MappingPhoto) {
@@ -682,29 +988,8 @@ function MachineCard({
             ]}
             machine={machine} onSave={saveFields}
             eolResult={lifeFor(machine, "hmi")} />
-          <FieldGroup title="VFD" Icon={HiBolt}
-            fields={[
-              { key: "vfd_make",    label: "Make",    placeholder: "e.g. Allen-Bradley" },
-              { key: "vfd_model",   label: "Model",   placeholder: "e.g. PowerFlex 525" },
-              { key: "vfd_hp",      label: "HP",      placeholder: "e.g. 5 HP" },
-              { key: "vfd_voltage", label: "Voltage", placeholder: "e.g. 480V" },
-            ]}
-            machine={machine} onSave={saveFields}
-            eolResult={lifeFor(machine, "vfd")} />
-          <FieldGroup title="Servo Drive" Icon={HiCog8Tooth}
-            fields={[
-              { key: "servo_drive_make",  label: "Drive Make",  placeholder: "e.g. Allen-Bradley, Yaskawa" },
-              { key: "servo_drive_model", label: "Drive Model", placeholder: "e.g. Kinetix 5500, SGDV" },
-            ]}
-            machine={machine} onSave={saveFields}
-            eolResult={lifeFor(machine, "servo")} />
-          <FieldGroup title="Servo Motor" Icon={HiCog8Tooth}
-            fields={[
-              { key: "servo_motor_make",    label: "Motor Make",    placeholder: "e.g. Allen-Bradley, Fanuc" },
-              { key: "servo_motor_model",   label: "Motor Model",   placeholder: "e.g. MP-Series, αiS" },
-              { key: "servo_motor_part_no", label: "Motor Part No", placeholder: "e.g. MPL-B430P-MJ72AA" },
-            ]}
-            machine={machine} onSave={saveFields} />
+          <VfdEditor machine={machine} onSave={async (vfds) => { await saveFields({ vfds }); }} />
+          <ServoEditor machine={machine} onSave={async (servos) => { await saveFields({ servos }); }} />
           <ObservationsPanel machine={machine} onUpdate={(updated) => { setMachine(updated); onUpdate(updated); }} />
           <NotesField
             value={machine.notes ?? ""}
@@ -957,7 +1242,7 @@ export function PrintView({ mapping, mode = "sheet", active = false }: { mapping
   const eolCount    = assessments.filter((a) => a.hasEol).length;
   const flagCount   = assessments.reduce((s, a) => s + a.flags.length, 0);
   const plcCount    = machines.filter((m) => m.plc_make || m.plc_model).length;
-  const driveCount  = machines.filter((m) => m.vfd_make || m.vfd_model || m.servo_drive_make).length;
+  const driveCount  = vfdUnitCount(machines) + servoUnitCount(machines);
   const reportDate  = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const dwgNo       = drawingNumber(mapping);
 
@@ -987,19 +1272,8 @@ export function PrintView({ mapping, mode = "sheet", active = false }: { mapping
       { label: "Model", value: machine.hmi_model  ?? "" },
       { label: "P/N",   value: machine.hmi_part_no ?? "" },
     ].filter((s) => s.value);
-    if (cat === "vfd") return [
-      { label: "Make",    value: machine.vfd_make    ?? "" },
-      { label: "Model",   value: machine.vfd_model   ?? "" },
-      { label: "HP",      value: machine.vfd_hp      ?? "" },
-      { label: "Voltage", value: machine.vfd_voltage ?? "" },
-    ].filter((s) => s.value);
-    if (cat === "servo") return [
-      { label: "Drive Make",  value: machine.servo_drive_make  ?? "" },
-      { label: "Drive Model", value: machine.servo_drive_model ?? "" },
-      { label: "Motor Make",  value: machine.servo_motor_make  ?? "" },
-      { label: "Motor Model", value: machine.servo_motor_model ?? "" },
-      { label: "Motor P/N",   value: machine.servo_motor_part_no ?? "" },
-    ].filter((s) => s.value);
+    if (cat === "vfd") return vfdSpecRows(machine);
+    if (cat === "servo") return servoSpecRows(machine);
     return [];
   }
 
@@ -1379,7 +1653,7 @@ export function PrintView({ mapping, mode = "sheet", active = false }: { mapping
             else otherGroups.push({ label: lbl, photos: [p] });
           }
 
-          const hasSpecs = !!(machine.plc_make || machine.plc_model || machine.hmi_make || machine.hmi_model || machine.vfd_make || machine.vfd_model || machine.servo_drive_make);
+          const hasSpecs = !!(machine.plc_make || machine.plc_model || machine.hmi_make || machine.hmi_model || vfdsOf(machine).length || servosOf(machine).length);
           const specOnlyCats = (["plc", "hmi", "vfd", "servo"] as CatKey[]).filter((k) => {
             return getCatSpecs(machine, k).length > 0 && !(photosByCat[k] ?? []).length;
           });
@@ -1597,19 +1871,8 @@ function specRows(m: MappingMachine, cat: SpecCatKey): { label: string; value: s
     { label: "Model", value: m.hmi_model ?? "" },
     { label: "P/N",   value: m.hmi_part_no ?? "" },
   ].filter((f) => f.value);
-  if (cat === "vfd") return [
-    { label: "Make",    value: m.vfd_make ?? "" },
-    { label: "Model",   value: m.vfd_model ?? "" },
-    { label: "HP",      value: m.vfd_hp ?? "" },
-    { label: "Voltage", value: m.vfd_voltage ?? "" },
-  ].filter((f) => f.value);
-  return [
-    { label: "Drive Make",  value: m.servo_drive_make ?? "" },
-    { label: "Drive Model", value: m.servo_drive_model ?? "" },
-    { label: "Motor Make",  value: m.servo_motor_make ?? "" },
-    { label: "Motor Model", value: m.servo_motor_model ?? "" },
-    { label: "Motor P/N",   value: m.servo_motor_part_no ?? "" },
-  ].filter((f) => f.value);
+  if (cat === "vfd") return vfdSpecRows(m);
+  return servoSpecRows(m);
 }
 
 // Engineering-drawing palette — navy ink on drafting paper
@@ -1773,7 +2036,7 @@ export function MappingView({ mapping, chrome = "app" }: { mapping: Mapping; chr
   const bomOffset = chrome === "share" ? "6.25rem" : "5.25rem";
   const dwgNo = drawingNumber(mapping);
   const plcCount = machines.filter((m) => m.plc_make || m.plc_model).length;
-  const driveCount = machines.filter((m) => m.vfd_make || m.servo_drive_make).length;
+  const driveCount = vfdUnitCount(machines) + servoUnitCount(machines);
 
   return (
     <>
@@ -2434,7 +2697,7 @@ export default function MappingEditorPage() {
                 { label: "MACH", value: machines.length },
                 { label: "PHOT", value: machines.reduce((s, m) => s + (m.photos ?? []).length, 0) },
                 { label: "PLC",  value: machines.filter((m) => m.plc_make || m.plc_model).length },
-                { label: "VFD",  value: machines.filter((m) => m.vfd_make || m.vfd_model).length },
+                { label: "VFD",  value: vfdUnitCount(machines) },
               ].map((stat, i) => (
                 <div key={stat.label} className="p-3 text-center" style={{ borderLeft: i > 0 ? "1px solid rgba(0,24,46,0.15)" : undefined }}>
                   <div className="font-mono text-2xl font-bold text-brand-navy tabular-nums">{String(stat.value).padStart(2, "0")}</div>

@@ -7,6 +7,8 @@ import type { Mapping, MappingMachine, MappingPhoto } from "../api/mappings";
 import { photoUrl } from "../api/mappings";
 import { updatePlant } from "../api/plants";
 import { assessMachine, buildPlantNarrative, lifeFor } from "../data/machineAssessment";
+import { vfdSpecRows } from "../data/vfds";
+import { servoSpecRows } from "../data/servos";
 import { LIFECYCLE_META } from "../data/obsoleteEquipment";
 import {
   applyBriefLayout,
@@ -993,12 +995,10 @@ function MachinePopup({ machine, onClose }: { machine: MappingMachine; onClose: 
   if (plcRows.length) specs.push({ label: "PLC", rows: plcRows.map(([k, v]) => ({ k, v })), life: lifeFor(machine, "plc") });
   const hmiRows = [["Make", machine.hmi_make], ["Model", machine.hmi_model], ["P/N", machine.hmi_part_no]].filter((x): x is [string, string] => Boolean(x[1]));
   if (hmiRows.length) specs.push({ label: "HMI", rows: hmiRows.map(([k, v]) => ({ k, v })), life: lifeFor(machine, "hmi") });
-  const servoRows = [
-    ["Drive", [machine.servo_drive_make, machine.servo_drive_model].filter(Boolean).join(" ")],
-    ["Motor", [machine.servo_motor_make, machine.servo_motor_model].filter(Boolean).join(" ")],
-    ["Motor P/N", machine.servo_motor_part_no],
-  ].filter((x): x is [string, string] => Boolean(x[1]));
-  if (servoRows.length) specs.push({ label: "Servo", rows: servoRows.map(([k, v]) => ({ k, v })), life: lifeFor(machine, "servo") });
+  const vfdRows = vfdSpecRows(machine).map((r) => ({ k: r.label, v: r.value }));
+  if (vfdRows.length) specs.push({ label: "VFD", rows: vfdRows, life: lifeFor(machine, "vfd") });
+  const servoRows = servoSpecRows(machine).map((r) => ({ k: r.label, v: r.value }));
+  if (servoRows.length) specs.push({ label: "Servo", rows: servoRows, life: lifeFor(machine, "servo") });
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>

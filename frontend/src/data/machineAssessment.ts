@@ -5,6 +5,8 @@ import {
   type LifecycleResult,
   type LifecycleStatus,
 } from "./obsoleteEquipment";
+import { formatVfdLine, vfdsOf } from "./vfds";
+import { formatServoLine, servosOf } from "./servos";
 import {
   FLAG_DEFS,
   parseObservations,
@@ -79,8 +81,8 @@ function deriveAutoFlags(
 
   const plc = assets.find((a) => a.category === "plc");
   const plcDead = plc?.life.obsolete === true;
-  const vfdPresent = Boolean(machine.vfd_make || machine.vfd_model);
-  const servoPresent = Boolean(machine.servo_drive_make || machine.servo_drive_model);
+  const vfdPresent = vfdsOf(machine).length > 0;
+  const servoPresent = servosOf(machine).length > 0;
   const vfdDead = assets.some((a) => a.categoryLabel === "VFD" && a.life.obsolete);
   const servoDead = assets.some((a) => a.categoryLabel === "Servo" && a.life.obsolete);
 
@@ -147,12 +149,16 @@ export function assessMachine(machine: MappingMachine): MachineAssessment {
       checkAsset("plc", { make: machine.plc_make, model: machine.plc_model, series: machine.plc_series, partNo: machine.plc_part_no, extra: `${machine.notes ?? ""} ${observations.known_pain ?? ""}` })),
     asset("hmi", "HMI", machine.hmi_make, machine.hmi_model, null, machine.hmi_part_no,
       checkAsset("hmi", { make: machine.hmi_make, model: machine.hmi_model, partNo: machine.hmi_part_no, extra: machine.notes })),
-    asset("drive", "VFD", machine.vfd_make, machine.vfd_model, null, null,
-      checkAsset("drive", { make: machine.vfd_make, model: machine.vfd_model, extra: machine.notes })),
-    asset("servo", "Servo", machine.servo_drive_make, machine.servo_drive_model, null, null,
-      checkAsset("servo", { make: machine.servo_drive_make, model: machine.servo_drive_model, extra: machine.notes })),
-    asset("servo", "Servo motor", machine.servo_motor_make, machine.servo_motor_model, null, machine.servo_motor_part_no,
-      checkAsset("servo", { make: machine.servo_motor_make, model: machine.servo_motor_model, partNo: machine.servo_motor_part_no, extra: machine.notes })),
+    ...vfdsOf(machine).map((v) => asset(
+      "drive", "VFD", v.make, v.model, null, null,
+      checkAsset("drive", { make: v.make, model: v.model, extra: machine.notes }),
+    )),
+    ...servosOf(machine).flatMap((v) => [
+      asset("servo", "Servo", v.drive_make, v.drive_model, null, null,
+        checkAsset("servo", { make: v.drive_make, model: v.drive_model, extra: machine.notes })),
+      asset("servo", "Servo motor", v.motor_make, v.motor_model, null, v.motor_part_no,
+        checkAsset("servo", { make: v.motor_make, model: v.motor_model, partNo: v.motor_part_no, extra: machine.notes })),
+    ]),
   ].filter((a): a is AssetFinding => a !== null);
 
   const rank: Record<LifecycleStatus | "unknown", number> = {
@@ -181,15 +187,15 @@ export function assessMachine(machine: MappingMachine): MachineAssessment {
   const today: string[] = [];
   const plc = [machine.plc_make, machine.plc_model, machine.plc_series].filter(Boolean).join(" ");
   const hmi = [machine.hmi_make, machine.hmi_model].filter(Boolean).join(" ");
-  const vfd = [machine.vfd_make, machine.vfd_model].filter(Boolean).join(" ");
-  const srv = [machine.servo_drive_make, machine.servo_drive_model].filter(Boolean).join(" ");
+  const vfdLines = vfdsOf(machine).map(formatVfdLine);
+  const servoLines = servosOf(machine).map(formatServoLine);
   if (plc) today.push(`PLC — ${plc}`);
   else today.push("PLC — not recorded");
   if (hmi) today.push(`HMI — ${hmi}`);
   else if (observations.operator_interface === "none") today.push("HMI — none");
   else if (observations.operator_interface === "pushbuttons") today.push("HMI — pushbuttons only");
-  if (vfd) today.push(`VFD — ${vfd}`);
-  if (srv) today.push(`Servo — ${srv}`);
+  if (vfdLines.length) today.push(`VFD — ${vfdLines.join("; ")}`);
+  if (servoLines.length) today.push(`Servo — ${servoLines.join("; ")}`);
   if (observations.network) {
     const netLabel: Record<string, string> = {
       island: "isolated island",
@@ -238,14 +244,23 @@ export function lifeFor(
     return checkAsset("hmi", { make: machine.hmi_make, model: machine.hmi_model, partNo: machine.hmi_part_no, extra: machine.notes });
   }
   if (cat === "vfd") {
-    return checkAsset("drive", { make: machine.vfd_make, model: machine.vfd_model, extra: machine.notes });
+    const rank: Record<LifecycleStatus | "unknown", number> = {
+      unsupported: 3, discontinued: 2, mature: 1, unknown: 0,
+    };
+    return vfdsOf(machine).reduce<LifecycleResult>((worst, v) => {
+      const life = checkAsset("drive", { make: v.make, model: v.model, extra: machine.notes });
+      return rank[life.status] > rank[worst.status] ? life : worst;
+    }, { obsolete: false, status: "unknown" });
   }
-  const drive = checkAsset("servo", { make: machine.servo_drive_make, model: machine.servo_drive_model, extra: machine.notes });
-  if (drive.status !== "unknown") return drive;
-  return checkAsset("servo", {
-    make: machine.servo_motor_make, model: machine.servo_motor_model, partNo: machine.servo_motor_part_no,
-    extra: machine.notes,
-  });
+  const rank: Record<LifecycleStatus | "unknown", number> = {
+    unsupported: 3, discontinued: 2, mature: 1, unknown: 0,
+  };
+  return servosOf(machine).reduce<LifecycleResult>((worst, v) => {
+    const drive = checkAsset("servo", { make: v.drive_make, model: v.drive_model, extra: machine.notes });
+    const motor = checkAsset("servo", { make: v.motor_make, model: v.motor_model, partNo: v.motor_part_no, extra: machine.notes });
+    const next = rank[drive.status] >= rank[motor.status] ? drive : motor;
+    return rank[next.status] > rank[worst.status] ? next : worst;
+  }, { obsolete: false, status: "unknown" });
 }
 
 export interface PlantNarrative {

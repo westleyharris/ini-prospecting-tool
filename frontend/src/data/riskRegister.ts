@@ -1,6 +1,8 @@
 import type { Mapping, MappingMachine } from "../api/mappings";
 import { checkAsset, type EquipmentCategory, type LifecycleStatus } from "./obsoleteEquipment";
 import { machineTag } from "./consolidateMappings";
+import { vfdsOf } from "./vfds";
+import { servosOf } from "./servos";
 
 /**
  * Lifecycle risk register.
@@ -44,6 +46,7 @@ interface Candidate {
   model: string | null;
   series?: string | null;
   partNo?: string | null;
+  quantity: number;
 }
 
 const NOISE_TOKENS = new Set([
@@ -64,11 +67,19 @@ function normalizeModel(model: string): string {
 
 function candidatesFor(m: MappingMachine): Candidate[] {
   return [
-    { category: "plc", categoryLabel: "PLC", make: m.plc_make, model: m.plc_model, series: m.plc_series, partNo: m.plc_part_no },
-    { category: "hmi", categoryLabel: "HMI", make: m.hmi_make, model: m.hmi_model, partNo: m.hmi_part_no },
-    { category: "drive", categoryLabel: "VFD", make: m.vfd_make, model: m.vfd_model },
-    { category: "servo", categoryLabel: "Servo", make: m.servo_drive_make, model: m.servo_drive_model },
-    { category: "servo", categoryLabel: "Servo motor", make: m.servo_motor_make, model: m.servo_motor_model, partNo: m.servo_motor_part_no },
+    { category: "plc", categoryLabel: "PLC", make: m.plc_make, model: m.plc_model, series: m.plc_series, partNo: m.plc_part_no, quantity: 1 },
+    { category: "hmi", categoryLabel: "HMI", make: m.hmi_make, model: m.hmi_model, partNo: m.hmi_part_no, quantity: 1 },
+    ...vfdsOf(m).map((v) => ({
+      category: "drive" as const,
+      categoryLabel: "VFD",
+      make: v.make,
+      model: v.model,
+      quantity: v.quantity,
+    })),
+    ...servosOf(m).flatMap((v) => [
+      { category: "servo" as const, categoryLabel: "Servo", make: v.drive_make, model: v.drive_model, quantity: v.quantity },
+      { category: "servo" as const, categoryLabel: "Servo motor", make: v.motor_make, model: v.motor_model, partNo: v.motor_part_no, quantity: v.quantity },
+    ]),
   ];
 }
 
@@ -155,8 +166,10 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
 
       const existing = grouped.get(key);
       if (existing) {
-        existing.machines.push({ id: machine.id, tag, name });
-        existing.unitCount += 1;
+        if (!existing.machines.some((x) => x.id === machine.id)) {
+          existing.machines.push({ id: machine.id, tag, name });
+        }
+        existing.unitCount += c.quantity;
         if (make.length > existing.make.length) existing.make = make;
         if (model && (!existing.model || (result.family && existing.model !== result.family) || model.length < existing.model.length)) {
           existing.model = result.family || model;
@@ -169,7 +182,7 @@ export function buildRiskRegister(mapping: Mapping): RiskRegister {
           make,
           model,
           machines: [{ id: machine.id, tag, name }],
-          unitCount: 1,
+          unitCount: c.quantity,
           eolYear: result.eolYear,
           note: result.note ?? "",
           successor: result.successor,

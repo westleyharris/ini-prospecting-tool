@@ -14,6 +14,50 @@ export interface MappingPhoto {
   created_at: string;
 }
 
+/** One installed drive model on a machine. A machine can have several, each with its own quantity. */
+export interface MachineVfd {
+  id: string;
+  machine_id: string;
+  sort_order: number;
+  make: string | null;
+  model: string | null;
+  hp: string | null;
+  voltage: string | null;
+  quantity: number;
+}
+
+/** One servo axis on a machine. A machine can have several, each with its own quantity. */
+export interface MachineServo {
+  id: string;
+  machine_id: string;
+  sort_order: number;
+  drive_make: string | null;
+  drive_model: string | null;
+  motor_make: string | null;
+  motor_model: string | null;
+  motor_part_no: string | null;
+  quantity: number;
+}
+
+/** Payload for replacing a machine's servo list. Blank rows are dropped server-side. */
+export interface ServoInput {
+  drive_make?: string | null;
+  drive_model?: string | null;
+  motor_make?: string | null;
+  motor_model?: string | null;
+  motor_part_no?: string | null;
+  quantity?: number | null;
+}
+
+/** Payload for replacing a machine's drive list. Blank rows are dropped server-side. */
+export interface VfdInput {
+  make?: string | null;
+  model?: string | null;
+  hp?: string | null;
+  voltage?: string | null;
+  quantity?: number | null;
+}
+
 export interface MappingMachine {
   id: string;
   mapping_id: string;
@@ -30,6 +74,10 @@ export interface MappingMachine {
   vfd_model: string | null;
   vfd_hp: string | null;
   vfd_voltage: string | null;
+  /** Present on mapping loads. Empty array means no drives. Omitted only on older payloads. */
+  vfds?: MachineVfd[];
+  /** Present on mapping loads. Empty array means no servos. Omitted only on older payloads. */
+  servos?: MachineServo[];
   servo_drive_make: string | null;
   servo_drive_model: string | null;
   servo_motor_make: string | null;
@@ -143,9 +191,16 @@ export function deleteMapping(id: string): Promise<{ ok: boolean }> {
 
 // ─── Machines ─────────────────────────────────────────────────────────────────
 
+export type MachinePatch = Partial<
+  Omit<MappingMachine, "id" | "mapping_id" | "created_at" | "updated_at" | "photos" | "vfds" | "servos" | "line_name" | "display_tag">
+> & {
+  vfds?: VfdInput[];
+  servos?: ServoInput[];
+};
+
 export function createMachine(
   mappingId: string,
-  data: Partial<Omit<MappingMachine, "id" | "mapping_id" | "created_at" | "updated_at" | "photos">>
+  data: MachinePatch
 ): Promise<MappingMachine> {
   return apiFetch(`${BASE}/mappings/${mappingId}/machines`, {
     method: "POST",
@@ -156,7 +211,7 @@ export function createMachine(
 
 export function updateMachine(
   machineId: string,
-  data: Partial<Omit<MappingMachine, "id" | "mapping_id" | "created_at" | "updated_at" | "photos">>
+  data: MachinePatch
 ): Promise<MappingMachine> {
   return apiFetch(`${BASE}/mappings/machines/${machineId}`, {
     method: "PATCH",

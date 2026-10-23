@@ -35,6 +35,194 @@ function now() {
   return new Date().toISOString();
 }
 
+interface VfdRow {
+  id: string;
+  machine_id: string;
+  sort_order: number;
+  make: string | null;
+  model: string | null;
+  hp: string | null;
+  voltage: string | null;
+  quantity: number;
+}
+
+interface VfdInput {
+  make: string | null;
+  model: string | null;
+  hp: string | null;
+  voltage: string | null;
+  quantity: number;
+}
+
+function textOrNull(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+function qtyOf(value: unknown): number {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(999, Math.round(n));
+}
+
+function parseVfdList(raw: unknown): VfdInput[] {
+  if (!Array.isArray(raw)) return [];
+  const out: VfdInput[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const make = textOrNull(row.make);
+    const model = textOrNull(row.model);
+    const hp = textOrNull(row.hp);
+    const voltage = textOrNull(row.voltage);
+    if (!make && !model && !hp && !voltage) continue;
+    out.push({ make, model, hp, voltage, quantity: qtyOf(row.quantity) });
+  }
+  return out;
+}
+
+function vfdsForMachines(machineIds: string[]): Record<string, VfdRow[]> {
+  const grouped: Record<string, VfdRow[]> = {};
+  if (machineIds.length === 0) return grouped;
+  const placeholders = machineIds.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT * FROM machine_vfds WHERE machine_id IN (${placeholders}) ORDER BY sort_order ASC, created_at ASC`
+    )
+    .all(...machineIds) as VfdRow[];
+  for (const row of rows) {
+    if (!grouped[row.machine_id]) grouped[row.machine_id] = [];
+    grouped[row.machine_id].push(row);
+  }
+  return grouped;
+}
+
+/** Replace the drive list and mirror the first row onto the legacy single-slot columns. */
+function replaceMachineVfds(machineId: string, rows: VfdInput[]) {
+  const ts = now();
+  const write = db.transaction(() => {
+    db.prepare("DELETE FROM machine_vfds WHERE machine_id = ?").run(machineId);
+    const insert = db.prepare(
+      `INSERT INTO machine_vfds
+        (id, machine_id, sort_order, make, model, hp, voltage, quantity, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    rows.forEach((row, index) => {
+      insert.run(randomUUID(), machineId, index, row.make, row.model, row.hp, row.voltage, row.quantity, ts, ts);
+    });
+    const first = rows[0];
+    db.prepare(
+      `UPDATE mapping_machines
+       SET vfd_make = ?, vfd_model = ?, vfd_hp = ?, vfd_voltage = ?, updated_at = ?
+       WHERE id = ?`
+    ).run(first?.make ?? null, first?.model ?? null, first?.hp ?? null, first?.voltage ?? null, ts, machineId);
+  });
+  write();
+}
+
+interface ServoRow {
+  id: string;
+  machine_id: string;
+  sort_order: number;
+  drive_make: string | null;
+  drive_model: string | null;
+  motor_make: string | null;
+  motor_model: string | null;
+  motor_part_no: string | null;
+  quantity: number;
+}
+
+interface ServoInput {
+  drive_make: string | null;
+  drive_model: string | null;
+  motor_make: string | null;
+  motor_model: string | null;
+  motor_part_no: string | null;
+  quantity: number;
+}
+
+function parseServoList(raw: unknown): ServoInput[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ServoInput[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const drive_make = textOrNull(row.drive_make);
+    const drive_model = textOrNull(row.drive_model);
+    const motor_make = textOrNull(row.motor_make);
+    const motor_model = textOrNull(row.motor_model);
+    const motor_part_no = textOrNull(row.motor_part_no);
+    if (!drive_make && !drive_model && !motor_make && !motor_model && !motor_part_no) continue;
+    out.push({ drive_make, drive_model, motor_make, motor_model, motor_part_no, quantity: qtyOf(row.quantity) });
+  }
+  return out;
+}
+
+function servosForMachines(machineIds: string[]): Record<string, ServoRow[]> {
+  const grouped: Record<string, ServoRow[]> = {};
+  if (machineIds.length === 0) return grouped;
+  const placeholders = machineIds.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT * FROM machine_servos WHERE machine_id IN (${placeholders}) ORDER BY sort_order ASC, created_at ASC`
+    )
+    .all(...machineIds) as ServoRow[];
+  for (const row of rows) {
+    if (!grouped[row.machine_id]) grouped[row.machine_id] = [];
+    grouped[row.machine_id].push(row);
+  }
+  return grouped;
+}
+
+/** Replace the servo list and mirror the first axis onto the legacy single-slot columns. */
+function replaceMachineServos(machineId: string, rows: ServoInput[]) {
+  const ts = now();
+  const write = db.transaction(() => {
+    db.prepare("DELETE FROM machine_servos WHERE machine_id = ?").run(machineId);
+    const insert = db.prepare(
+      `INSERT INTO machine_servos
+        (id, machine_id, sort_order, drive_make, drive_model, motor_make, motor_model, motor_part_no, quantity, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    rows.forEach((row, index) => {
+      insert.run(
+        randomUUID(), machineId, index,
+        row.drive_make, row.drive_model, row.motor_make, row.motor_model, row.motor_part_no,
+        row.quantity, ts, ts,
+      );
+    });
+    const first = rows[0];
+    db.prepare(
+      `UPDATE mapping_machines
+       SET servo_drive_make = ?, servo_drive_model = ?,
+           servo_motor_make = ?, servo_motor_model = ?, servo_motor_part_no = ?,
+           updated_at = ?
+       WHERE id = ?`
+    ).run(
+      first?.drive_make ?? null, first?.drive_model ?? null,
+      first?.motor_make ?? null, first?.motor_model ?? null, first?.motor_part_no ?? null,
+      ts, machineId,
+    );
+  });
+  write();
+}
+
+function attachLists(machineIds: string[]) {
+  return { vfds: vfdsForMachines(machineIds), servos: servosForMachines(machineIds) };
+}
+
+function loadMachine(id: string) {
+  const machine = db.prepare("SELECT * FROM mapping_machines WHERE id = ?").get(id);
+  if (!machine) return null;
+  const lists = attachLists([id]);
+  return {
+    ...(machine as object),
+    vfds: lists.vfds[id] ?? [],
+    servos: lists.servos[id] ?? [],
+  };
+}
+
 /** Nested mapping payload used by the editor, plant report, and public shares. */
 export function loadMapping(id: string) {
   const mapping = db
@@ -71,11 +259,15 @@ export function loadMapping(id: string) {
     photosByMachine[p.machine_id].push(p);
   }
 
+  const lists = attachLists(machineIds);
+
   return {
     ...(mapping as object),
     machines: (machines as { id: string }[]).map((m) => ({
       ...m,
       photos: photosByMachine[m.id] ?? [],
+      vfds: lists.vfds[m.id] ?? [],
+      servos: lists.servos[m.id] ?? [],
     })),
   };
 }
@@ -210,8 +402,13 @@ mappingsRouter.get("/:id/machines", (req, res) => {
        WHERE mapping_id = ?
        ORDER BY sort_order ASC, created_at ASC`
     )
-    .all(req.params.id);
-  res.json(rows);
+    .all(req.params.id) as { id: string }[];
+  const lists = attachLists(rows.map((r) => r.id));
+  res.json(rows.map((row) => ({
+    ...row,
+    vfds: lists.vfds[row.id] ?? [],
+    servos: lists.servos[row.id] ?? [],
+  })));
 });
 
 // POST /api/mappings/:id/machines
@@ -252,7 +449,10 @@ mappingsRouter.post("/:id/machines", (req, res) => {
     observations ?? null, notes ?? null, ts, ts
   );
 
-  res.status(201).json(db.prepare("SELECT * FROM mapping_machines WHERE id = ?").get(id));
+  if (Array.isArray(req.body.vfds)) replaceMachineVfds(id, parseVfdList(req.body.vfds));
+  if (Array.isArray(req.body.servos)) replaceMachineServos(id, parseServoList(req.body.servos));
+
+  res.status(201).json(loadMachine(id));
 });
 
 // PATCH /api/mappings/machines/:machineId
@@ -282,14 +482,68 @@ mappingsRouter.patch("/machines/:machineId", (req, res) => {
     }
   }
 
-  if (fields.length === 0) return res.status(400).json({ error: "No fields to update" });
+  const hasVfds = Array.isArray(req.body.vfds);
+  const hasServos = Array.isArray(req.body.servos);
+  if (fields.length === 0 && !hasVfds && !hasServos) return res.status(400).json({ error: "No fields to update" });
 
-  fields.push("updated_at = ?");
-  values.push(now());
-  values.push(req.params.machineId);
+  if (fields.length > 0) {
+    fields.push("updated_at = ?");
+    values.push(now());
+    values.push(req.params.machineId);
+    db.prepare(`UPDATE mapping_machines SET ${fields.join(", ")} WHERE id = ?`).run(...values);
+  }
 
-  db.prepare(`UPDATE mapping_machines SET ${fields.join(", ")} WHERE id = ?`).run(...values);
-  res.json(db.prepare("SELECT * FROM mapping_machines WHERE id = ?").get(req.params.machineId));
+  if (hasVfds) {
+    replaceMachineVfds(req.params.machineId, parseVfdList(req.body.vfds));
+  } else if (["vfd_make", "vfd_model", "vfd_hp", "vfd_voltage"].some((key) => key in req.body)) {
+    // Older clients still write the single slot. Keep the first drive row in step
+    // without discarding additional models already saved on this machine.
+    const machineRow = db.prepare(
+      "SELECT vfd_make, vfd_model, vfd_hp, vfd_voltage FROM mapping_machines WHERE id = ?"
+    ).get(req.params.machineId) as { vfd_make: string | null; vfd_model: string | null; vfd_hp: string | null; vfd_voltage: string | null };
+    const existing = vfdsForMachines([req.params.machineId])[req.params.machineId] ?? [];
+    const rest = existing.slice(1).map((row) => ({
+      make: row.make, model: row.model, hp: row.hp, voltage: row.voltage, quantity: row.quantity,
+    }));
+    const primary = {
+      make: machineRow.vfd_make, model: machineRow.vfd_model, hp: machineRow.vfd_hp, voltage: machineRow.vfd_voltage, quantity: existing[0]?.quantity ?? 1,
+    };
+    const next = (!primary.make && !primary.model && !primary.hp && !primary.voltage) ? rest : [primary, ...rest];
+    replaceMachineVfds(req.params.machineId, next);
+  }
+
+  if (hasServos) {
+    replaceMachineServos(req.params.machineId, parseServoList(req.body.servos));
+  } else if (["servo_drive_make", "servo_drive_model", "servo_motor_make", "servo_motor_model", "servo_motor_part_no"].some((key) => key in req.body)) {
+    const machineRow = db.prepare(
+      `SELECT servo_drive_make, servo_drive_model, servo_motor_make, servo_motor_model, servo_motor_part_no
+       FROM mapping_machines WHERE id = ?`
+    ).get(req.params.machineId) as {
+      servo_drive_make: string | null;
+      servo_drive_model: string | null;
+      servo_motor_make: string | null;
+      servo_motor_model: string | null;
+      servo_motor_part_no: string | null;
+    };
+    const existing = servosForMachines([req.params.machineId])[req.params.machineId] ?? [];
+    const rest = existing.slice(1).map((row) => ({
+      drive_make: row.drive_make, drive_model: row.drive_model,
+      motor_make: row.motor_make, motor_model: row.motor_model, motor_part_no: row.motor_part_no,
+      quantity: row.quantity,
+    }));
+    const primary = {
+      drive_make: machineRow.servo_drive_make,
+      drive_model: machineRow.servo_drive_model,
+      motor_make: machineRow.servo_motor_make,
+      motor_model: machineRow.servo_motor_model,
+      motor_part_no: machineRow.servo_motor_part_no,
+      quantity: existing[0]?.quantity ?? 1,
+    };
+    const empty = !primary.drive_make && !primary.drive_model && !primary.motor_make && !primary.motor_model && !primary.motor_part_no;
+    replaceMachineServos(req.params.machineId, empty ? rest : [primary, ...rest]);
+  }
+
+  res.json(loadMachine(req.params.machineId));
 });
 
 // DELETE /api/mappings/machines/:machineId
@@ -394,34 +648,53 @@ mappingsRouter.post(
             db.prepare(`UPDATE mapping_machines SET ${updates.join(", ")} WHERE id = ?`).run(...vals);
           }
         } else if (category === "vfd") {
-          const updates: string[] = [];
-          const vals: unknown[] = [];
-          const m = db.prepare("SELECT * FROM mapping_machines WHERE id = ?").get(machine.id) as Record<string, unknown>;
-          if (!m.vfd_make && result.make)       { updates.push("vfd_make = ?");    vals.push(result.make); }
-          if (!m.vfd_model && result.model)     { updates.push("vfd_model = ?");   vals.push(result.model); }
-          if (!m.vfd_hp && result.hp)           { updates.push("vfd_hp = ?");      vals.push(result.hp); }
-          if (!m.vfd_voltage && result.voltage) { updates.push("vfd_voltage = ?"); vals.push(result.voltage); }
-          if (updates.length) {
-            updates.push("updated_at = ?"); vals.push(now()); vals.push(machine.id);
-            db.prepare(`UPDATE mapping_machines SET ${updates.join(", ")} WHERE id = ?`).run(...vals);
+          const m = db.prepare("SELECT * FROM mapping_machines WHERE id = ?").get(machine.id) as Record<string, string | null>;
+          const existing = vfdsForMachines([machine.id])[machine.id] ?? [];
+          const first = existing[0];
+          const filled = {
+            make: first?.make || m.vfd_make || result.make || null,
+            model: first?.model || m.vfd_model || result.model || null,
+            hp: first?.hp || m.vfd_hp || result.hp || null,
+            voltage: first?.voltage || m.vfd_voltage || result.voltage || null,
+          };
+          const changed = filled.make !== (first?.make ?? null)
+            || filled.model !== (first?.model ?? null)
+            || filled.hp !== (first?.hp ?? null)
+            || filled.voltage !== (first?.voltage ?? null);
+          if (changed && (filled.make || filled.model || filled.hp || filled.voltage)) {
+            const rest = existing.slice(1).map((row) => ({
+              make: row.make, model: row.model, hp: row.hp, voltage: row.voltage, quantity: row.quantity,
+            }));
+            replaceMachineVfds(machine.id, [
+              { ...filled, quantity: first?.quantity ?? 1 },
+              ...rest,
+            ]);
           }
         } else if (category === "servo") {
-          const updates: string[] = [];
-          const vals: unknown[] = [];
-          const m = db.prepare("SELECT * FROM mapping_machines WHERE id = ?").get(machine.id) as Record<string, unknown>;
-          // Route to drive or motor fields based on OCR component hint
+          const m = db.prepare("SELECT * FROM mapping_machines WHERE id = ?").get(machine.id) as Record<string, string | null>;
+          const existing = servosForMachines([machine.id])[machine.id] ?? [];
+          const first = existing[0];
           const isDrive = !result.component || result.component === "drive";
-          if (isDrive) {
-            if (!m.servo_drive_make  && result.make)    { updates.push("servo_drive_make = ?");  vals.push(result.make); }
-            if (!m.servo_drive_model && result.model)   { updates.push("servo_drive_model = ?"); vals.push(result.model); }
-          } else {
-            if (!m.servo_motor_make     && result.make)     { updates.push("servo_motor_make = ?");     vals.push(result.make); }
-            if (!m.servo_motor_model    && result.model)    { updates.push("servo_motor_model = ?");    vals.push(result.model); }
-            if (!m.servo_motor_part_no  && result.part_no)  { updates.push("servo_motor_part_no = ?");  vals.push(result.part_no); }
-          }
-          if (updates.length) {
-            updates.push("updated_at = ?"); vals.push(now()); vals.push(machine.id);
-            db.prepare(`UPDATE mapping_machines SET ${updates.join(", ")} WHERE id = ?`).run(...vals);
+          const filled = {
+            drive_make: first?.drive_make || m.servo_drive_make || (isDrive ? result.make : null) || null,
+            drive_model: first?.drive_model || m.servo_drive_model || (isDrive ? result.model : null) || null,
+            motor_make: first?.motor_make || m.servo_motor_make || (!isDrive ? result.make : null) || null,
+            motor_model: first?.motor_model || m.servo_motor_model || (!isDrive ? result.model : null) || null,
+            motor_part_no: first?.motor_part_no || m.servo_motor_part_no || (!isDrive ? result.part_no : null) || null,
+          };
+          const changed = filled.drive_make !== (first?.drive_make ?? null)
+            || filled.drive_model !== (first?.drive_model ?? null)
+            || filled.motor_make !== (first?.motor_make ?? null)
+            || filled.motor_model !== (first?.motor_model ?? null)
+            || filled.motor_part_no !== (first?.motor_part_no ?? null);
+          const any = filled.drive_make || filled.drive_model || filled.motor_make || filled.motor_model || filled.motor_part_no;
+          if (changed && any) {
+            const rest = existing.slice(1).map((row) => ({
+              drive_make: row.drive_make, drive_model: row.drive_model,
+              motor_make: row.motor_make, motor_model: row.motor_model, motor_part_no: row.motor_part_no,
+              quantity: row.quantity,
+            }));
+            replaceMachineServos(machine.id, [{ ...filled, quantity: first?.quantity ?? 1 }, ...rest]);
           }
         }
       })

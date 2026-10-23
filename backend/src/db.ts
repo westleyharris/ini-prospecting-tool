@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import Database from "better-sqlite3";
 import { join, dirname } from "path";
 import { existsSync, mkdirSync } from "fs";
@@ -147,6 +148,35 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_mapping_machines_mapping_id ON mapping_machines(mapping_id);
 
+  CREATE TABLE IF NOT EXISTS machine_vfds (
+    id TEXT PRIMARY KEY,
+    machine_id TEXT NOT NULL REFERENCES mapping_machines(id) ON DELETE CASCADE,
+    sort_order INTEGER DEFAULT 0,
+    make TEXT,
+    model TEXT,
+    hp TEXT,
+    voltage TEXT,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_machine_vfds_machine_id ON machine_vfds(machine_id);
+
+  CREATE TABLE IF NOT EXISTS machine_servos (
+    id TEXT PRIMARY KEY,
+    machine_id TEXT NOT NULL REFERENCES mapping_machines(id) ON DELETE CASCADE,
+    sort_order INTEGER DEFAULT 0,
+    drive_make TEXT,
+    drive_model TEXT,
+    motor_make TEXT,
+    motor_model TEXT,
+    motor_part_no TEXT,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_machine_servos_machine_id ON machine_servos(machine_id);
+
   CREATE TABLE IF NOT EXISTS mapping_photos (
     id TEXT PRIMARY KEY,
     machine_id TEXT NOT NULL REFERENCES mapping_machines(id) ON DELETE CASCADE,
@@ -265,6 +295,67 @@ for (const col of newMachineColumns) {
   if (!existingMachineColsSet.has(col.name)) {
     db.exec(`ALTER TABLE mapping_machines ADD COLUMN ${col.name} ${col.type}`);
   }
+}
+
+// Existing single-slot VFD fields become the first drive row at quantity 1.
+const legacyVfds = db.prepare(`
+  SELECT id, vfd_make, vfd_model, vfd_hp, vfd_voltage
+  FROM mapping_machines m
+  WHERE (
+    COALESCE(vfd_make, '') != '' OR COALESCE(vfd_model, '') != '' OR
+    COALESCE(vfd_hp, '') != '' OR COALESCE(vfd_voltage, '') != ''
+  )
+  AND NOT EXISTS (SELECT 1 FROM machine_vfds v WHERE v.machine_id = m.id)
+`).all() as { id: string; vfd_make: string | null; vfd_model: string | null; vfd_hp: string | null; vfd_voltage: string | null }[];
+
+if (legacyVfds.length > 0) {
+  const insertLegacyVfd = db.prepare(`
+    INSERT INTO machine_vfds (id, machine_id, sort_order, make, model, hp, voltage, quantity, created_at, updated_at)
+    VALUES (?, ?, 0, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+  `);
+  const backfillVfds = db.transaction(() => {
+    for (const m of legacyVfds) {
+      insertLegacyVfd.run(randomUUID(), m.id, m.vfd_make, m.vfd_model, m.vfd_hp, m.vfd_voltage);
+    }
+  });
+  backfillVfds();
+}
+
+// Existing single-slot servo fields become the first axis at quantity 1.
+const legacyServos = db.prepare(`
+  SELECT id, servo_drive_make, servo_drive_model, servo_motor_make, servo_motor_model, servo_motor_part_no
+  FROM mapping_machines m
+  WHERE (
+    COALESCE(servo_drive_make, '') != '' OR COALESCE(servo_drive_model, '') != '' OR
+    COALESCE(servo_motor_make, '') != '' OR COALESCE(servo_motor_model, '') != '' OR
+    COALESCE(servo_motor_part_no, '') != ''
+  )
+  AND NOT EXISTS (SELECT 1 FROM machine_servos s WHERE s.machine_id = m.id)
+`).all() as {
+  id: string;
+  servo_drive_make: string | null;
+  servo_drive_model: string | null;
+  servo_motor_make: string | null;
+  servo_motor_model: string | null;
+  servo_motor_part_no: string | null;
+}[];
+
+if (legacyServos.length > 0) {
+  const insertLegacyServo = db.prepare(`
+    INSERT INTO machine_servos
+      (id, machine_id, sort_order, drive_make, drive_model, motor_make, motor_model, motor_part_no, quantity, created_at, updated_at)
+    VALUES (?, ?, 0, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+  `);
+  const backfillServos = db.transaction(() => {
+    for (const m of legacyServos) {
+      insertLegacyServo.run(
+        randomUUID(), m.id,
+        m.servo_drive_make, m.servo_drive_model,
+        m.servo_motor_make, m.servo_motor_model, m.servo_motor_part_no,
+      );
+    }
+  });
+  backfillServos();
 }
 
 export interface Plant {
