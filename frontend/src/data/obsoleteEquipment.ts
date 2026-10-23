@@ -83,6 +83,8 @@ const MAKE_ALIASES: Record<string, string> = {
   "rockwell automation": "allen bradley",
   "allen bradley rockwell": "allen bradley",
   "a b rockwell": "allen bradley",
+  compactlogix: "allen bradley",
+  "compact logix": "allen bradley",
   "ge fanuc": "ge",
   "ge automation": "ge",
   "schneider electric": "schneider",
@@ -156,10 +158,6 @@ function makeHits(aliasedMake: string, makeParts: string[]): boolean {
   if (makeParts.length === 0) return true;
   if (!aliasedMake) return false;
   return makeParts.some((p) => aliasedMake.includes(p.toLowerCase()));
-}
-
-function modelHits(hayTokens: string[], modelParts: string[]): boolean {
-  return modelParts.some((p) => hasTokenSequence(hayTokens, p));
 }
 
 export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
@@ -296,9 +294,29 @@ export const OBSOLETE_EQUIPMENT: ObsoleteEntry[] = [
     category: "plc",
     makeParts: ["allen", "rockwell"],
     modelParts: ["l23e", "l24e", "l31", "l32e", "l32c", "l35e", "l35k"],
-    catalogPrefixes: ["1769l23", "1769l24", "1769l31", "1769l32", "1769l35", "1768"],
+    catalogPrefixes: ["1769l23", "1769l24", "1769l31", "1769l32", "1769l35"],
     status: "discontinued",
-    note: "Early CompactLogix (1769-L3x / 1768) discontinued by Rockwell Automation.",
+    note: "Early CompactLogix 1769-L2x / L3x controllers discontinued by Rockwell Automation.",
+    successor: "CompactLogix 5380",
+  },
+  {
+    category: "plc",
+    makeParts: ["allen", "rockwell"],
+    modelParts: ["compactlogix l43", "1768 l43", "l43", "l43s"],
+    catalogPrefixes: ["1768l43"],
+    status: "discontinued",
+    eolYear: 2020,
+    note: "CompactLogix L43 (1768-L43, 2 MB) last ship 30 June 2020. Engineering replacement. 1768-L43S (Compact GuardLogix) is the same discontinued platform.",
+    successor: "CompactLogix 5380",
+  },
+  {
+    category: "plc",
+    makeParts: ["allen", "rockwell"],
+    modelParts: ["compactlogix l45", "1768 l45", "l45", "l45s"],
+    catalogPrefixes: ["1768l45"],
+    status: "discontinued",
+    eolYear: 2020,
+    note: "CompactLogix L45 (1768-L45, 3 MB) last ship 30 June 2020. Engineering replacement. 1768-L45S (Compact GuardLogix) is the same discontinued platform.",
     successor: "CompactLogix 5380",
   },
   {
@@ -913,8 +931,9 @@ function haystackOf(asset: AssetRef): { tokens: string[]; compact: string; alias
   return { tokens: tokenize(raw), compact: compact(raw), aliasedMake };
 }
 
-function distinctiveModel(entry: ObsoleteEntry): boolean {
-  return entry.modelParts.some((p) => compact(p).length >= 4 || tokenize(p).length >= 2);
+/** Family names ("plc 5", "compactlogix l43") are specific. Short codes ("l43", "l61") are not. */
+function partIsDistinctive(part: string): boolean {
+  return compact(part).length >= 4 || tokenize(part).length >= 2;
 }
 
 function entryMatches(entry: ObsoleteEntry, hay: ReturnType<typeof haystackOf>): boolean {
@@ -926,19 +945,17 @@ function entryMatches(entry: ObsoleteEntry, hay: ReturnType<typeof haystackOf>):
     return makeHits(hay.aliasedMake, entry.makeParts);
   }
 
-  const models = modelHits(hay.tokens, entry.modelParts);
-  if (!models) return false;
+  const hits = entry.modelParts.filter((p) => hasTokenSequence(hay.tokens, p));
+  if (hits.length === 0) return false;
 
   if (makeHits(hay.aliasedMake, entry.makeParts)) return true;
 
-  // PLC-5, SLC 500, etc. are unique families. A junk OCR make (or "plc-5" typed
-  // into Make) must not hide a match the drawing already flagged as EOL.
-  if (distinctiveModel(entry)) return true;
+  // PLC-5, "CompactLogix L43", "1768-L43" still match when the make was misread.
+  // A short code does not override a different brand, so "L43" in another
+  // vendor's notes does not become a CompactLogix.
+  if (hits.some(partIsDistinctive)) return true;
 
-  if (!hay.aliasedMake) {
-    return entry.modelParts.some((p) => compact(p).length >= 4 || tokenize(p).length >= 2);
-  }
-  return false;
+  return !hay.aliasedMake;
 }
 
 function titleCase(value: string): string {
@@ -961,6 +978,9 @@ function entryFamily(entry: ObsoleteEntry): string {
   const tokens = tokenize(parts[0] ?? "");
   if (tokens[0] === "plc" && tokens[1]) return `PLC-${tokens[1].toUpperCase()}`;
   if (tokens[0] === "slc") return ["SLC", ...tokens.slice(1).map((t) => t.toUpperCase())].join(" ");
+  if (tokens[0] === "compactlogix") {
+    return ["CompactLogix", ...tokens.slice(1).map((t) => t.toUpperCase())].join(" ");
+  }
   if (tokens[0] === "p3" && tokens[1]) return `P3-${tokens[1].toUpperCase()}`;
   if (tokens[0] === "gpd" && tokens[1]) return `GPD ${tokens[1].toUpperCase()}`;
   if (tokens[0] === "eco" && tokens[1] === "drive") {
